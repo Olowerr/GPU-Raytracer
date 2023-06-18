@@ -1,7 +1,6 @@
 #pragma once
-#include <Utilities.h>
-
 #include <d3d11.h>
+#include <string>
 
 namespace Okay
 {
@@ -12,4 +11,8 @@ namespace Okay
 	ID3D11DeviceContext* getDeviceContext();
 
 	bool createSwapChain(IDXGISwapChain** ppSwapChain, HWND hWnd);
+
+	template<typename ShaderType>
+	bool createShader(std::string_view path, ShaderType** ppShader, std::string* pOutShaderData = nullptr);
+
 }

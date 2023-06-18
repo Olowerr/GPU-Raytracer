@@ -1,4 +1,7 @@
 #include "DX11.h"
+#include "Utilities.h"
+
+#include <d3dcompiler.h>
 
 namespace Okay
 {
@@ -12,9 +15,6 @@ namespace Okay
 
 	void initiateDX11()
 	{
-		OKAY_ASSERT(ppDevice);
-		OKAY_ASSERT(ppDeviceContext);
-
 		D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_0;
 		uint32_t flags = 0;
 #ifndef DIST	
@@ -84,4 +84,70 @@ namespace Okay
 		return *ppSwapChain;
 	}
 
+	template bool createShader(std::string_view path, ID3D11ComputeShader** ppShader, std::string* pOutShaderData);
+
+	template<typename ShaderType>
+	bool createShader(std::string_view path, ShaderType** ppShader, std::string* pOutShaderData)
+	{
+		if (!ppShader)
+			return false;
+
+		std::string_view fileEnding = Okay::getFileEnding(path);
+
+		if (fileEnding == ".cso" || fileEnding == ".CSO")
+		{
+			std::string shaderData;
+
+			// if pOutShaderData is nullptr, it is simply used to point to the actual buffer
+			// Allowing faster and (imo) a bit cleaner code 
+			if (!pOutShaderData)
+				pOutShaderData = &shaderData;
+
+			if (!Okay::readBinary(path, *pOutShaderData))
+				return false;
+
+			if constexpr (std::is_same<ShaderType, ID3D11ComputeShader>())
+				return SUCCEEDED(dx11.pDevice->CreateComputeShader(pOutShaderData->c_str(), pOutShaderData->length(), nullptr, ppShader));
+		}
+		else
+		{
+			// Convert char-string to wchar_t-string
+			wchar_t* lpPath = new wchar_t[path.size() + 1ull]{};
+			mbstowcs_s(nullptr, lpPath, path.size() + 1ull, path.data(), path.size());
+
+			ID3DBlob* shaderData = nullptr;
+			ID3DBlob* compileErrors = nullptr;
+
+			// If neither are defined a compiler error is produced. Forcing the user to ensure the correct one is used
+#if defined(DIST)
+			uint32_t optimizationLevel = D3DCOMPILE_OPTIMIZATION_LEVEL3 | D3DCOMPILE_SKIP_VALIDATION;
+#elif defined(_DEBUG)
+			uint32_t optimizationLevel = D3DCOMPILE_OPTIMIZATION_LEVEL0 | D3DCOMPILE_DEBUG;
+#elif defined(NDEBUG)
+			uint32_t optimizationLevel = D3DCOMPILE_OPTIMIZATION_LEVEL3 | D3DCOMPILE_DEBUG;
+#endif
+
+			const char* shaderTypeTarget = nullptr;
+			if constexpr (std::is_same<ShaderType, ID3D11ComputeShader>())	shaderTypeTarget = "cs_5_0";
+
+
+			//IncludeReader includer;
+			HRESULT hr = D3DCompileFromFile(lpPath, nullptr, nullptr, "main", shaderTypeTarget, optimizationLevel, 0u, &shaderData, &compileErrors);
+			OKAY_DELETE_ARRAY(lpPath);
+
+			if (FAILED(hr))
+			{
+				printf("Shader compilation error: %s\n", compileErrors ? (char*)compileErrors->GetBufferPointer() : "No information, file might not have been found");
+				return false;
+			}
+
+			if (pOutShaderData)
+				pOutShaderData->assign((char*)shaderData->GetBufferPointer(), shaderData->GetBufferSize());
+
+			if constexpr (std::is_same<ShaderType, ID3D11ComputeShader>())
+				return SUCCEEDED(dx11.pDevice->CreateComputeShader(shaderData->GetBufferPointer(), shaderData->GetBufferSize(), nullptr, ppShader));
+		}
+
+		return false;
+	}
 }

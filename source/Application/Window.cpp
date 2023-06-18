@@ -40,7 +40,7 @@ void Window::initiate(uint32_t width, uint32_t height, std::string_view windowNa
 	OKAY_ASSERT(m_pGLWindow);
 
 	Okay::createSwapChain(&m_pDXSwapChain, glfwGetWin32Window(m_pGLWindow));
-	OKAY_ASSERT(m_pDX11SwapChain);
+	OKAY_ASSERT(m_pDXSwapChain);
 
 	m_pDXSwapChain->GetBuffer(0u, __uuidof(ID3D11Texture2D), (void**)&m_pDXBackBuffer);
 	OKAY_ASSERT(m_pDXBackBuffer);
