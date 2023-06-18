@@ -1,11 +1,16 @@
-#pragma once
-#include <Utilities.h>
+#include "DX11.h"
 
-#include <d3d11.h>
-
-namespace OkayDX11
+namespace Okay
 {
-	static bool createDevice(ID3D11Device** ppDevice, ID3D11DeviceContext** ppDeviceContext)
+	struct DX11
+	{
+		ID3D11Device* pDevice = nullptr;
+		ID3D11DeviceContext* pDeviceContext = nullptr;
+	};
+
+	static DX11 dx11;
+
+	void initiateDX11()
 	{
 		OKAY_ASSERT(ppDevice);
 		OKAY_ASSERT(ppDeviceContext);
@@ -16,13 +21,30 @@ namespace OkayDX11
 		flags = D3D11_CREATE_DEVICE_DEBUG;
 #endif
 
-		return SUCCEEDED(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, flags, 
-			&featureLevel, 1u, D3D11_SDK_VERSION, ppDevice, nullptr, ppDeviceContext));
+		HRESULT hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, flags,
+			&featureLevel, 1u, D3D11_SDK_VERSION, &dx11.pDevice, nullptr, &dx11.pDeviceContext);
+
+		OKAY_ASSERT(SUCCEEDED(hr));
 	}
 
-	static bool createSwapChain(ID3D11Device* pDevice, IDXGISwapChain** ppSwapChain, HWND hWnd)
+	void shutdownDX11()
 	{
-		OKAY_ASSERT(pDevice);
+		DX11_RELEASE(dx11.pDevice);
+		DX11_RELEASE(dx11.pDeviceContext);
+	}
+
+	ID3D11Device* getDevice()
+	{
+		return dx11.pDevice;
+	}
+
+	ID3D11DeviceContext* getDeviceContext()
+	{
+		return dx11.pDeviceContext;
+	}
+
+	bool createSwapChain(IDXGISwapChain** ppSwapChain, HWND hWnd)
+	{
 		OKAY_ASSERT(ppSwapChain);
 		OKAY_ASSERT(hWnd);
 
@@ -50,15 +72,16 @@ namespace OkayDX11
 		IDXGIAdapter* adapter = nullptr;
 		IDXGIFactory* factory = nullptr;
 
-		pDevice->QueryInterface(__uuidof(IDXGIDevice), (void**)&idxDevice);
+		dx11.pDevice->QueryInterface(__uuidof(IDXGIDevice), (void**)&idxDevice);
 		idxDevice->GetParent(__uuidof(IDXGIAdapter), (void**)&adapter);
 		adapter->GetParent(__uuidof(IDXGIFactory), (void**)&factory);
 
-		factory->CreateSwapChain(pDevice, &desc, ppSwapChain);
+		factory->CreateSwapChain(dx11.pDevice, &desc, ppSwapChain);
 		DX11_RELEASE(idxDevice);
 		DX11_RELEASE(adapter);
 		DX11_RELEASE(factory);
 
 		return *ppSwapChain;
 	}
+
 }

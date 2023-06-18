@@ -1,5 +1,5 @@
 #include "Window.h"
-#include "DirectX/DX11Utilities.h"
+#include "DirectX/DX11.h"
 
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
@@ -9,9 +9,9 @@ Window::Window()
 {
 }
 
-Window::Window(uint32_t width, uint32_t height, std::string_view windowName, ID3D11Device* pDevice)
+Window::Window(uint32_t width, uint32_t height, std::string_view windowName)
 {
-	initiate(width, height, windowName, pDevice);
+	initiate(width, height, windowName);
 }
 
 Window::~Window()
@@ -22,12 +22,12 @@ Window::~Window()
 	DX11_RELEASE(m_pDX11SwapChain);
 }
 
-void Window::initiate(uint32_t width, uint32_t height, std::string_view windowName, ID3D11Device* pDevice)
+void Window::initiate(uint32_t width, uint32_t height, std::string_view windowName)
 {
 	m_pGLWindow = glfwCreateWindow(width, height, windowName.data(), nullptr, nullptr);
 	OKAY_ASSERT(m_pGLWindow);
 
-	OkayDX11::createSwapChain(pDevice, &m_pDX11SwapChain, glfwGetWin32Window(m_pGLWindow));
+	Okay::createSwapChain(&m_pDX11SwapChain, glfwGetWin32Window(m_pGLWindow));
 	OKAY_ASSERT(m_pDX11SwapChain);
 }
 

@@ -236,13 +236,16 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="source\Application\Application.cpp" />
+    <ClCompile Include="source\DirectX\DX11.cpp" />
+    <ClCompile Include="source\Graphics\Renderer.cpp" />
     <ClCompile Include="source\main.cpp" />
     <ClCompile Include="source\Application\Window.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\Application\Application.h" />
     <ClInclude Include="source\Application\Window.h" />
-    <ClInclude Include="source\DirectX\DX11Utilities.h" />
+    <ClInclude Include="source\DirectX\DX11.h" />
+    <ClInclude Include="source\Graphics\Renderer.h" />
     <ClInclude Include="source\Utilities.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

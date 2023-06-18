@@ -7,10 +7,10 @@ class Window
 {
 public:
 	Window();
-	Window(uint32_t width, uint32_t height, std::string_view windowName, ID3D11Device* pDevice);
+	Window(uint32_t width, uint32_t height, std::string_view windowName);
 	~Window();
 
-	void initiate(uint32_t width, uint32_t height, std::string_view windowName, ID3D11Device* pDevice);
+	void initiate(uint32_t width, uint32_t height, std::string_view windowName);
 
 	bool isOpen();
 
