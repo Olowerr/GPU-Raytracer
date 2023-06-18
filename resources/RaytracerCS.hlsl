@@ -8,7 +8,7 @@ RWTexture2D<float4> resultBuffer : register(u0);
 static float3 sphereCenter = float3(800.f, 450.f, 1000.f);
 static float sphereRadius = 300.f;
 
-[numthreads(1, 1, 1)]
+[numthreads(16, 9, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )
 {
     float3 rayOrigin = float3(DTid.xy, 0.f);
@@ -28,4 +28,5 @@ void main( uint3 DTid : SV_DispatchThreadID )
         return;
     
     resultBuffer[DTid.xy] = float4(1.f, 0.7f, 0.5f, 1.f);
+
 }

@@ -54,5 +54,5 @@ void Renderer::render()
 	pDevCon->CSSetShader(m_pMainRaytracingCS, nullptr, 0u);
 	pDevCon->CSSetUnorderedAccessViews(0u, 1u, &m_pBufferUAV, nullptr);
 
-	pDevCon->Dispatch(m_width, m_height, 1u);
+	pDevCon->Dispatch(m_width / 16, m_height / 9, 1u);
 }

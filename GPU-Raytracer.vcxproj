@@ -170,12 +170,13 @@
       <AdditionalIncludeDirectories>$(SolutionDir)deps\include\;$(SolutionDir)source\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>GLFW\glfw3.lib;D3D11.lib;D3DCompiler.lib;$(CoreLibraryDependencies);</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)deps\lib;</AdditionalLibraryDirectories>
+      <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -226,12 +227,13 @@
       <AdditionalIncludeDirectories>$(SolutionDir)deps\include\;$(SolutionDir)source\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>GLFW\glfw3.lib;D3D11.lib;D3DCompiler.lib;$(CoreLibraryDependencies);</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)deps\lib;</AdditionalLibraryDirectories>
+      <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
