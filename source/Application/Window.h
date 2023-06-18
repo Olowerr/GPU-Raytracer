@@ -1,7 +1,7 @@
 #pragma once
 #include <GLFW/glfw3.h>
 #include <string_view>
-#include <d3d11.h>
+#include "DirectX/DX11.h"
 
 class Window
 {
@@ -10,15 +10,39 @@ public:
 	Window(uint32_t width, uint32_t height, std::string_view windowName);
 	~Window();
 
+	void shutdown();
 	void initiate(uint32_t width, uint32_t height, std::string_view windowName);
 
-	bool isOpen();
+	inline ID3D11Texture2D* getBackBuffer();
 
-	void processMessages();
-	void present();
+	inline bool isOpen();
 
-//(temp) private:
+	inline void processMessages();
+	inline void present();
+
+private:
 	GLFWwindow* m_pGLWindow;
-	IDXGISwapChain* m_pDX11SwapChain;
-
+	
+	IDXGISwapChain* m_pDXSwapChain;
+	ID3D11Texture2D* m_pDXBackBuffer;
 };
+
+inline ID3D11Texture2D* Window::getBackBuffer()
+{
+	return m_pDXBackBuffer;
+}
+
+inline void Window::processMessages()
+{
+	glfwPollEvents(); // Maybe shouldn't be here? Fine for now tho
+}
+
+inline void Window::present()
+{
+	m_pDXSwapChain->Present(0u, 0u);
+}
+
+inline bool Window::isOpen()
+{
+	return !glfwWindowShouldClose(m_pGLWindow);
+}
