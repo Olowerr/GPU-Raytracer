@@ -84,6 +84,34 @@ namespace Okay
 		return *ppSwapChain;
 	}
 
+	bool createStructuredBuffer(ID3D11Buffer** ppBuffer, ID3D11ShaderResourceView** ppSRV, const void* pData, uint32_t eleByteSize, uint32_t numElements, bool immutable)
+	{
+		D3D11_BUFFER_DESC bufferDesc{};
+		bufferDesc.ByteWidth = eleByteSize * numElements;
+		bufferDesc.CPUAccessFlags = immutable ? 0 : D3D11_CPU_ACCESS_WRITE;
+		bufferDesc.Usage = immutable ? D3D11_USAGE_IMMUTABLE : D3D11_USAGE_DYNAMIC;
+		bufferDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+		bufferDesc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+		bufferDesc.StructureByteStride = eleByteSize;
+		D3D11_SUBRESOURCE_DATA inData{};
+		inData.pSysMem = pData;
+		inData.SysMemPitch = 0;
+		inData.SysMemSlicePitch = 0;
+
+		HRESULT hr = dx11.pDevice->CreateBuffer(&bufferDesc, pData ? &inData : nullptr, ppBuffer);
+		if (FAILED(hr))
+			return false;
+
+		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+		srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+		srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+		srvDesc.Buffer.FirstElement = 0;
+		srvDesc.Buffer.NumElements = numElements;
+
+		return SUCCEEDED(dx11.pDevice->CreateShaderResourceView(*ppBuffer, &srvDesc, ppSRV));
+
+	}
+
 	template bool createShader(std::string_view path, ID3D11ComputeShader** ppShader, std::string* pOutShaderData);
 
 	template<typename ShaderType>

@@ -1,6 +1,7 @@
 #pragma once
 #include "Window.h"
 #include "Graphics/Renderer.h"
+#include "ECS/Scene.h"
 
 class Application
 {
@@ -13,4 +14,5 @@ public:
 private:
 	Window m_window;
 	Renderer m_renderer;
+	Scene m_scene;
 };

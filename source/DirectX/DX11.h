@@ -15,4 +15,6 @@ namespace Okay
 	template<typename ShaderType>
 	bool createShader(std::string_view path, ShaderType** ppShader, std::string* pOutShaderData = nullptr);
 
+	bool createStructuredBuffer(ID3D11Buffer** ppBuffer, ID3D11ShaderResourceView** ppSRV, const void* pData, uint32_t eleByteSize, uint32_t numElements, bool immutable = false);
+
 }
