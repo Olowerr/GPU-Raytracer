@@ -1,7 +1,9 @@
 #pragma once
-#include <GLFW/glfw3.h>
-#include <string_view>
 #include "DirectX/DX11.h"
+
+#include "GLFW/glfw3.h"
+
+#include <string_view>
 
 class Window
 {
@@ -14,6 +16,7 @@ public:
 	void initiate(uint32_t width, uint32_t height, std::string_view windowName);
 
 	inline ID3D11Texture2D* getBackBuffer();
+	HWND getHWND();
 
 	inline bool isOpen();
 

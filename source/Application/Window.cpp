@@ -32,6 +32,11 @@ void Window::shutdown()
 	DX11_RELEASE(m_pDXBackBuffer);
 }
 
+HWND Window::getHWND()
+{
+	return glfwGetWin32Window(m_pGLWindow);
+}
+
 void Window::initiate(uint32_t width, uint32_t height, std::string_view windowName)
 {
 	shutdown();

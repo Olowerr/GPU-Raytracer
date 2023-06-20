@@ -88,4 +88,7 @@ void Renderer::render()
 	pDevCon->CSSetShaderResources(0u, 1u, &m_pSphereDataSRV);
 
 	pDevCon->Dispatch(m_width / 16u, m_height / 9u, 1u);
+
+	static ID3D11UnorderedAccessView* nullUAV = nullptr;
+	pDevCon->CSSetUnorderedAccessViews(0u, 1u, &nullUAV, nullptr);
 }

@@ -15,4 +15,5 @@ private:
 	Window m_window;
 	Renderer m_renderer;
 	Scene m_scene;
+	ID3D11RenderTargetView* m_pBackBuffer; //Only used for ImGui
 };
