@@ -1,7 +1,7 @@
 #pragma once
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_dx11.h"
-#include "imgui/imgui_impl_win32.h"
+#include "imgui/imgui_impl_glfw.h"
 
 #include "DirectX/DX11.h"
 
@@ -9,7 +9,7 @@ namespace Okay
 {
 	static void setStyleImGui();
 
-	static void initiateImGui(HWND hWnd)
+	static void initiateImGui(GLFWwindow* pGLFWWindow)
 	{
 		IMGUI_CHECKVERSION();
 		ImGui::CreateContext();
@@ -20,21 +20,21 @@ namespace Okay
 
 		setStyleImGui();
 
-		ImGui_ImplWin32_Init(hWnd);
+		ImGui_ImplGlfw_InitForOther(pGLFWWindow, false);
 		ImGui_ImplDX11_Init(Okay::getDevice(), Okay::getDeviceContext());
 	}
 
 	static void shutdownImGui()
 	{
 		ImGui_ImplDX11_Shutdown();
-		ImGui_ImplWin32_Shutdown();
+		ImGui_ImplGlfw_Shutdown();
 		ImGui::DestroyContext();
 	}
 
 	static void newFrameImGui()
 	{
 		ImGui_ImplDX11_NewFrame();
-		ImGui_ImplWin32_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
 	}

@@ -36,28 +36,25 @@
     <ClCompile Include="source\ECS\Scene.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\Phong-Grass\PhongGrass\deps\include\imgui\imgui.cpp">
+    <ClCompile Include="deps\include\imgui\imgui.cpp">
       <Filter>ImGui</Filter>
     </ClCompile>
-    <ClCompile Include="..\Phong-Grass\PhongGrass\deps\include\imgui\imgui_demo.cpp">
+    <ClCompile Include="deps\include\imgui\imgui_demo.cpp">
       <Filter>ImGui</Filter>
     </ClCompile>
-    <ClCompile Include="..\Phong-Grass\PhongGrass\deps\include\imgui\imgui_draw.cpp">
+    <ClCompile Include="deps\include\imgui\imgui_draw.cpp">
       <Filter>ImGui</Filter>
     </ClCompile>
-    <ClCompile Include="..\Phong-Grass\PhongGrass\deps\include\imgui\imgui_impl_dx11.cpp">
+    <ClCompile Include="deps\include\imgui\imgui_impl_dx11.cpp">
       <Filter>ImGui</Filter>
     </ClCompile>
-    <ClCompile Include="..\Phong-Grass\PhongGrass\deps\include\imgui\imgui_impl_win32.cpp">
+    <ClCompile Include="deps\include\imgui\imgui_impl_glfw.cpp">
       <Filter>ImGui</Filter>
     </ClCompile>
-    <ClCompile Include="..\Phong-Grass\PhongGrass\deps\include\imgui\imgui_stdlib.cpp">
+    <ClCompile Include="deps\include\imgui\imgui_tables.cpp">
       <Filter>ImGui</Filter>
     </ClCompile>
-    <ClCompile Include="..\Phong-Grass\PhongGrass\deps\include\imgui\imgui_tables.cpp">
-      <Filter>ImGui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Phong-Grass\PhongGrass\deps\include\imgui\imgui_widgets.cpp">
+    <ClCompile Include="deps\include\imgui\imgui_widgets.cpp">
       <Filter>ImGui</Filter>
     </ClCompile>
   </ItemGroup>
@@ -89,31 +86,28 @@
     <ClInclude Include="source\Application\ImGuiHelper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\Phong-Grass\PhongGrass\deps\include\imgui\imconfig.h">
+    <ClInclude Include="deps\include\imgui\imconfig.h">
       <Filter>ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="..\Phong-Grass\PhongGrass\deps\include\imgui\imgui.h">
+    <ClInclude Include="deps\include\imgui\imgui.h">
       <Filter>ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="..\Phong-Grass\PhongGrass\deps\include\imgui\imgui_impl_dx11.h">
+    <ClInclude Include="deps\include\imgui\imgui_impl_dx11.h">
       <Filter>ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="..\Phong-Grass\PhongGrass\deps\include\imgui\imgui_impl_win32.h">
+    <ClInclude Include="deps\include\imgui\imgui_impl_glfw.h">
       <Filter>ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="..\Phong-Grass\PhongGrass\deps\include\imgui\imgui_internal.h">
+    <ClInclude Include="deps\include\imgui\imgui_internal.h">
       <Filter>ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="..\Phong-Grass\PhongGrass\deps\include\imgui\imgui_stdlib.h">
+    <ClInclude Include="deps\include\imgui\imstb_rectpack.h">
       <Filter>ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="..\Phong-Grass\PhongGrass\deps\include\imgui\imstb_rectpack.h">
+    <ClInclude Include="deps\include\imgui\imstb_textedit.h">
       <Filter>ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="..\Phong-Grass\PhongGrass\deps\include\imgui\imstb_textedit.h">
-      <Filter>ImGui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Phong-Grass\PhongGrass\deps\include\imgui\imstb_truetype.h">
+    <ClInclude Include="deps\include\imgui\imstb_truetype.h">
       <Filter>ImGui</Filter>
     </ClInclude>
   </ItemGroup>

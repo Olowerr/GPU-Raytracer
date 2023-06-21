@@ -17,6 +17,7 @@ public:
 
 	inline ID3D11Texture2D* getBackBuffer();
 	HWND getHWND();
+	inline GLFWwindow* getGLFWWindow();
 
 	inline bool isOpen();
 
@@ -33,6 +34,11 @@ private:
 inline ID3D11Texture2D* Window::getBackBuffer()
 {
 	return m_pDXBackBuffer;
+}
+
+inline GLFWwindow* Window::getGLFWWindow()
+{
+	return m_pGLWindow;
 }
 
 inline void Window::processMessages()

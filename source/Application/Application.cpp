@@ -17,7 +17,7 @@ Application::Application()
 	m_window.initiate(1600u, 900u, "GPU Raytracer");
 	m_renderer.initiate(m_window.getBackBuffer(), &m_scene);
 
-	Okay::initiateImGui(m_window.getHWND());
+	Okay::initiateImGui(m_window.getGLFWWindow());
 	Okay::getDevice()->CreateRenderTargetView(m_window.getBackBuffer(), nullptr, &m_pBackBuffer);
 }
 
