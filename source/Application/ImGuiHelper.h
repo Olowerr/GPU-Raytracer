@@ -20,7 +20,7 @@ namespace Okay
 
 		setStyleImGui();
 
-		ImGui_ImplGlfw_InitForOther(pGLFWWindow, false);
+		ImGui_ImplGlfw_InitForOther(pGLFWWindow, true);
 		ImGui_ImplDX11_Init(Okay::getDevice(), Okay::getDeviceContext());
 	}
 
