@@ -6,6 +6,8 @@
 #define NUM_BOUNCES (2)
 #define INVALID_UINT (~0u)
 #define FLT_MAX (3.402823466e+38F)
+#define NUM_RANDOM_VECTORS (100u)
+
 
 struct Sphere
 {
@@ -31,6 +33,7 @@ struct Payload
 
 RWTexture2D<float4> resultBuffer : register(u0);
 StructuredBuffer<Sphere> sphereData : register(t0);
+StructuredBuffer<float3> randomVectors : register(t1);
 
 
 
@@ -110,7 +113,9 @@ void main( uint3 DTid : SV_DispatchThreadID )
         light += currentSphere.emissionColour * currentSphere.emissonPower * contribution;
 
         ray.origin = hitData.worldPosition + hitData.worldNormal * 0.1f;
-        ray.direction = reflect(ray.direction, hitData.worldNormal);
+        //ray.direction = normalize(reflect(ray.direction, hitData.worldNormal) + randomVectors.Load(int3(DTid.xy, 0)).xyz);
+        int randomVecIdx = DTid.x + DTid.y * NUM_RANDOM_VECTORS;
+        ray.direction = normalize(hitData.worldNormal + randomVectors.Load(randomVecIdx));
     }
        
     resultBuffer[DTid.xy] = float4(light, 1.f);
