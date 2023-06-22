@@ -83,9 +83,12 @@ Payload findClosestHit(Ray ray)
 [numthreads(16, 9, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )
 {
+    static float3 camPos = float3(800.f, 450.f, -1000.f);
+    float3 pixelPos = float3(DTid.xy, 0.f);
+    
     Ray ray;
-    ray.origin = float3(DTid.xy, 0.f);
-    ray.direction = float3(0.f, 0.f, 1.f);
+    ray.origin = camPos;
+    ray.direction = normalize(pixelPos - camPos);
     
     float3 light = float3(0.f, 0.f, 0.f);
     float3 contribution = float3(1.f, 1.f, 1.f);

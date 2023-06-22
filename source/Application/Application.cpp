@@ -54,6 +54,7 @@ void Application::run()
 
 		if (ImGui::Begin("Spheres"))
 		{
+			ImGui::PushItemWidth(-150.f);
 			auto sphereView = m_scene.getRegistry().view<SphereComponent>();
 			for (entt::entity entity : sphereView)
 			{
@@ -63,11 +64,12 @@ void Application::run()
 				ImGui::DragFloat3(("Position " + std::to_string(entityID)).c_str(), &sphere.m_position.x);
 				ImGui::ColorEdit3(("Colour " + std::to_string(entityID)).c_str(), &sphere.m_colour.x);
 				ImGui::ColorEdit3(("Emission Colour " + std::to_string(entityID)).c_str(), &sphere.m_emission.x);
-				ImGui::DragFloat(("Emission Power " + std::to_string(entityID)).c_str(), &sphere.m_emissionPower);
+				ImGui::DragFloat(("Emission Power " + std::to_string(entityID)).c_str(), &sphere.m_emissionPower, 0.01f);
 				ImGui::DragFloat(("Radius " + std::to_string(entityID)).c_str(), &sphere.m_radius);
 			
 				ImGui::Separator();
 			}
+			ImGui::PopItemWidth();
 		}
 		ImGui::End();
 
