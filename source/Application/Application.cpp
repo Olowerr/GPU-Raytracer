@@ -36,16 +36,23 @@ void Application::run()
 {
 	static ID3D11RenderTargetView* nullRTV = nullptr;
 
+	Entity camEntity = m_scene.createEntity();
+	camEntity.addComponent<Camera>(90.f, 0.1f);
+	m_renderer.setCamera(camEntity);
+
 	SphereComponent& sphere1 = m_scene.createEntity().addComponent<SphereComponent>();
-	SphereComponent& sphere2 = m_scene.createEntity().addComponent<SphereComponent>();
-
-	sphere1.position = glm::vec3(1600.f * 0.25f, 450.f, 1000.f);
+	sphere1.position = glm::vec3(4.f, 0.f, 20.f);
 	sphere1.colour = glm::vec3(1.f, 0.7f, 0.5f);
-	sphere1.radius = 200.f;
+	sphere1.emission = glm::vec3(0.f, 0.f, 1.f);
+	sphere1.emissionPower = 1.f;
+	sphere1.radius = 3.f;
 
-	sphere2.position = glm::vec3(1600.f * 0.75f, 450.f, 1000.f);
-	sphere2.colour = glm::vec3(0.5f, 0.7f, 0.5f);
-	sphere2.radius = 100.f;
+	SphereComponent& sphere2 = m_scene.createEntity().addComponent<SphereComponent>();
+	sphere2.position = glm::vec3(-4.f, 0.f, 20.f);
+	sphere2.colour = glm::vec3(1.f);
+	sphere2.emission = glm::vec3(1.f, 0.f, 0.f);
+	sphere2.emissionPower = 1.f;
+	sphere2.radius = 2.f;
 
 	while (m_window.isOpen())
 	{
@@ -54,10 +61,22 @@ void Application::run()
 
 		if (ImGui::Begin("Spheres"))
 		{
-			ImGui::PushItemWidth(-150.f);
+			ImGui::PushItemWidth(-120.f);
 
 			ImGui::Text("FPS: %.3f", 1.f / ImGui::GetIO().DeltaTime);
 			ImGui::Text("MS: %.4f", ImGui::GetIO().DeltaTime * 1000.f);
+
+			ImGui::Separator();
+
+			Camera& camera = camEntity.getComponent<Camera>();
+			ImGui::PushID(camEntity.getID());
+
+			ImGui::Text("Camera");
+			ImGui::DragFloat3("Position", &camera.position.x, 0.1f);
+			ImGui::DragFloat3("Rotation", &camera.rotation.x, 0.1f);
+			ImGui::DragFloat("FOV", &camera.fov, 0.5f);
+			ImGui::DragFloat("NearZ", &camera.nearZ, 0.001f);
+			ImGui::PopID();
 
 			ImGui::Separator();
 
@@ -84,11 +103,11 @@ void Application::run()
 				ImGui::PushID(entityID);
 
 				ImGui::Text("Sphere: %u", entityID);
-				ImGui::DragFloat3("Position", &sphere.position.x);
+				ImGui::DragFloat3("Position", &sphere.position.x, 0.1f);
 				ImGui::ColorEdit3("Colour", &sphere.colour.x);
 				ImGui::ColorEdit3("Emission Colour", &sphere.emission.x);
 				ImGui::DragFloat("Emission Power", &sphere.emissionPower, 0.01f);
-				ImGui::DragFloat("Radius", &sphere.radius);
+				ImGui::DragFloat("Radius", &sphere.radius, 0.1f);
 			
 				ImGui::Separator();
 

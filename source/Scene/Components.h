@@ -9,3 +9,16 @@ struct SphereComponent // Temporary
 	float emissionPower = 0.f;
 	float radius = 100.f;
 };
+
+struct Camera
+{
+	Camera(float fov, float nearZ)
+		:fov(fov), nearZ(nearZ), farZ(1000.f)
+	{ }
+
+	glm::vec3 position = glm::vec3(0.f);
+	glm::vec3 rotation = glm::vec3(0.f); // Degress
+	float fov; // Degress
+	float nearZ;
+	float farZ; // Only used in Cherno way
+};

@@ -2,6 +2,9 @@
 #include "Scene/Scene.h"
 #include "Scene/Components.h"
 
+#include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtx/quaternion.hpp"
+
 #include <execution>
 
 thread_local std::mt19937 Renderer::s_RandomEngine;
@@ -98,6 +101,7 @@ void Renderer::initiate(ID3D11Texture2D* pTarget, Scene* pScene)
 
 void Renderer::render()
 {
+	calculateProjectionData();
 	updateBuffers();
 
 	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
@@ -119,6 +123,42 @@ void Renderer::render()
 	pDevCon->CSSetUnorderedAccessViews(0u, 1u, &nullUAV, nullptr);
 }
 
+void Renderer::calculateProjectionData()
+{
+	const glm::vec2 windowDimsVec((float)m_renderData.textureDims.x, (float)m_renderData.textureDims.y);
+	const float aspectRatio = windowDimsVec.x / windowDimsVec.y;
+
+	OKAY_ASSERT(m_camera.isValid());
+	OKAY_ASSERT(m_camera.hasComponents<Camera>());
+	const Camera& camera = m_camera.getComponent<Camera>();
+
+	// Trigonometry, tan(v) = a/b -> tan(v) * b = a
+	const float sideB = camera.nearZ; // NearZ
+	const float vAngleRadians = glm::radians(camera.fov * 0.5f); // FOV/2 to make right triangle (90deg angle, idk name)
+	const float sideA = glm::tan(vAngleRadians) * sideB;
+
+
+	// Convert to viewPlane
+	m_renderData.viewPlaneDims.x = sideA * 2.f;
+	m_renderData.viewPlaneDims.y = m_renderData.viewPlaneDims.x / aspectRatio;
+
+
+	// Camera Data
+	m_renderData.cameraPosition = camera.position;
+	m_renderData.cameraNearZ = camera.nearZ;
+
+
+	// Calculate inverseProjectionMatrix // Only used in Cherno way
+	m_renderData.cameraInverseProjectionMatrix = glm::transpose(glm::inverse(
+		glm::perspectiveFovLH(glm::radians(camera.fov), windowDimsVec.x, windowDimsVec.y, camera.nearZ, camera.farZ)));
+
+
+	// Calculate inverseViewMatrix, rotationMatrix used to get forward vector of camera
+	const glm::mat3 rotationMatrix = glm::toMat3(glm::quat(glm::radians(camera.rotation)));
+	m_renderData.cameraInverseViewMatrix = glm::transpose(glm::inverse(
+		glm::lookAtLH(camera.position, camera.position + rotationMatrix[2], glm::vec3(0.f, 1.f, 0.f))));
+}
+
 void Renderer::updateBuffers()
 {
 	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
@@ -127,7 +167,7 @@ void Renderer::updateBuffers()
 	auto sphereView = m_pScene->getRegistry().view<SphereComponent>();
 	if (m_sphereBufferCapacity < sphereView.size())
 	{
-		m_sphereBufferCapacity = sphereView.size() + 10u;
+		m_sphereBufferCapacity = (uint32_t)sphereView.size() + 10u;
 		DX11_RELEASE(m_pSphereDataBuffer);
 		DX11_RELEASE(m_pSphereDataSRV);
 		bool success = Okay::createStructuredBuffer(&m_pSphereDataBuffer, &m_pSphereDataSRV, nullptr, sizeof(SphereComponent), m_sphereBufferCapacity);

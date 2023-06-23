@@ -41,8 +41,14 @@ struct RenderData
     uint numAccumulationFrames;
     uint numSpheres;
     float renderDataPadding0;
+    
     uint2 textureDims;
-    float renderDataPadding1[2];
+    float2 viewPlaneDims;
+    
+    float4x4 cameraInverseProjectionMatrix;
+    float4x4 cameraInverseViewMatrix;
+    float3 cameraPosition;
+    float cameraNearZ;
 };
 
 struct RandVector
@@ -121,12 +127,27 @@ Payload findClosestHit(Ray ray)
 [numthreads(16, 9, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )
 {
-    static float3 camPos = float3(800.f, 450.f, -1000.f);
-    float3 pixelPos = float3(DTid.xy, 0.f);
+    float3 pos = float3(DTid.xy, renderData.cameraNearZ);
+    pos.xy /= (float2) renderData.textureDims;
+    pos.xy *= 2.f;
+    pos.xy -= 1.f;
+    
+#if 0 // My way
+    pos.xy *= renderData.viewPlaneDims;
+    pos = mul(float4(pos, 1.f), renderData.cameraInverseViewMatrix);
     
     Ray ray;
-    ray.origin = camPos;
-    ray.direction = normalize(pixelPos - camPos);
+    ray.origin = renderData.cameraPosition;
+    ray.direction = normalize(pos - ray.origin);
+   
+#else // Cherno way
+    float4 target = mul(float4(pos, 1.f), renderData.cameraInverseProjectionMatrix);
+    
+    Ray ray;
+    ray.origin = renderData.cameraPosition;
+    ray.direction = mul(float4(normalize(target.xyz / target.z), 0.f), renderData.cameraInverseViewMatrix);
+#endif
+
     
     float3 light = float3(0.f, 0.f, 0.f);
     float3 contribution = float3(1.f, 1.f, 1.f);
