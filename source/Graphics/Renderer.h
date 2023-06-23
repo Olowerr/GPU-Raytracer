@@ -11,11 +11,11 @@ class Scene;
 
 struct RenderData
 {
-	uint32_t m_accumulationEnabled = 0;
-	uint32_t m_numAccumulationFrames = 0u;
-	uint32_t m_numSpheres = 0u;
+	uint32_t accumulationEnabled = 0;
+	uint32_t numAccumulationFrames = 0u;
+	uint32_t numSpheres = 0u;
 	float padding0 = 0.f;
-	glm::uvec2 m_textureDims{};
+	glm::uvec2 textureDims{};
 	float padding1[2]{};
 };
 
@@ -72,13 +72,13 @@ inline void Renderer::setScene(Scene* pScene)
 
 inline void Renderer::toggleAccumulation(bool enable)
 {
-	m_renderData.m_accumulationEnabled = (int)enable;
+	m_renderData.accumulationEnabled = (int)enable;
 	resetAccumulation();
 }
 
 inline void Renderer::resetAccumulation()
 {
-	m_renderData.m_numAccumulationFrames = 0u;
+	m_renderData.numAccumulationFrames = 0u;
 
 	static const float CLEAR_COLOUR[4] = { 0.f, 0.f, 0.f, 0.f };
 	Okay::getDeviceContext()->ClearUnorderedAccessViewFloat(m_pAccumulationUAV, CLEAR_COLOUR);
@@ -86,5 +86,5 @@ inline void Renderer::resetAccumulation()
 
 inline uint32_t Renderer::getNumAccumulationFrames() const
 {
-	return m_renderData.m_numAccumulationFrames;
+	return m_renderData.numAccumulationFrames;
 }

@@ -1,6 +1,6 @@
 #include "Renderer.h"
-#include "ECS/Scene.h"
-#include "ECS/Components.h"
+#include "Scene/Scene.h"
+#include "Scene/Components.h"
 
 #include <execution>
 
@@ -48,8 +48,8 @@ void Renderer::initiate(ID3D11Texture2D* pTarget, Scene* pScene)
 
 	D3D11_TEXTURE2D_DESC textureDesc{};
 	pTarget->GetDesc(&textureDesc);
-	m_renderData.m_textureDims.x = textureDesc.Width;
-	m_renderData.m_textureDims.y = textureDesc.Height;
+	m_renderData.textureDims.x = textureDesc.Width;
+	m_renderData.textureDims.y = textureDesc.Height;
 
 
 	ID3D11Device* pDevice = Okay::getDevice();
@@ -113,7 +113,7 @@ void Renderer::render()
 	pDevCon->CSSetShaderResources(1u, 1u, &m_pRandomVectorSRV);
 	pDevCon->CSSetConstantBuffers(0u, 1u, &m_pRenderDataBuffer);
 
-	pDevCon->Dispatch(m_renderData.m_textureDims.x / 16u, m_renderData.m_textureDims.y / 9u, 1u);
+	pDevCon->Dispatch(m_renderData.textureDims.x / 16u, m_renderData.textureDims.y / 9u, 1u);
 
 	static ID3D11UnorderedAccessView* nullUAV = nullptr;
 	pDevCon->CSSetUnorderedAccessViews(0u, 1u, &nullUAV, nullptr);
@@ -148,9 +148,9 @@ void Renderer::updateBuffers()
 
 	
 	// Render Data
-	m_renderData.m_numSpheres = (uint32_t)sphereView.size();
-	if (m_renderData.m_accumulationEnabled == 1)
-		m_renderData.m_numAccumulationFrames++;
+	m_renderData.numSpheres = (uint32_t)sphereView.size();
+	if (m_renderData.accumulationEnabled == 1)
+		m_renderData.numAccumulationFrames++;
 	Okay::updateBuffer(m_pRenderDataBuffer, &m_renderData, sizeof(RenderData));
 
 

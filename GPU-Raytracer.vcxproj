@@ -245,7 +245,7 @@
     <ClCompile Include="deps\include\imgui\imgui_tables.cpp" />
     <ClCompile Include="deps\include\imgui\imgui_widgets.cpp" />
     <ClCompile Include="source\Application\Application.cpp" />
-    <ClCompile Include="source\ECS\Scene.cpp" />
+    <ClCompile Include="source\Scene\Scene.cpp" />
     <ClCompile Include="source\DirectX\DX11.cpp" />
     <ClCompile Include="source\Graphics\Renderer.cpp" />
     <ClCompile Include="source\main.cpp" />
@@ -262,9 +262,10 @@
     <ClInclude Include="deps\include\imgui\imstb_truetype.h" />
     <ClInclude Include="source\Application\Application.h" />
     <ClInclude Include="source\Application\ImGuiHelper.h" />
-    <ClInclude Include="source\ECS\Components.h" />
-    <ClInclude Include="source\ECS\Entity.h" />
-    <ClInclude Include="source\ECS\Scene.h" />
+    <ClInclude Include="source\Scene\Camera.h" />
+    <ClInclude Include="source\Scene\Components.h" />
+    <ClInclude Include="source\Scene\Entity.h" />
+    <ClInclude Include="source\Scene\Scene.h" />
     <ClInclude Include="source\Application\Window.h" />
     <ClInclude Include="source\DirectX\DX11.h" />
     <ClInclude Include="source\Graphics\Renderer.h" />

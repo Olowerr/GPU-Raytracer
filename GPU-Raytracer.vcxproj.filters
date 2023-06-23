@@ -33,7 +33,7 @@
     <ClCompile Include="source\DirectX\DX11.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="source\ECS\Scene.cpp">
+    <ClCompile Include="source\Scene\Scene.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="deps\include\imgui\imgui.cpp">
@@ -74,13 +74,13 @@
     <ClInclude Include="source\Graphics\Renderer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="source\ECS\Entity.h">
+    <ClInclude Include="source\Scene\Entity.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="source\ECS\Scene.h">
+    <ClInclude Include="source\Scene\Scene.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="source\ECS\Components.h">
+    <ClInclude Include="source\Scene\Components.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="source\Application\ImGuiHelper.h">
@@ -109,6 +109,9 @@
     </ClInclude>
     <ClInclude Include="deps\include\imgui\imstb_truetype.h">
       <Filter>ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="source\Scene\Camera.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

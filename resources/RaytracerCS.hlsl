@@ -6,7 +6,7 @@
 
 // ---- Defines and constants
 
-#define NUM_BOUNCES (2)
+#define NUM_BOUNCES (5)
 #define INVALID_UINT (~0u)
 #define FLT_MAX (3.402823466e+38F)
 #define NUM_RANDOM_VECTORS (100u)
