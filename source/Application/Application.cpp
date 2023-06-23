@@ -55,6 +55,13 @@ void Application::run()
 		if (ImGui::Begin("Spheres"))
 		{
 			ImGui::PushItemWidth(-150.f);
+
+			static bool accumulate = false;
+			if (ImGui::Checkbox("Accumulate", &accumulate))
+				m_renderer.toggleAccumulation(accumulate);
+			if (ImGui::Button("Reset Accumulation"))
+				m_renderer.resetAccumulation();
+
 			auto sphereView = m_scene.getRegistry().view<SphereComponent>();
 			for (entt::entity entity : sphereView)
 			{

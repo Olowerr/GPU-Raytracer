@@ -3,11 +3,15 @@
     Code may be temporary and only used for testing
 */
 
+
+// ---- Defines and constants
+
 #define NUM_BOUNCES (2)
 #define INVALID_UINT (~0u)
 #define FLT_MAX (3.402823466e+38F)
 #define NUM_RANDOM_VECTORS (100u)
 
+// ---- Strcuts
 
 struct Sphere
 {
@@ -31,11 +35,42 @@ struct Payload
     float3 worldNormal;
 };
 
-RWTexture2D<float4> resultBuffer : register(u0);
+struct RenderData
+{
+    uint accumulationEnabled;
+    uint numAccumulationFrames;
+    uint numSpheres;
+    float renderDataPadding0;
+    uint2 textureDims;
+    float renderDataPadding1[2];
+};
+
+struct RandVector
+{
+    float3 randVector;
+};
+
+
+// ---- Resources
+RWTexture2D<unorm float4> resultBuffer : register(u0);
+RWTexture2D<float4> accumulationBuffer : register(u1);
 StructuredBuffer<Sphere> sphereData : register(t0);
-StructuredBuffer<float3> randomVectors : register(t1);
+StructuredBuffer<RandVector> randomVectors : register(t1);
+cbuffer RenderDataBuffer : register(b0)
+{
+    RenderData renderData;
+}
 
+// ---- Functions
 
+// Ty ChatGPT
+uint randomize(uint seed)
+{
+    seed = seed ^ (seed >> 11);
+    seed = seed ^ ((seed << 7) & 0x9D2C5680);
+    seed = seed ^ ((seed << 15) & 0xEFC60000);
+    return seed ^ (seed >> 18);
+}
 
 Payload findClosestHit(Ray ray)
 {
@@ -48,7 +83,7 @@ Payload findClosestHit(Ray ray)
     uint numSpheres = 0, stride = 0;
     sphereData.GetDimensions(numSpheres, stride);
     
-    for (uint i = 0; i < numSpheres; i++)
+    for (uint i = 0; i < renderData.numSpheres; i++)
     {
         if (payload.hitIdx == i)
             continue;
@@ -114,9 +149,19 @@ void main( uint3 DTid : SV_DispatchThreadID )
 
         ray.origin = hitData.worldPosition + hitData.worldNormal * 0.1f;
         //ray.direction = normalize(reflect(ray.direction, hitData.worldNormal) + randomVectors.Load(int3(DTid.xy, 0)).xyz);
-        int randomVecIdx = DTid.x + DTid.y * NUM_RANDOM_VECTORS;
-        ray.direction = normalize(hitData.worldNormal + randomVectors.Load(randomVecIdx));
+        
+        
+        int randomVecIdx = randomize(DTid.x + DTid.y * renderData.textureDims.x) % NUM_RANDOM_VECTORS;
+        ray.direction = normalize(hitData.worldNormal + randomVectors.Load(randomVecIdx).randVector);
     }
-       
-    resultBuffer[DTid.xy] = float4(light, 1.f);
+    
+    if (renderData.accumulationEnabled == 1)
+    {
+        accumulationBuffer[DTid.xy] += float4(light, 0.f);
+        resultBuffer[DTid.xy] = accumulationBuffer[DTid.xy] / (float)renderData.numAccumulationFrames;
+    }
+    else
+    {
+        resultBuffer[DTid.xy] = float4(light, 1.f);
+    }
 }

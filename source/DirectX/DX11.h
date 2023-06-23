@@ -17,4 +17,6 @@ namespace Okay
 
 	bool createStructuredBuffer(ID3D11Buffer** ppBuffer, ID3D11ShaderResourceView** ppSRV, const void* pData, uint32_t eleByteSize, uint32_t numElements, bool immutable = false);
 
+	bool createConstantBuffer(ID3D11Buffer** ppBuffer, const void* pData, size_t byteSize, bool immutable = false);
+	void updateBuffer(ID3D11Buffer* pBuffer, const void* pData, size_t byteWidth);
 }

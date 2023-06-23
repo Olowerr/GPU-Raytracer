@@ -112,6 +112,32 @@ namespace Okay
 
 	}
 
+	bool createConstantBuffer(ID3D11Buffer** ppBuffer, const void* pData, size_t byteSize, bool immutable)
+	{
+		D3D11_BUFFER_DESC desc{};
+		desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+		desc.Usage = immutable ? D3D11_USAGE_IMMUTABLE : D3D11_USAGE_DYNAMIC;
+		desc.CPUAccessFlags = immutable ? 0 : D3D11_CPU_ACCESS_WRITE;
+		desc.ByteWidth = (uint32_t)byteSize;
+		desc.MiscFlags = 0;
+		desc.StructureByteStride = 0;
+		D3D11_SUBRESOURCE_DATA inData{};
+		inData.pSysMem = pData;
+		inData.SysMemPitch = inData.SysMemSlicePitch = 0;
+		return SUCCEEDED(dx11.pDevice->CreateBuffer(&desc, pData ? &inData : nullptr, ppBuffer));
+	}
+
+	void updateBuffer(ID3D11Buffer* pBuffer, const void* pData, size_t byteWidth)
+	{
+		OKAY_ASSERT(pBuffer);
+		D3D11_MAPPED_SUBRESOURCE sub{};
+		if (FAILED(dx11.pDeviceContext->Map(pBuffer, 0u, D3D11_MAP_WRITE_DISCARD, 0u, &sub)))
+			return;
+
+		memcpy(sub.pData, pData, byteWidth);
+		dx11.pDeviceContext->Unmap(pBuffer, 0u);
+	}
+
 	template bool createShader(std::string_view path, ID3D11ComputeShader** ppShader, std::string* pOutShaderData);
 
 	template<typename ShaderType>
