@@ -56,11 +56,18 @@ void Application::run()
 		{
 			ImGui::PushItemWidth(-150.f);
 
+			ImGui::Text("FPS: %.3f", 1.f / ImGui::GetIO().DeltaTime);
+			ImGui::Text("MS: %.4f", ImGui::GetIO().DeltaTime * 1000.f);
+
+			ImGui::Separator();
+
 			static bool accumulate = false;
 			if (ImGui::Checkbox("Accumulate", &accumulate))
 				m_renderer.toggleAccumulation(accumulate);
 			if (ImGui::Button("Reset Accumulation"))
 				m_renderer.resetAccumulation();
+
+			ImGui::Separator();
 
 			auto sphereView = m_scene.getRegistry().view<SphereComponent>();
 			for (entt::entity entity : sphereView)
