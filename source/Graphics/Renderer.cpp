@@ -70,17 +70,22 @@ void Renderer::initiate(ID3D11Texture2D* pTarget, Scene* pScene)
 	DX11_RELEASE(pAccumulationBuffer);
 	OKAY_ASSERT(success);
 
+
 	// Render Data
 	success = Okay::createConstantBuffer(&m_pRenderDataBuffer, &m_renderData, sizeof(RenderData));
 	OKAY_ASSERT(success);
+
 
 	// Raytrace Computer Shader
 	success = Okay::createShader("resources/RayTracerCS.hlsl", &m_pMainRaytracingCS);
 	OKAY_ASSERT(success);
 
+
 	// Sphere data
-	success = Okay::createStructuredBuffer(&m_pSphereDataBuffer, &m_pSphereDataSRV, nullptr, sizeof(SphereComponent), 2u);
+	m_sphereBufferCapacity = 10u;
+	success = Okay::createStructuredBuffer(&m_pSphereDataBuffer, &m_pSphereDataSRV, nullptr, sizeof(SphereComponent), m_sphereBufferCapacity);
 	OKAY_ASSERT(success);
+
 
 	// Random Vectors Buffer
 	success = Okay::createStructuredBuffer(&m_pRandomVectorBuffer, &m_pRandomVectorSRV, nullptr, sizeof(glm::vec3), NUM_RANDOM_VECTORS);
@@ -119,39 +124,50 @@ void Renderer::updateBuffers()
 	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
 
 	// Sphere Data
-	D3D11_MAPPED_SUBRESOURCE sub{};
-	if (FAILED(pDevCon->Map(m_pSphereDataBuffer, 0u, D3D11_MAP_WRITE_DISCARD, 0u, &sub)))
-		return;
-
 	auto sphereView = m_pScene->getRegistry().view<SphereComponent>();
-	char* coursor = (char*)sub.pData;
-	for (entt::entity entity : sphereView)
+	if (m_sphereBufferCapacity < sphereView.size())
 	{
-		memcpy(coursor, &sphereView.get<SphereComponent>(entity), sizeof(SphereComponent));
-		coursor += sizeof(SphereComponent);
+		m_sphereBufferCapacity = sphereView.size() + 10u;
+		DX11_RELEASE(m_pSphereDataBuffer);
+		DX11_RELEASE(m_pSphereDataSRV);
+		bool success = Okay::createStructuredBuffer(&m_pSphereDataBuffer, &m_pSphereDataSRV, nullptr, sizeof(SphereComponent), m_sphereBufferCapacity);
+		OKAY_ASSERT(success);
 	}
-	pDevCon->Unmap(m_pSphereDataBuffer, 0u);
 
+	D3D11_MAPPED_SUBRESOURCE sub{};
+	if (SUCCEEDED(pDevCon->Map(m_pSphereDataBuffer, 0u, D3D11_MAP_WRITE_DISCARD, 0u, &sub)))
+	{
+		char* coursor = (char*)sub.pData;
+		for (entt::entity entity : sphereView)
+		{
+			memcpy(coursor, &sphereView.get<SphereComponent>(entity), sizeof(SphereComponent));
+			coursor += sizeof(SphereComponent);
+		}
+		pDevCon->Unmap(m_pSphereDataBuffer, 0u);
+	}
+
+	
 	// Render Data
 	m_renderData.m_numSpheres = (uint32_t)sphereView.size();
 	if (m_renderData.m_accumulationEnabled == 1)
 		m_renderData.m_numAccumulationFrames++;
 	Okay::updateBuffer(m_pRenderDataBuffer, &m_renderData, sizeof(RenderData));
 
+
 	// Random Vectors
-	if (FAILED(pDevCon->Map(m_pRandomVectorBuffer, 0u, D3D11_MAP_WRITE_DISCARD, 0u, &sub)))
-		return;
-
-	static const float InverseUint32Max = 1.f / (float)std::numeric_limits<uint32_t>::max();
-	std::for_each(/*std::execution::par,*/ m_bufferIndices.begin(), m_bufferIndices.end(), [&](uint32_t i)
+	if (SUCCEEDED(pDevCon->Map(m_pRandomVectorBuffer, 0u, D3D11_MAP_WRITE_DISCARD, 0u, &sub)))
 	{
-		float randX = ((float)s_Distribution(s_RandomEngine) * InverseUint32Max) * 2.f - 1.f;
-		float randY = ((float)s_Distribution(s_RandomEngine) * InverseUint32Max) * 2.f - 1.f;
-		float randZ = ((float)s_Distribution(s_RandomEngine) * InverseUint32Max) * 2.f - 1.f;
+		static const float InverseUint32Max = 1.f / (float)std::numeric_limits<uint32_t>::max();
+		std::for_each(/*std::execution::par,*/ m_bufferIndices.begin(), m_bufferIndices.end(), [&](uint32_t i)
+			{
+				float randX = ((float)s_Distribution(s_RandomEngine) * InverseUint32Max) * 2.f - 1.f;
+				float randY = ((float)s_Distribution(s_RandomEngine) * InverseUint32Max) * 2.f - 1.f;
+				float randZ = ((float)s_Distribution(s_RandomEngine) * InverseUint32Max) * 2.f - 1.f;
 
-		//((glm::vec3*)sub.pData)[i] = glm::vec3(randX, randY, randZ);
-		((glm::vec3*)sub.pData)[i] = glm::normalize(glm::vec3(randX, randY, randZ));
-	});
+				//((glm::vec3*)sub.pData)[i] = glm::vec3(randX, randY, randZ);
+				((glm::vec3*)sub.pData)[i] = glm::normalize(glm::vec3(randX, randY, randZ));
+			});
 
-	pDevCon->Unmap(m_pRandomVectorBuffer, 0u);
+		pDevCon->Unmap(m_pRandomVectorBuffer, 0u);
+	}
 }

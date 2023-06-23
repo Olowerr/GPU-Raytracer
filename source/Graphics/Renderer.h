@@ -50,6 +50,7 @@ private: // DX11
 
 	ID3D11Buffer* m_pSphereDataBuffer;
 	ID3D11ShaderResourceView* m_pSphereDataSRV;
+	uint32_t m_sphereBufferCapacity;
 
 	static const uint32_t NUM_RANDOM_VECTORS = 100u;
 	std::vector<uint32_t> m_bufferIndices;
