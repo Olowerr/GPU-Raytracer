@@ -62,6 +62,7 @@ void Application::run()
 			ImGui::Separator();
 
 			static bool accumulate = false;
+			ImGui::Text("Num Accumulation Frames: %u", m_renderer.getNumAccumulationFrames());
 			if (ImGui::Checkbox("Accumulate", &accumulate))
 				m_renderer.toggleAccumulation(accumulate);
 			if (ImGui::Button("Reset Accumulation"))
@@ -69,19 +70,29 @@ void Application::run()
 
 			ImGui::Separator();
 
+			if (ImGui::Button("Add Sphere"))
+				m_scene.createEntity().addComponent<SphereComponent>();
+
+			ImGui::Separator();
+
 			auto sphereView = m_scene.getRegistry().view<SphereComponent>();
 			for (entt::entity entity : sphereView)
 			{
 				SphereComponent& sphere = sphereView[entity];
-
 				const uint32_t entityID = (uint32_t)entity;
-				ImGui::DragFloat3(("Position " + std::to_string(entityID)).c_str(), &sphere.m_position.x);
-				ImGui::ColorEdit3(("Colour " + std::to_string(entityID)).c_str(), &sphere.m_colour.x);
-				ImGui::ColorEdit3(("Emission Colour " + std::to_string(entityID)).c_str(), &sphere.m_emission.x);
-				ImGui::DragFloat(("Emission Power " + std::to_string(entityID)).c_str(), &sphere.m_emissionPower, 0.01f);
-				ImGui::DragFloat(("Radius " + std::to_string(entityID)).c_str(), &sphere.m_radius);
+				
+				ImGui::PushID(entityID);
+
+				ImGui::Text("Sphere: %u", entityID);
+				ImGui::DragFloat3("Position", &sphere.m_position.x);
+				ImGui::ColorEdit3("Colour", &sphere.m_colour.x);
+				ImGui::ColorEdit3("Emission Colour", &sphere.m_emission.x);
+				ImGui::DragFloat("Emission Power", &sphere.m_emissionPower, 0.01f);
+				ImGui::DragFloat("Radius", &sphere.m_radius);
 			
 				ImGui::Separator();
+
+				ImGui::PopID();
 			}
 			ImGui::PopItemWidth();
 		}

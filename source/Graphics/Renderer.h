@@ -34,6 +34,7 @@ public:
 
 	inline void toggleAccumulation(bool enable);
 	inline void resetAccumulation();
+	inline uint32_t getNumAccumulationFrames() const;
 
 private: // Scene
 	Scene* m_pScene;
@@ -81,4 +82,9 @@ inline void Renderer::resetAccumulation()
 
 	static const float CLEAR_COLOUR[4] = { 0.f, 0.f, 0.f, 0.f };
 	Okay::getDeviceContext()->ClearUnorderedAccessViewFloat(m_pAccumulationUAV, CLEAR_COLOUR);
+}
+
+inline uint32_t Renderer::getNumAccumulationFrames() const
+{
+	return m_renderData.m_numAccumulationFrames;
 }
