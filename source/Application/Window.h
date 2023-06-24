@@ -21,7 +21,7 @@ public:
 
 	inline bool isOpen();
 
-	inline void processMessages();
+	void processMessages();
 	inline void present();
 
 private:
@@ -41,10 +41,6 @@ inline GLFWwindow* Window::getGLFWWindow()
 	return m_pGLWindow;
 }
 
-inline void Window::processMessages()
-{
-	glfwPollEvents(); // Maybe shouldn't be here? Fine for now tho
-}
 
 inline void Window::present()
 {

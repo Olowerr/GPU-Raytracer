@@ -1,6 +1,7 @@
 #include "Window.h"
 #include "DirectX/DX11.h"
 #include "Utilities.h"
+#include "Input.h"
 
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
@@ -32,11 +33,6 @@ void Window::shutdown()
 	DX11_RELEASE(m_pDXBackBuffer);
 }
 
-HWND Window::getHWND()
-{
-	return glfwGetWin32Window(m_pGLWindow);
-}
-
 void Window::initiate(uint32_t width, uint32_t height, std::string_view windowName)
 {
 	shutdown();
@@ -49,4 +45,29 @@ void Window::initiate(uint32_t width, uint32_t height, std::string_view windowNa
 
 	m_pDXSwapChain->GetBuffer(0u, __uuidof(ID3D11Texture2D), (void**)&m_pDXBackBuffer);
 	OKAY_ASSERT(m_pDXBackBuffer);
+
+	glfwSetKeyCallback(m_pGLWindow, [](GLFWwindow* window, int key, int scancode, int action, int mods)
+	{
+		switch (action)
+		{
+		case GLFW_PRESS:
+			Input::setKeyDown(key);
+			break;
+
+		case GLFW_RELEASE:
+			Input::setKeyUp(key);
+			break;
+		}
+	});
+}
+
+void Window::processMessages()
+{
+	Input::update();
+	glfwPollEvents(); 
+}
+
+HWND Window::getHWND()
+{
+	return glfwGetWin32Window(m_pGLWindow);
 }
