@@ -1,5 +1,5 @@
 #pragma once
-#include <assert.h>
+#include <cassert>
 #include <stdint.h>
 #include <memory>
 #include <fstream>
@@ -7,7 +7,7 @@
 #ifdef DIST
 #define OKAY_ASSERT(condition) 
 #else
-#define OKAY_ASSERT(condition) assert(condition)
+#define OKAY_ASSERT(condition) if (!(condition)) {printf("ASSERTION FAILED: %s  |  FILE: %s  |  LINE: %d\n", #condition, __FILE__, __LINE__); __debugbreak(); }0
 #endif
 
 #define DX11_RELEASE(x) if (x) {x->Release(); x = nullptr; }0
