@@ -40,19 +40,27 @@ void Application::run()
 	camEntity.addComponent<Camera>(90.f, 0.1f);
 	m_renderer.setCamera(camEntity);
 
-	SphereComponent& sphere1 = m_scene.createEntity().addComponent<SphereComponent>();
-	sphere1.position = glm::vec3(4.f, 0.f, 20.f);
-	sphere1.colour = glm::vec3(1.f, 0.7f, 0.5f);
-	sphere1.emission = glm::vec3(0.f, 0.f, 1.f);
-	sphere1.emissionPower = 1.f;
-	sphere1.radius = 3.f;
+	SphereComponent& sun = m_scene.createEntity().addComponent<SphereComponent>();
+	sun.position = glm::vec3(325.f, 283.f, 20.f);
+	sun.colour = glm::vec3(1.f);
+	sun.emission = glm::vec3(0.7f, 0.84f, 0.88f);
+	sun.emissionPower = 2.9f;
+	sun.radius = 200.f;
 
-	SphereComponent& sphere2 = m_scene.createEntity().addComponent<SphereComponent>();
-	sphere2.position = glm::vec3(-4.f, 0.f, 20.f);
-	sphere2.colour = glm::vec3(1.f);
-	sphere2.emission = glm::vec3(1.f, 0.f, 0.f);
-	sphere2.emissionPower = 1.f;
-	sphere2.radius = 2.f;
+	SphereComponent& ground = m_scene.createEntity().addComponent<SphereComponent>();
+	ground.position = glm::vec3(0.f, -1468.f, 91.8f);
+	ground.colour = glm::vec3(1.f);
+	ground.emission = glm::vec3(0.f);
+	ground.emissionPower = 0.f;
+	ground.radius = 1465.f;
+
+	SphereComponent& ball = m_scene.createEntity().addComponent<SphereComponent>();
+	ball.position = glm::vec3(0.f, -1.4f, 20.f);
+	ball.colour = glm::vec3(0.89f, 0.5f, 0.5f);
+	ball.emission = glm::vec3(0.f);
+	ball.emissionPower = 0.f;
+	ball.radius = 7.3f;
+
 
 	while (m_window.isOpen())
 	{

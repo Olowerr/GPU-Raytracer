@@ -78,6 +78,12 @@ uint randomize(uint seed)
     return seed ^ (seed >> 18);
 }
 
+float3 randomInHemisphere(uint vectorIdx, float3 normal)
+{
+    const float3 randVector = randomVectors.Load(vectorIdx).randVector;
+    return randVector * (dot(randVector, normal) > 0.f ? 1.f : -1.f);
+}
+
 Payload findClosestHit(Ray ray)
 {
     Payload payload;
@@ -127,7 +133,13 @@ Payload findClosestHit(Ray ray)
 [numthreads(16, 9, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )
 {
-    float3 pos = float3(DTid.xy, renderData.cameraNearZ);
+    /*
+        Flip Y-coordinate to convert to worldspace
+        [0,0] in D3D11 textures is top left corner, but a higher Y-value should be higher in worldspace
+        So it is flipped
+    */
+    
+    float3 pos = float3((float)DTid.x, float(renderData.textureDims.y - DTid.y), renderData.cameraNearZ);
     pos.xy /= (float2) renderData.textureDims;
     pos.xy *= 2.f;
     pos.xy -= 1.f;
@@ -173,7 +185,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
         
         
         int randomVecIdx = randomize(DTid.x + DTid.y * renderData.textureDims.x) % NUM_RANDOM_VECTORS;
-        ray.direction = normalize(hitData.worldNormal + randomVectors.Load(randomVecIdx).randVector);
+        ray.direction = randomInHemisphere(randomVecIdx, hitData.worldNormal); // Already normalized on CPU
     }
     
     if (renderData.accumulationEnabled == 1)

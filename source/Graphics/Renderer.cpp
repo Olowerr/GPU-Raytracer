@@ -13,7 +13,8 @@ std::uniform_int_distribution<std::mt19937::result_type> Renderer::s_Distributio
 Renderer::Renderer()
 	:m_pTargetUAV(nullptr), m_pMainRaytracingCS(nullptr), m_pScene(nullptr), m_renderData(),
 	m_pAccumulationUAV(nullptr), m_pRenderDataBuffer(nullptr), m_pSphereDataBuffer(nullptr),
-	m_pSphereDataSRV(nullptr), m_pRandomVectorBuffer(nullptr), m_pRandomVectorSRV(nullptr)
+	m_pSphereDataSRV(nullptr), m_pRandomVectorBuffer(nullptr), m_pRandomVectorSRV(nullptr),
+	m_sphereBufferCapacity(0u)
 {
 }
 
