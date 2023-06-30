@@ -67,15 +67,15 @@ uint pcg_hash(uint seed)
 float3 getRandomVector(uint seed)
 {
     seed = pcg_hash(seed);
-    float x = (float)seed / (float)INVALID_UINT;
+    float x = ((float)seed / (float) INVALID_UINT) * 2.f - 1.f;
 
     seed = pcg_hash(seed);
-    float y = (float)seed / (float)INVALID_UINT;
+    float y = ((float)seed / (float)INVALID_UINT) * 2.f - 1.f;
    
     seed = pcg_hash(seed);
-    float z = (float)seed / (float)INVALID_UINT;
+    float z = ((float)seed / (float)INVALID_UINT) * 2.f - 1.f;
     
-    return float3(x, y, z);
+    return normalize(float3(x, y, z));
 }
 
 float3 randomInHemisphere(uint2 DTid, uint bounceIdx, float3 normal)
