@@ -1,18 +1,12 @@
 
-/*
-    Code may be temporary and only used for testing
-*/
-
-
 // ---- Defines and constants
-
 #define NUM_BOUNCES (5)
 #define INVALID_UINT (~0u)
 #define FLT_MAX (3.402823466e+38F)
 #define NUM_RANDOM_VECTORS (100u)
 
-// ---- Strcuts
 
+// ---- Strcuts
 struct Sphere
 {
     float3 position;
@@ -51,36 +45,43 @@ struct RenderData
     float cameraNearZ;
 };
 
-struct RandVector
-{
-    float3 randVector;
-};
-
 
 // ---- Resources
 RWTexture2D<unorm float4> resultBuffer : register(u0);
 RWTexture2D<float4> accumulationBuffer : register(u1);
 StructuredBuffer<Sphere> sphereData : register(t0);
-StructuredBuffer<RandVector> randomVectors : register(t1);
 cbuffer RenderDataBuffer : register(b0)
 {
     RenderData renderData;
 }
 
-// ---- Functions
 
-// Ty ChatGPT
-uint randomize(uint seed)
+// ---- Functions
+uint pcg_hash(uint seed)
 {
-    seed = seed ^ (seed >> 11);
-    seed = seed ^ ((seed << 7) & 0x9D2C5680);
-    seed = seed ^ ((seed << 15) & 0xEFC60000);
-    return seed ^ (seed >> 18);
+    uint state = seed * 747796405u + 2891336453u;
+    uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    return (word >> 22u) ^ word;
 }
 
-float3 randomInHemisphere(uint vectorIdx, float3 normal)
+float3 getRandomVector(uint seed)
 {
-    const float3 randVector = randomVectors.Load(vectorIdx).randVector;
+    seed = pcg_hash(seed);
+    float x = (float)seed / (float)INVALID_UINT;
+
+    seed = pcg_hash(seed);
+    float y = (float)seed / (float)INVALID_UINT;
+   
+    seed = pcg_hash(seed);
+    float z = (float)seed / (float)INVALID_UINT;
+    
+    return float3(x, y, z);
+}
+
+float3 randomInHemisphere(uint2 DTid, uint bounceIdx, float3 normal)
+{
+    const uint seed = DTid.x + DTid.y * renderData.textureDims.x * (bounceIdx + 1) * renderData.numAccumulationFrames;
+    const float3 randVector = getRandomVector(seed);
     return randVector * (dot(randVector, normal) > 0.f ? 1.f : -1.f);
 }
 
@@ -130,6 +131,8 @@ Payload findClosestHit(Ray ray)
     return payload;
 }
 
+
+// ---- Main part of shader
 [numthreads(16, 9, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )
 {
@@ -180,12 +183,8 @@ void main( uint3 DTid : SV_DispatchThreadID )
         contribution *= currentSphere.colour;
         light += currentSphere.emissionColour * currentSphere.emissonPower * contribution;
 
-        ray.origin = hitData.worldPosition + hitData.worldNormal * 0.1f;
-        //ray.direction = normalize(reflect(ray.direction, hitData.worldNormal) + randomVectors.Load(int3(DTid.xy, 0)).xyz);
-        
-        
-        int randomVecIdx = randomize(DTid.x + DTid.y * renderData.textureDims.x) % NUM_RANDOM_VECTORS;
-        ray.direction = randomInHemisphere(randomVecIdx, hitData.worldNormal); // Already normalized on CPU
+        ray.origin = hitData.worldPosition + hitData.worldNormal * 0.001f;
+        ray.direction = randomInHemisphere(DTid.xy, i, hitData.worldNormal);
     }
     
     if (renderData.accumulationEnabled == 1)

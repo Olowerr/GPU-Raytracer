@@ -6,9 +6,6 @@
 
 #include "glm/glm.hpp"
 
-#include <vector>
-#include <random>
-
 class Scene;
 
 struct RenderData
@@ -66,15 +63,6 @@ private: // DX11
 	ID3D11Buffer* m_pSphereDataBuffer;
 	ID3D11ShaderResourceView* m_pSphereDataSRV;
 	uint32_t m_sphereBufferCapacity;
-
-	static const uint32_t NUM_RANDOM_VECTORS = 100u;
-	std::vector<uint32_t> m_bufferIndices;
-	ID3D11Buffer* m_pRandomVectorBuffer;
-	ID3D11ShaderResourceView* m_pRandomVectorSRV;
-
-
-	static thread_local std::mt19937 s_RandomEngine;
-	static std::uniform_int_distribution<std::mt19937::result_type> s_Distribution;
 };
 
 inline void Renderer::setScene(Scene* pScene)

@@ -7,14 +7,10 @@
 
 #include <execution>
 
-thread_local std::mt19937 Renderer::s_RandomEngine;
-std::uniform_int_distribution<std::mt19937::result_type> Renderer::s_Distribution;
-
 Renderer::Renderer()
 	:m_pTargetUAV(nullptr), m_pMainRaytracingCS(nullptr), m_pScene(nullptr), m_renderData(),
 	m_pAccumulationUAV(nullptr), m_pRenderDataBuffer(nullptr), m_pSphereDataBuffer(nullptr),
-	m_pSphereDataSRV(nullptr), m_pRandomVectorBuffer(nullptr), m_pRandomVectorSRV(nullptr),
-	m_sphereBufferCapacity(0u)
+	m_pSphereDataSRV(nullptr), m_sphereBufferCapacity(0u)
 {
 }
 
@@ -37,8 +33,6 @@ void Renderer::shutdown()
 	DX11_RELEASE(m_pMainRaytracingCS);
 	DX11_RELEASE(m_pSphereDataBuffer);
 	DX11_RELEASE(m_pSphereDataSRV);
-	DX11_RELEASE(m_pRandomVectorBuffer);
-	DX11_RELEASE(m_pRandomVectorSRV);
 }
 
 void Renderer::initiate(ID3D11Texture2D* pTarget, Scene* pScene)
@@ -89,15 +83,6 @@ void Renderer::initiate(ID3D11Texture2D* pTarget, Scene* pScene)
 	m_sphereBufferCapacity = 10u;
 	success = Okay::createStructuredBuffer(&m_pSphereDataBuffer, &m_pSphereDataSRV, nullptr, sizeof(SphereComponent), m_sphereBufferCapacity);
 	OKAY_ASSERT(success);
-
-
-	// Random Vectors Buffer
-	success = Okay::createStructuredBuffer(&m_pRandomVectorBuffer, &m_pRandomVectorSRV, nullptr, sizeof(glm::vec3), NUM_RANDOM_VECTORS);
-	OKAY_ASSERT(success);
-
-	m_bufferIndices.resize(NUM_RANDOM_VECTORS);
-	for (uint32_t i = 0; i < NUM_RANDOM_VECTORS; i++)
-		m_bufferIndices[i] = i;
 }
 
 void Renderer::render()
@@ -115,7 +100,6 @@ void Renderer::render()
 	pDevCon->CSSetUnorderedAccessViews(0u, 1u, &m_pTargetUAV, nullptr);
 	pDevCon->CSSetUnorderedAccessViews(1u, 1u, &m_pAccumulationUAV, nullptr);
 	pDevCon->CSSetShaderResources(0u, 1u, &m_pSphereDataSRV);
-	pDevCon->CSSetShaderResources(1u, 1u, &m_pRandomVectorSRV);
 	pDevCon->CSSetConstantBuffers(0u, 1u, &m_pRenderDataBuffer);
 
 	pDevCon->Dispatch(m_renderData.textureDims.x / 16u, m_renderData.textureDims.y / 9u, 1u);
@@ -193,22 +177,4 @@ void Renderer::updateBuffers()
 	if (m_renderData.accumulationEnabled == 1)
 		m_renderData.numAccumulationFrames++;
 	Okay::updateBuffer(m_pRenderDataBuffer, &m_renderData, sizeof(RenderData));
-
-
-	// Random Vectors
-	if (SUCCEEDED(pDevCon->Map(m_pRandomVectorBuffer, 0u, D3D11_MAP_WRITE_DISCARD, 0u, &sub)))
-	{
-		static const float InverseUint32Max = 1.f / (float)std::numeric_limits<uint32_t>::max();
-		std::for_each(/*std::execution::par,*/ m_bufferIndices.begin(), m_bufferIndices.end(), [&](uint32_t i)
-			{
-				float randX = ((float)s_Distribution(s_RandomEngine) * InverseUint32Max) * 2.f - 1.f;
-				float randY = ((float)s_Distribution(s_RandomEngine) * InverseUint32Max) * 2.f - 1.f;
-				float randZ = ((float)s_Distribution(s_RandomEngine) * InverseUint32Max) * 2.f - 1.f;
-
-				//((glm::vec3*)sub.pData)[i] = glm::vec3(randX, randY, randZ);
-				((glm::vec3*)sub.pData)[i] = glm::normalize(glm::vec3(randX, randY, randZ));
-			});
-
-		pDevCon->Unmap(m_pRandomVectorBuffer, 0u);
-	}
 }
