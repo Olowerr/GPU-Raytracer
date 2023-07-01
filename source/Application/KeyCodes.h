@@ -15,16 +15,16 @@ namespace Key
 		Period = 46, /* . */
 		Slash = 47, /* / */
 	
-		D0 = 48, /* 0 */
-		D1 = 49, /* 1 */
-		D2 = 50, /* 2 */
-		D3 = 51, /* 3 */
-		D4 = 52, /* 4 */
-		D5 = 53, /* 5 */
-		D6 = 54, /* 6 */
-		D7 = 55, /* 7 */
-		D8 = 56, /* 8 */
-		D9 = 57, /* 9 */
+		Zero	= 48, // Prev: D0
+		One		= 49, // Prev: D1
+		Two		= 50, // Prev: D2
+		Three	= 51, // Prev: D3
+		Four	= 52, // Prev: D4
+		Five	= 53, // Prev: D5
+		Six		= 54, // Prev: D6
+		Seven	= 55, // Prev: D7
+		Eight	= 56, // Prev: D8
+		Nine	= 57, // Prev: D9
 	
 		Semicolon = 59, /* ; */
 		Equal = 61, /* = */
