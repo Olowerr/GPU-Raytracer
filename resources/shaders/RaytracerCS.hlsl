@@ -1,4 +1,6 @@
 
+#include "ShaderResourceRegisters.h"
+
 // ---- Defines and constants
 #define NUM_BOUNCES (5)
 #define INVALID_UINT (~0u)
@@ -46,10 +48,10 @@ struct RenderData
 
 
 // ---- Resources
-RWTexture2D<unorm float4> resultBuffer : register(u0);
-RWTexture2D<float4> accumulationBuffer : register(u1);
-StructuredBuffer<Sphere> sphereData : register(t0);
-cbuffer RenderDataBuffer : register(b0)
+RWTexture2D<unorm float4> resultBuffer : register(GPU_REG_RESULT_BUFFER);
+RWTexture2D<float4> accumulationBuffer : register(GPU_REG_ACCUMULATION_BUFFER);
+StructuredBuffer<Sphere> sphereData : register(GPU_REG_SPHERE_DATA);
+cbuffer RenderDataBuffer : register(GPU_REG_RENDER_DATA)
 {
     RenderData renderData;
 }
@@ -66,7 +68,7 @@ uint pcg_hash(uint seed)
 float3 getRandomVector(uint seed)
 {
     seed = pcg_hash(seed);
-    float x = ((float)seed / (float) INVALID_UINT) * 2.f - 1.f;
+    float x = ((float)seed / (float)INVALID_UINT) * 2.f - 1.f;
 
     seed = pcg_hash(seed);
     float y = ((float)seed / (float)INVALID_UINT) * 2.f - 1.f;

@@ -1,6 +1,7 @@
 #include "Renderer.h"
 #include "Scene/Scene.h"
 #include "Scene/Components.h"
+#include "shaders/ShaderResourceRegisters.h"
 
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtx/quaternion.hpp"
@@ -97,10 +98,10 @@ void Renderer::render()
 	pDevCon->ClearUnorderedAccessViewFloat(m_pTargetUAV, CLEAR_COLOUR);
 
 	pDevCon->CSSetShader(m_pMainRaytracingCS, nullptr, 0u);
-	pDevCon->CSSetUnorderedAccessViews(0u, 1u, &m_pTargetUAV, nullptr);
-	pDevCon->CSSetUnorderedAccessViews(1u, 1u, &m_pAccumulationUAV, nullptr);
-	pDevCon->CSSetShaderResources(0u, 1u, &m_pSphereDataSRV);
-	pDevCon->CSSetConstantBuffers(0u, 1u, &m_pRenderDataBuffer);
+	pDevCon->CSSetUnorderedAccessViews(CPU_SLOT_RESULT_BUFFER, 1u, &m_pTargetUAV, nullptr);
+	pDevCon->CSSetUnorderedAccessViews(CPU_SLOT_ACCUMULATION_BUFFER, 1u, &m_pAccumulationUAV, nullptr);
+	pDevCon->CSSetShaderResources(CPU_SLOT_SPHERE_DATA, 1u, &m_pSphereDataSRV);
+	pDevCon->CSSetConstantBuffers(CPU_SLOT_RENDER_DATA, 1u, &m_pRenderDataBuffer);
 
 	pDevCon->Dispatch(m_renderData.textureDims.x / 16u, m_renderData.textureDims.y / 9u, 1u);
 

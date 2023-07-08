@@ -121,7 +121,7 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="resources\shaders\defines.h" />
+    <None Include="resources\shaders\ShaderResourceRegisters.h" />
     <None Include="resources\shaders\RaytracerCS.hlsl" />
   </ItemGroup>
 </Project>
