@@ -113,9 +113,19 @@ void main( uint3 DTid : SV_DispatchThreadID )
         [0,0] in D3D11 textures is top left corner, but a higher Y-value should be higher in worldspace
         So it is flipped
     */
-    
+     
     float3 pos = float3((float)DTid.x, float(renderData.textureDims.y - DTid.y), renderData.cameraNearZ);
-    pos.xy /= (float2) renderData.textureDims;
+    
+#if 1 // Very simplified AA, just offset the ray by a random float2 between [-0.5, 0.5] every frame
+    const uint seed = DTid.x + DTid.y * renderData.textureDims.x * (renderData.numAccumulationFrames + 1);
+    const float xOffset = randomFloat(seed);
+    const float yOffset = randomFloat(xOffset * UINT_MAX);
+
+    pos.x += xOffset - 0.5f;
+    pos.y += yOffset - 0.5f;
+#endif
+    
+    pos.xy /= (float2)renderData.textureDims;
     pos.xy *= 2.f;
     pos.xy -= 1.f;
     
@@ -157,7 +167,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
 
         ray.origin = hitData.worldPosition + hitData.worldNormal * 0.001f;
         
-        const uint seed = DTid.x + DTid.y * renderData.textureDims.x * (i + 1) * renderData.numAccumulationFrames;
+        const uint seed = DTid.x + DTid.y * renderData.textureDims.x * (i + 1) * (renderData.numAccumulationFrames + 1);
         ray.direction = randomInHemisphere(seed, hitData.worldNormal);
     }
     

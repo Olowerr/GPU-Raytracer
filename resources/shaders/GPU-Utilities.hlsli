@@ -10,6 +10,11 @@ uint pcg_hash(uint seed)
     return (word >> 22u) ^ word;
 }
 
+float randomFloat(uint seed)
+{
+    return pcg_hash(seed) / (float)UINT_MAX;
+}
+
 float3 getRandomVector(uint seed)
 {
     seed = pcg_hash(seed);
