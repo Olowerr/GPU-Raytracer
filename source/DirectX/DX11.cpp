@@ -138,6 +138,42 @@ namespace Okay
 		dx11.pDeviceContext->Unmap(pBuffer, 0u);
 	}
 
+
+	class IncludeReader : public ID3DInclude
+	{
+	public:
+
+		// Inherited via ID3DInclude
+		virtual HRESULT __stdcall Open(D3D_INCLUDE_TYPE IncludeType, LPCSTR pFileName, LPCVOID pParentData, LPCVOID* ppData, UINT* pBytes) override
+		{
+			// TODO: Switch to Okay::readBinary()
+
+			std::ifstream reader(std::string(SHADER_PATH) + pFileName);
+			if (!reader)
+				return E_FAIL;
+
+			reader.seekg(0, std::ios::end);
+			m_includeBuffer.reserve((size_t)reader.tellg());
+			reader.seekg(0, std::ios::beg);
+
+			m_includeBuffer.assign(std::istreambuf_iterator<char>(reader), std::istreambuf_iterator<char>());
+
+			*ppData = m_includeBuffer.c_str();
+			*pBytes = (uint32_t)m_includeBuffer.size();
+
+			return S_OK;
+		}
+
+		virtual HRESULT __stdcall Close(LPCVOID pData) override
+		{
+			m_includeBuffer.resize(0u);
+			return S_OK;
+		}
+
+	private:
+		std::string m_includeBuffer;
+	};
+
 	template bool createShader(std::string_view path, ID3D11ComputeShader** ppShader, std::string* pOutShaderData);
 
 	template<typename ShaderType>
@@ -185,8 +221,8 @@ namespace Okay
 			if constexpr (std::is_same<ShaderType, ID3D11ComputeShader>())	shaderTypeTarget = "cs_5_0";
 
 
-			//IncludeReader includer;
-			HRESULT hr = D3DCompileFromFile(lpPath, nullptr, nullptr, "main", shaderTypeTarget, optimizationLevel, 0u, &shaderData, &compileErrors);
+			IncludeReader includer;
+			HRESULT hr = D3DCompileFromFile(lpPath, nullptr, &includer, "main", shaderTypeTarget, optimizationLevel, 0u, &shaderData, &compileErrors);
 			OKAY_DELETE_ARRAY(lpPath);
 
 			if (FAILED(hr))

@@ -121,6 +121,7 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="resources\RaytracerCS.hlsl" />
+    <None Include="resources\shaders\defines.h" />
+    <None Include="resources\shaders\RaytracerCS.hlsl" />
   </ItemGroup>
 </Project>

@@ -14,6 +14,8 @@
 #define OKAY_DELETE(X)		 if (X) { delete X;		X = nullptr; }
 #define OKAY_DELETE_ARRAY(X) if (X) { delete[]X;	X = nullptr; }
 
+#define SHADER_PATH "resources/shaders/"
+
 namespace Okay
 {
 	constexpr uint32_t INVALID_UINT = ~0u;

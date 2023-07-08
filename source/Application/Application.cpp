@@ -94,7 +94,7 @@ void Application::run()
 				m_accumulationTime = 0.f;
 			}
 		}
-
+		ImGui::End();
 
 		if (ImGui::Begin("Spheres"))
 		{

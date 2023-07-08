@@ -5,7 +5,6 @@
 #define FLT_MAX (3.402823466e+38F)
 #define NUM_RANDOM_VECTORS (100u)
 
-
 // ---- Strcuts
 struct Sphere
 {

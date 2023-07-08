@@ -75,7 +75,7 @@ void Renderer::initiate(ID3D11Texture2D* pTarget, Scene* pScene)
 
 
 	// Raytrace Computer Shader
-	success = Okay::createShader("resources/RayTracerCS.hlsl", &m_pMainRaytracingCS);
+	success = Okay::createShader(SHADER_PATH "RayTracerCS.hlsl", &m_pMainRaytracingCS);
 	OKAY_ASSERT(success);
 
 
