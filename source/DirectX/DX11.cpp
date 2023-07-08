@@ -146,17 +146,8 @@ namespace Okay
 		// Inherited via ID3DInclude
 		virtual HRESULT __stdcall Open(D3D_INCLUDE_TYPE IncludeType, LPCSTR pFileName, LPCVOID pParentData, LPCVOID* ppData, UINT* pBytes) override
 		{
-			// TODO: Switch to Okay::readBinary()
-
-			std::ifstream reader(std::string(SHADER_PATH) + pFileName);
-			if (!reader)
+			if (!Okay::readBinary(std::string(SHADER_PATH) + pFileName, m_includeBuffer))
 				return E_FAIL;
-
-			reader.seekg(0, std::ios::end);
-			m_includeBuffer.reserve((size_t)reader.tellg());
-			reader.seekg(0, std::ios::beg);
-
-			m_includeBuffer.assign(std::istreambuf_iterator<char>(reader), std::istreambuf_iterator<char>());
 
 			*ppData = m_includeBuffer.c_str();
 			*pBytes = (uint32_t)m_includeBuffer.size();
