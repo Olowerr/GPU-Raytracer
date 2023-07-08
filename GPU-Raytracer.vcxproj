@@ -274,6 +274,7 @@
     <ClInclude Include="source\Utilities.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="resources\shaders\GPU-Utilities.hlsli" />
     <None Include="resources\shaders\RaytracerCS.hlsl">
       <FileType>Document</FileType>
     </None>

@@ -123,5 +123,6 @@
   <ItemGroup>
     <None Include="resources\shaders\ShaderResourceRegisters.h" />
     <None Include="resources\shaders\RaytracerCS.hlsl" />
+    <None Include="resources\shaders\GPU-Utilities.hlsli" />
   </ItemGroup>
 </Project>

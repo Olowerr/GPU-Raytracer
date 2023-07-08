@@ -1,11 +1,10 @@
 
+#include "GPU-Utilities.hlsli"
 #include "ShaderResourceRegisters.h"
 
 // ---- Defines and constants
-#define NUM_BOUNCES (5)
-#define INVALID_UINT (~0u)
-#define FLT_MAX (3.402823466e+38F)
-#define NUM_RANDOM_VECTORS (100u)
+#define NUM_BOUNCES (5u)
+
 
 // ---- Strcuts
 struct Sphere
@@ -58,38 +57,10 @@ cbuffer RenderDataBuffer : register(GPU_REG_RENDER_DATA)
 
 
 // ---- Functions
-uint pcg_hash(uint seed)
-{
-    uint state = seed * 747796405u + 2891336453u;
-    uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
-    return (word >> 22u) ^ word;
-}
-
-float3 getRandomVector(uint seed)
-{
-    seed = pcg_hash(seed);
-    float x = ((float)seed / (float)INVALID_UINT) * 2.f - 1.f;
-
-    seed = pcg_hash(seed);
-    float y = ((float)seed / (float)INVALID_UINT) * 2.f - 1.f;
-   
-    seed = pcg_hash(seed);
-    float z = ((float)seed / (float)INVALID_UINT) * 2.f - 1.f;
-    
-    return normalize(float3(x, y, z));
-}
-
-float3 randomInHemisphere(uint2 DTid, uint bounceIdx, float3 normal)
-{
-    const uint seed = DTid.x + DTid.y * renderData.textureDims.x * (bounceIdx + 1) * renderData.numAccumulationFrames;
-    const float3 randVector = getRandomVector(seed);
-    return randVector * (dot(randVector, normal) > 0.f ? 1.f : -1.f);
-}
-
 Payload findClosestHit(Ray ray)
 {
     Payload payload;
-    payload.hitIdx = INVALID_UINT;
+    payload.hitIdx = UINT_MAX;
     
     Sphere currentSphere;
     float cloestHitDistance = FLT_MAX;
@@ -174,7 +145,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
     for (uint i = 0; i < NUM_BOUNCES; i++)
     {
         hitData = findClosestHit(ray);
-        if (hitData.hitIdx == INVALID_UINT)
+        if (hitData.hitIdx == UINT_MAX)
         {
             //light += float3(0.2f, 0.4f, 0.6f) * contribution;
             break;
@@ -185,7 +156,9 @@ void main( uint3 DTid : SV_DispatchThreadID )
         light += currentSphere.emissionColour * currentSphere.emissonPower * contribution;
 
         ray.origin = hitData.worldPosition + hitData.worldNormal * 0.001f;
-        ray.direction = randomInHemisphere(DTid.xy, i, hitData.worldNormal);
+        
+        const uint seed = DTid.x + DTid.y * renderData.textureDims.x * (i + 1) * renderData.numAccumulationFrames;
+        ray.direction = randomInHemisphere(seed, hitData.worldNormal);
     }
     
     if (renderData.accumulationEnabled == 1)
