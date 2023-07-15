@@ -11,7 +11,7 @@
 #include "glm/gtc/matrix_transform.hpp"
 
 Application::Application()
-	:m_pBackBuffer(nullptr)
+	:m_pBackBuffer(nullptr), m_accumulationTime(0.f)
 {
 	glfwInitHint(GLFW_CLIENT_API, GLFW_NO_API);
 
@@ -129,7 +129,10 @@ void Application::run()
 			ImGui::PopItemWidth();
 
 			if (resetAccumulation)
+			{
 				m_renderer.resetAccumulation();
+				m_accumulationTime = 0.f;
+			}
 		}
 		ImGui::End();
 
