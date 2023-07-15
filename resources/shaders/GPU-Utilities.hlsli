@@ -1,35 +1,39 @@
 
 #define UINT_MAX (~0u)
 #define FLT_MAX (3.402823466e+38F)
+#define PI (3.14159265f)
 
-
-uint pcg_hash(uint seed)
+uint pcg_hash(inout uint seed)
 {
-    uint state = seed * 747796405u + 2891336453u;
-    uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
-    return (word >> 22u) ^ word;
+    // Ty Cherno
+    seed *= 747796405u + 2891336453u;
+    seed = ((seed >> ((seed >> 28u) + 4u)) ^ seed) * 277803737u;
+    seed = (seed >> 22u) ^ seed;
+    return seed;
 }
 
-float randomFloat(uint seed)
+float randomFloat(inout uint seed)
 {
     return pcg_hash(seed) / (float)UINT_MAX;
 }
 
-float3 getRandomVector(uint seed)
+float randomFloatNormalDistribution(inout uint seed)
 {
-    seed = pcg_hash(seed);
-    float x = ((float)seed / (float)UINT_MAX) * 2.f - 1.f;
+    // Ty Sebastian Lague
+    float theta = 2 * PI * randomFloat(seed);
+    float rho = sqrt(-2 * log(randomFloat(seed)));
+    return rho * cos(theta);
+}
 
-    seed = pcg_hash(seed);
-    float y = ((float)seed / (float)UINT_MAX) * 2.f - 1.f;
-   
-    seed = pcg_hash(seed);
-    float z = ((float)seed / (float)UINT_MAX) * 2.f - 1.f;
-    
+float3 getRandomVector(inout uint seed)
+{
+    float x = randomFloatNormalDistribution(seed);
+    float y = randomFloatNormalDistribution(seed);
+    float z = randomFloatNormalDistribution(seed);  
     return normalize(float3(x, y, z));
 }
 
-float3 randomInHemisphere(uint seed, float3 normal)
+float3 randomInHemisphere(inout uint seed, float3 normal)
 {
     const float3 randVector = getRandomVector(seed);
     return randVector * (dot(randVector, normal) > 0.f ? 1.f : -1.f);
