@@ -57,6 +57,19 @@ cbuffer RenderDataBuffer : register(GPU_REG_RENDER_DATA)
 
 
 // ---- Functions
+
+float3 getEnvironmentLight(float3 direction)
+{
+    const static float3 SKY_COLOUR = float3(102.f, 204.f, 255.f) / 255.f;
+    const static float3 GROUND_COLOUR = float3(164.f, 177.f, 178.f) / 255.f;
+    
+    const float dotty = dot(direction, float3(0.f, 1.f, 0.f));
+    float3 colour = lerp(float3(1.f, 1.f, 1.f), SKY_COLOUR, pow(max(dotty, 0.f), 0.6f));
+    
+    const float transitionDotty = clamp((dotty + 0.005f) / 0.01f, 0.f, 1.f);
+    return lerp(GROUND_COLOUR, colour, transitionDotty);
+}
+
 Payload findClosestHit(Ray ray)
 {
     Payload payload;
@@ -114,12 +127,13 @@ void main( uint3 DTid : SV_DispatchThreadID )
         So it is flipped
     */
      
+    uint seed = DTid.x + (DTid.y + 1) * renderData.textureDims.x * (renderData.numAccumulationFrames + 1);
+    
     float3 pos = float3((float)DTid.x, float(renderData.textureDims.y - DTid.y), renderData.cameraNearZ);
     
 #if 1 // Very simplified AA, just offset the ray by a random float2 between [-0.5, 0.5] every frame
-    const uint seed = DTid.x + DTid.y * renderData.textureDims.x * (renderData.numAccumulationFrames + 1);
     const float xOffset = randomFloat(seed);
-    const float yOffset = randomFloat(xOffset * UINT_MAX);
+    const float yOffset = randomFloat(seed);
 
     pos.x += xOffset - 0.5f;
     pos.y += yOffset - 0.5f;
@@ -157,7 +171,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
         hitData = findClosestHit(ray);
         if (hitData.hitIdx == UINT_MAX)
         {
-            //light += float3(0.2f, 0.4f, 0.6f) * contribution;
+            light += getEnvironmentLight(ray.direction) * contribution;
             break;
         }
         
@@ -165,9 +179,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
         contribution *= currentSphere.colour;
         light += currentSphere.emissionColour * currentSphere.emissonPower * contribution;
 
-        ray.origin = hitData.worldPosition + hitData.worldNormal * 0.001f;
-        
-        const uint seed = DTid.x + DTid.y * renderData.textureDims.x * (i + 1) * (renderData.numAccumulationFrames + 1);
+        ray.origin = hitData.worldPosition + hitData.worldNormal * 0.001f;   
         ray.direction = randomInHemisphere(seed, hitData.worldNormal);
     }
     
