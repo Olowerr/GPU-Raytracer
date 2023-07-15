@@ -8,6 +8,7 @@ struct SphereComponent // Temporary
 	glm::vec3 emission = glm::vec3(0.f, 0.f, 0.f);
 	float emissionPower = 0.f;
 	float radius = 20.f;
+	float smoothness = 0.f;
 };
 
 struct Camera

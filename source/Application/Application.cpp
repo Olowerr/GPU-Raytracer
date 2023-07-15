@@ -46,13 +46,6 @@ void Application::run()
 	m_camera.addComponent<Camera>(90.f, 0.1f);
 	m_renderer.setCamera(m_camera);
 
-	SphereComponent& sun = m_scene.createEntity().addComponent<SphereComponent>();
-	sun.position = glm::vec3(325.f, 283.f, 20.f);
-	sun.colour = glm::vec3(1.f);
-	sun.emission = glm::vec3(0.7f, 0.84f, 0.88f);
-	sun.emissionPower = 2.9f;
-	sun.radius = 200.f;
-
 	SphereComponent& ground = m_scene.createEntity().addComponent<SphereComponent>();
 	ground.position = glm::vec3(0.f, -1468.f, 91.8f);
 	ground.colour = glm::vec3(1.f);
@@ -124,6 +117,7 @@ void Application::run()
 				ImGui::ColorEdit3("Emission Colour", &sphere.emission.x);
 				ImGui::DragFloat("Emission Power", &sphere.emissionPower, 0.01f);
 				ImGui::DragFloat("Radius", &sphere.radius, 0.1f);
+				ImGui::DragFloat("Smoothness", &sphere.smoothness, 0.01f, 0.f, 1.f);
 			
 				ImGui::Separator();
 

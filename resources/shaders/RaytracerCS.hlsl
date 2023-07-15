@@ -14,6 +14,7 @@ struct Sphere
     float3 emissionColour;
     float emissonPower;
     float radius;
+    float smoothness;
 };
 
 struct Ray
@@ -179,8 +180,11 @@ void main( uint3 DTid : SV_DispatchThreadID )
         contribution *= currentSphere.colour;
         light += currentSphere.emissionColour * currentSphere.emissonPower * contribution;
 
+        const float3 diffuseReflection = randomInHemisphere(seed, hitData.worldNormal);
+        const float3 specularReflection = reflect(ray.direction, hitData.worldNormal);
+        
         ray.origin = hitData.worldPosition + hitData.worldNormal * 0.001f;   
-        ray.direction = randomInHemisphere(seed, hitData.worldNormal);
+        ray.direction = lerp(diffuseReflection, specularReflection, currentSphere.smoothness);
     }
     
     if (renderData.accumulationEnabled == 1)
