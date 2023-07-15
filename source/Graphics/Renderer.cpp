@@ -109,6 +109,18 @@ void Renderer::render()
 	pDevCon->CSSetUnorderedAccessViews(0u, 1u, &nullUAV, nullptr);
 }
 
+void Renderer::reloadShaders()
+{
+	ID3D11ComputeShader* pNewShader = nullptr;
+	if (!Okay::createShader(SHADER_PATH "RayTracerCS.hlsl", &pNewShader))
+		return;
+
+	DX11_RELEASE(m_pMainRaytracingCS);
+	m_pMainRaytracingCS = pNewShader;
+
+	resetAccumulation();
+}
+
 void Renderer::calculateProjectionData()
 {
 	const glm::vec2 windowDimsVec((float)m_renderData.textureDims.x, (float)m_renderData.textureDims.y);

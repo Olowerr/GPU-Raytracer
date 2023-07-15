@@ -42,6 +42,8 @@ public:
 	inline void resetAccumulation();
 	inline uint32_t getNumAccumulationFrames() const;
 
+	void reloadShaders();
+
 private: // Scene
 	Scene* m_pScene;
 	Entity m_camera;

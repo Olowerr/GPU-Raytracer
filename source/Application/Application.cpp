@@ -93,6 +93,11 @@ void Application::run()
 				m_renderer.resetAccumulation();
 				m_accumulationTime = 0.f;
 			}
+
+			ImGui::Separator();
+
+			if (ImGui::Button("Reload Shaders"))
+				m_renderer.reloadShaders();
 		}
 		ImGui::End();
 
