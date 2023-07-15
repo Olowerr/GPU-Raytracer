@@ -46,6 +46,13 @@ void Window::initiate(uint32_t width, uint32_t height, std::string_view windowNa
 	m_pDXSwapChain->GetBuffer(0u, __uuidof(ID3D11Texture2D), (void**)&m_pDXBackBuffer);
 	OKAY_ASSERT(m_pDXBackBuffer);
 
+	if (GLFWmonitor* pMonitor = glfwGetPrimaryMonitor())
+	{
+		int monitorWidth, monitorHeight;
+		glfwGetMonitorWorkarea(pMonitor, nullptr, nullptr, &monitorWidth, &monitorHeight);
+		glfwSetWindowPos(m_pGLWindow, monitorWidth / 2 - width / 2, monitorHeight / 2 - height / 2);
+	}
+
 	Input::pWindow = m_pGLWindow;
 
 	glfwSetKeyCallback(m_pGLWindow, [](GLFWwindow* window, int key, int scancode, int action, int mods)

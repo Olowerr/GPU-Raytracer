@@ -103,6 +103,7 @@ void Application::run()
 
 			ImGui::Separator();
 
+			bool resetAccumulation = false;
 			auto sphereView = m_scene.getRegistry().view<SphereComponent>();
 			for (entt::entity entity : sphereView)
 			{
@@ -112,18 +113,21 @@ void Application::run()
 				ImGui::PushID(entityID);
 
 				ImGui::Text("Sphere: %u", entityID);
-				ImGui::DragFloat3("Position", &sphere.position.x, 0.1f);
-				ImGui::ColorEdit3("Colour", &sphere.colour.x);
-				ImGui::ColorEdit3("Emission Colour", &sphere.emission.x);
-				ImGui::DragFloat("Emission Power", &sphere.emissionPower, 0.01f);
-				ImGui::DragFloat("Radius", &sphere.radius, 0.1f);
-				ImGui::DragFloat("Smoothness", &sphere.smoothness, 0.01f, 0.f, 1.f);
+				if (ImGui::DragFloat3("Position", &sphere.position.x, 0.1f))				resetAccumulation = true;
+				if (ImGui::ColorEdit3("Colour", &sphere.colour.x))							resetAccumulation = true;
+				if (ImGui::ColorEdit3("Emission Colour", &sphere.emission.x))				resetAccumulation = true;
+				if (ImGui::DragFloat("Emission Power", &sphere.emissionPower, 0.01f))		resetAccumulation = true;
+				if (ImGui::DragFloat("Radius", &sphere.radius, 0.1f))						resetAccumulation = true;
+				if (ImGui::DragFloat("Smoothness", &sphere.smoothness, 0.01f, 0.f, 1.f))	resetAccumulation = true;
 			
 				ImGui::Separator();
 
 				ImGui::PopID();
 			}
 			ImGui::PopItemWidth();
+
+			if (resetAccumulation)
+				m_renderer.resetAccumulation();
 		}
 		ImGui::End();
 
