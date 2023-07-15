@@ -119,6 +119,8 @@ void Application::run()
 				if (ImGui::DragFloat("Emission Power", &sphere.emissionPower, 0.01f))		resetAccumulation = true;
 				if (ImGui::DragFloat("Radius", &sphere.radius, 0.1f))						resetAccumulation = true;
 				if (ImGui::DragFloat("Smoothness", &sphere.smoothness, 0.01f, 0.f, 1.f))	resetAccumulation = true;
+				if (ImGui::DragFloat("Specular Probabilty", &sphere.specularProbability, 0.01f, 0.f, 1.f))	resetAccumulation = true;
+				if (ImGui::ColorEdit3("Specular Colour", &sphere.specularColour.x))			resetAccumulation = true;
 			
 				ImGui::Separator();
 

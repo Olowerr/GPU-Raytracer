@@ -9,6 +9,8 @@ struct SphereComponent // Temporary
 	float emissionPower = 0.f;
 	float radius = 20.f;
 	float smoothness = 0.f;
+	float specularProbability = 0.f;
+	glm::vec3 specularColour = glm::vec3(1.f);
 };
 
 struct Camera
