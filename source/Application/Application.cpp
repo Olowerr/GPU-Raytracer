@@ -46,20 +46,23 @@ void Application::run()
 	m_camera.addComponent<Camera>(90.f, 0.1f);
 	m_renderer.setCamera(m_camera);
 
-	SphereComponent& ground = m_scene.createEntity().addComponent<SphereComponent>();
-	ground.position = glm::vec3(0.f, -1468.f, 91.8f);
-	ground.colour = glm::vec3(1.f);
-	ground.emission = glm::vec3(0.f);
-	ground.emissionPower = 0.f;
-	ground.radius = 1465.f;
+	Entity ground = m_scene.createEntity();
+	Sphere& groundSphere = ground.addComponent<Sphere>();
+	Transform& groundTra = ground.getComponent<Transform>();
+	groundTra.position = glm::vec3(0.f, -1468.f, 91.8f);
+	groundSphere.material.albedoColour = glm::vec3(1.f);
+	groundSphere.material.emissionColour = glm::vec3(0.f);
+	groundSphere.material.emissionPower = 0.f;
+	groundSphere.radius = 1465.f;
 
-	SphereComponent& ball = m_scene.createEntity().addComponent<SphereComponent>();
-	ball.position = glm::vec3(0.f, -1.4f, 20.f);
-	ball.colour = glm::vec3(0.89f, 0.5f, 0.5f);
-	ball.emission = glm::vec3(0.f);
-	ball.emissionPower = 0.f;
-	ball.radius = 7.3f;
-
+	Entity ball = m_scene.createEntity();
+	Sphere& ballSphere = ball.addComponent<Sphere>();
+	Transform& ballTra = ball.getComponent<Transform>();
+	ballTra.position = glm::vec3(0.f, -1.4f, 20.f);
+	ballSphere.material.albedoColour = glm::vec3(0.89f, 0.5f, 0.5f);
+	ballSphere.material.emissionColour = glm::vec3(0.f);
+	ballSphere.material.emissionPower = 0.f;
+	ballSphere.radius = 7.3f;
 
 	while (m_window.isOpen())
 	{
@@ -99,28 +102,30 @@ void Application::run()
 			ImGui::PushItemWidth(-120.f);
 
 			if (ImGui::Button("Add Sphere"))
-				m_scene.createEntity().addComponent<SphereComponent>();
+				m_scene.createEntity().addComponent<Sphere>();
 
 			ImGui::Separator();
 
-			bool resetAccumulation = false;
-			auto sphereView = m_scene.getRegistry().view<SphereComponent>();
+			bool resetAcu = false;
+			auto sphereView = m_scene.getRegistry().view<Sphere, Transform>();
 			for (entt::entity entity : sphereView)
 			{
-				SphereComponent& sphere = sphereView[entity];
+				auto [sphere, transform] = sphereView.get<Sphere, Transform>(entity);
+				Material& mat = sphere.material;
+
 				const uint32_t entityID = (uint32_t)entity;
 				
 				ImGui::PushID(entityID);
 
 				ImGui::Text("Sphere: %u", entityID);
-				if (ImGui::DragFloat3("Position", &sphere.position.x, 0.1f))				resetAccumulation = true;
-				if (ImGui::ColorEdit3("Colour", &sphere.colour.x))							resetAccumulation = true;
-				if (ImGui::ColorEdit3("Emission Colour", &sphere.emission.x))				resetAccumulation = true;
-				if (ImGui::DragFloat("Emission Power", &sphere.emissionPower, 0.01f))		resetAccumulation = true;
-				if (ImGui::DragFloat("Radius", &sphere.radius, 0.1f))						resetAccumulation = true;
-				if (ImGui::DragFloat("Smoothness", &sphere.smoothness, 0.01f, 0.f, 1.f))	resetAccumulation = true;
-				if (ImGui::DragFloat("Specular Probabilty", &sphere.specularProbability, 0.01f, 0.f, 1.f))	resetAccumulation = true;
-				if (ImGui::ColorEdit3("Specular Colour", &sphere.specularColour.x))			resetAccumulation = true;
+				if (ImGui::DragFloat3("Position", &transform.position.x, 0.1f))							resetAcu = true;
+				if (ImGui::ColorEdit3("Colour", &mat.albedoColour.x))									resetAcu = true;
+				if (ImGui::ColorEdit3("Emission Colour", &mat.emissionColour.x))						resetAcu = true;
+				if (ImGui::DragFloat("Emission Power", &mat.emissionPower, 0.01f))						resetAcu = true;
+				if (ImGui::DragFloat("Radius", &sphere.radius, 0.1f))									resetAcu = true;
+				if (ImGui::DragFloat("Smoothness", &mat.smoothness, 0.01f, 0.f, 1.f))					resetAcu = true;
+				if (ImGui::DragFloat("Specular Probabilty", &mat.specularProbability, 0.01f, 0.f, 1.f))	resetAcu = true;
+				if (ImGui::ColorEdit3("Specular Colour", &mat.specularColour.x))						resetAcu = true;
 			
 				ImGui::Separator();
 
@@ -128,7 +133,7 @@ void Application::run()
 			}
 			ImGui::PopItemWidth();
 
-			if (resetAccumulation)
+			if (resetAcu)
 			{
 				m_renderer.resetAccumulation();
 				m_accumulationTime = 0.f;

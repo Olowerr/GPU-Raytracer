@@ -10,8 +10,7 @@
 
 Renderer::Renderer()
 	:m_pTargetUAV(nullptr), m_pMainRaytracingCS(nullptr), m_pScene(nullptr), m_renderData(),
-	m_pAccumulationUAV(nullptr), m_pRenderDataBuffer(nullptr), m_pSphereDataBuffer(nullptr),
-	m_pSphereDataSRV(nullptr), m_sphereBufferCapacity(0u)
+	m_pAccumulationUAV(nullptr), m_pRenderDataBuffer(nullptr)
 {
 }
 
@@ -32,8 +31,8 @@ void Renderer::shutdown()
 	DX11_RELEASE(m_pAccumulationUAV);
 	DX11_RELEASE(m_pRenderDataBuffer);
 	DX11_RELEASE(m_pMainRaytracingCS);
-	DX11_RELEASE(m_pSphereDataBuffer);
-	DX11_RELEASE(m_pSphereDataSRV);
+	
+	shutdownGPUStorage(m_spheres);
 }
 
 void Renderer::initiate(ID3D11Texture2D* pTarget, Scene* pScene)
@@ -64,7 +63,7 @@ void Renderer::initiate(ID3D11Texture2D* pTarget, Scene* pScene)
 	success = SUCCEEDED(pDevice->CreateTexture2D(&textureDesc, nullptr, &pAccumulationBuffer));
 	OKAY_ASSERT(success);
 
-	// Accumilation UAV
+	// Accumulation UAV
 	success = SUCCEEDED(pDevice->CreateUnorderedAccessView(pAccumulationBuffer, nullptr, &m_pAccumulationUAV));
 	DX11_RELEASE(pAccumulationBuffer);
 	OKAY_ASSERT(success);
@@ -80,10 +79,12 @@ void Renderer::initiate(ID3D11Texture2D* pTarget, Scene* pScene)
 	OKAY_ASSERT(success);
 
 
-	// Sphere data
-	m_sphereBufferCapacity = 10u;
-	success = Okay::createStructuredBuffer(&m_pSphereDataBuffer, &m_pSphereDataSRV, nullptr, sizeof(SphereComponent), m_sphereBufferCapacity);
-	OKAY_ASSERT(success);
+	// Scene GPU Data
+	const uint32_t SRV_START_SIZE = 10u;
+	createGPUStorage(m_spheres, sizeof(glm::vec3) + sizeof(Sphere), SRV_START_SIZE);
+#if 0
+	createGPUStorage(m_spheres, sizeof(glm::mat4) + sizeof(Material) + sizeof(uint32_t) * 2, SRV_START_SIZE);
+#endif
 }
 
 void Renderer::render()
@@ -93,16 +94,20 @@ void Renderer::render()
 
 	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
 
-	// Bind and Dispatch
+	// Clear
 	static const float CLEAR_COLOUR[4]{ 0.2f, 0.4f, 0.6f, 1.f };
 	pDevCon->ClearUnorderedAccessViewFloat(m_pTargetUAV, CLEAR_COLOUR);
 
+	// Bind standard resources
 	pDevCon->CSSetShader(m_pMainRaytracingCS, nullptr, 0u);
 	pDevCon->CSSetUnorderedAccessViews(CPU_SLOT_RESULT_BUFFER, 1u, &m_pTargetUAV, nullptr);
 	pDevCon->CSSetUnorderedAccessViews(CPU_SLOT_ACCUMULATION_BUFFER, 1u, &m_pAccumulationUAV, nullptr);
-	pDevCon->CSSetShaderResources(CPU_SLOT_SPHERE_DATA, 1u, &m_pSphereDataSRV);
 	pDevCon->CSSetConstantBuffers(CPU_SLOT_RENDER_DATA, 1u, &m_pRenderDataBuffer);
 
+	// Bind scene data
+	pDevCon->CSSetShaderResources(CPU_SLOT_SPHERE_DATA, 1u, &m_spheres.pSRV);
+
+	// Dispatch and unbind
 	pDevCon->Dispatch(m_renderData.textureDims.x / 16u, m_renderData.textureDims.y / 9u, 1u);
 
 	static ID3D11UnorderedAccessView* nullUAV = nullptr;
@@ -160,34 +165,69 @@ void Renderer::calculateProjectionData()
 void Renderer::updateBuffers()
 {
 	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
+	entt::registry& reg = m_pScene->getRegistry();
 
-	// Sphere Data
-	auto sphereView = m_pScene->getRegistry().view<SphereComponent>();
-	if (m_sphereBufferCapacity < sphereView.size())
+	auto sphereView = reg.view<Sphere, Transform>();
+	updateGPUStorage(m_spheres, (uint32_t)sphereView.size_hint(), [&](char* pMappedBufferData)
 	{
-		m_sphereBufferCapacity = (uint32_t)sphereView.size() + 10u;
-		DX11_RELEASE(m_pSphereDataBuffer);
-		DX11_RELEASE(m_pSphereDataSRV);
-		bool success = Okay::createStructuredBuffer(&m_pSphereDataBuffer, &m_pSphereDataSRV, nullptr, sizeof(SphereComponent), m_sphereBufferCapacity);
-		OKAY_ASSERT(success);
-	}
-
-	D3D11_MAPPED_SUBRESOURCE sub{};
-	if (SUCCEEDED(pDevCon->Map(m_pSphereDataBuffer, 0u, D3D11_MAP_WRITE_DISCARD, 0u, &sub)))
-	{
-		char* coursor = (char*)sub.pData;
 		for (entt::entity entity : sphereView)
 		{
-			memcpy(coursor, &sphereView.get<SphereComponent>(entity), sizeof(SphereComponent));
-			coursor += sizeof(SphereComponent);
-		}
-		pDevCon->Unmap(m_pSphereDataBuffer, 0u);
-	}
+			auto [sphere, transform] = sphereView[entity];
 
+			memcpy(pMappedBufferData, &transform.position, sizeof(glm::vec3));
+			pMappedBufferData += sizeof(glm::vec3);
+
+			memcpy(pMappedBufferData, &sphereView.get<Sphere>(entity), sizeof(Sphere));
+			pMappedBufferData += sizeof(Sphere);
+		}
+	});
+
+#if 0
+	auto meshView = reg.view<MeshComponent, Transform>();
+	updateGPUStorage(m_meshes, (uint32_t)meshView.size_hint(), [&](char* pMappedBufferData)
+	{
+		glm::mat4 matrix{};
+		for (entt::entity entity : meshView)
+		{
+			auto [mesh, transform] = meshView[entity];
+
+			const MeshComponent& mesh = meshView.get<MeshComponent>(entity);
+			matrix = transform.calculateMatrix();
+	
+			memcpy(pMappedBufferData, &matrix, sizeof(glm::mat4));
+			pMappedBufferData += sizeof(glm::mat4);
+	
+			memcpy(pMappedBufferData, &mesh.material, sizeof(Material));
+			pMappedBufferData += sizeof(Material);
+	
+			// Copy vertexStart & vertexCount into buffer
+			// Move coursor
+		}
+	});
+#endif
 	
 	// Render Data
-	m_renderData.numSpheres = (uint32_t)sphereView.size();
+	m_renderData.numSpheres = (uint32_t)sphereView.size_hint();
 	if (m_renderData.accumulationEnabled == 1)
 		m_renderData.numAccumulationFrames++;
 	Okay::updateBuffer(m_pRenderDataBuffer, &m_renderData, sizeof(RenderData));
 }
+
+void Renderer::createGPUStorage(GPUStorage& storage, uint32_t elementSize, uint32_t capacity)
+{
+	shutdownGPUStorage(storage);
+
+	storage.capacity = capacity;
+	storage.gpuElementByteSize = elementSize;
+	bool success = Okay::createStructuredBuffer(&storage.pBuffer, &storage.pSRV, nullptr, elementSize, capacity);
+	OKAY_ASSERT(success);
+}
+
+void Renderer::shutdownGPUStorage(GPUStorage& storage)
+{
+	DX11_RELEASE(storage.pBuffer);
+	DX11_RELEASE(storage.pSRV);
+	storage.capacity = 0u;
+	storage.gpuElementByteSize = 0u;
+}
+

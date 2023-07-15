@@ -54,7 +54,6 @@ private: // DX11
 	void updateBuffers();
 
 	ID3D11UnorderedAccessView* m_pTargetUAV;
-
 	ID3D11UnorderedAccessView* m_pAccumulationUAV;
 
 	RenderData m_renderData;
@@ -62,9 +61,25 @@ private: // DX11
 
 	ID3D11ComputeShader* m_pMainRaytracingCS;
 
-	ID3D11Buffer* m_pSphereDataBuffer;
-	ID3D11ShaderResourceView* m_pSphereDataSRV;
-	uint32_t m_sphereBufferCapacity;
+private: // Scene GPU Data
+	struct GPUStorage
+	{
+		ID3D11Buffer* pBuffer = nullptr;
+		ID3D11ShaderResourceView* pSRV = nullptr;
+		uint32_t capacity = 0u;
+		uint32_t gpuElementByteSize = 0u;
+	};
+
+	void createGPUStorage(GPUStorage& storage, uint32_t elementSize, uint32_t capacity);
+	void shutdownGPUStorage(GPUStorage& storage);
+
+	template<typename Func>
+	void updateGPUStorage(GPUStorage& storage, uint32_t resizeCapacity, Func function);
+
+#if 0
+	GPUStorage m_meshes;
+#endif
+	GPUStorage m_spheres;
 };
 
 inline void Renderer::setScene(Scene* pScene)
@@ -97,4 +112,20 @@ inline void Renderer::resetAccumulation()
 inline uint32_t Renderer::getNumAccumulationFrames() const
 {
 	return m_renderData.numAccumulationFrames;
+}
+
+template<typename Func>
+void Renderer::updateGPUStorage(GPUStorage& storage, uint32_t resizeCapacity, Func function)
+{
+	if (storage.capacity < resizeCapacity)
+		createGPUStorage(storage, storage.gpuElementByteSize, resizeCapacity + 10u);
+	
+	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
+	D3D11_MAPPED_SUBRESOURCE sub{};
+	if (FAILED(pDevCon->Map(storage.pBuffer, 0u, D3D11_MAP_WRITE_DISCARD, 0u, &sub)))
+		return;
+
+	function((char*)sub.pData);
+
+	pDevCon->Unmap(storage.pBuffer, 0u);
 }

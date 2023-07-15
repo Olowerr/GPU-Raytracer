@@ -6,19 +6,7 @@
 #define NUM_BOUNCES (5u)
 
 
-// ---- Strcuts
-struct Sphere
-{
-    float3 position;
-    float3 colour;
-    float3 emissionColour;
-    float emissonPower;
-    float radius;
-    float smoothness;
-    float specularProbability;
-    float3 specularColour;
-};
-
+// ---- Structs
 struct Ray
 {
     float3 origin;
@@ -31,6 +19,39 @@ struct Payload
     float3 worldPosition;
     float3 worldNormal;
 };
+
+struct Material
+{
+    float3 albedoColour;
+
+    float3 specularColour;
+    float smoothness;
+    float specularProbability;
+
+    float3 emissionColour;
+    float emissionPower;
+};
+
+struct Sphere
+{
+    float3 position;
+    
+    Material material;
+
+    float radius;
+};
+
+#if 0
+struct Mesh
+{
+    float4x4 transformMatrix;
+    
+    Material material;
+
+    uint startVertex;
+    uint vertexCount;
+};
+#endif
 
 struct RenderData
 {
@@ -52,11 +73,14 @@ struct RenderData
 // ---- Resources
 RWTexture2D<unorm float4> resultBuffer : register(GPU_REG_RESULT_BUFFER);
 RWTexture2D<float4> accumulationBuffer : register(GPU_REG_ACCUMULATION_BUFFER);
-StructuredBuffer<Sphere> sphereData : register(GPU_REG_SPHERE_DATA);
 cbuffer RenderDataBuffer : register(GPU_REG_RENDER_DATA)
 {
     RenderData renderData;
 }
+
+// Scene data
+StructuredBuffer<Sphere> sphereData : register(GPU_REG_SPHERE_DATA);
+
 
 
 // ---- Functions
@@ -134,13 +158,9 @@ void main( uint3 DTid : SV_DispatchThreadID )
     
     float3 pos = float3((float)DTid.x, float(renderData.textureDims.y - DTid.y), renderData.cameraNearZ);
     
-#if 1 // Very simplified AA, just offset the ray by a random float2 between [-0.5, 0.5] every frame
-    const float xOffset = randomFloat(seed);
-    const float yOffset = randomFloat(seed);
-
-    pos.x += xOffset - 0.5f;
-    pos.y += yOffset - 0.5f;
-#endif
+    // Simple AA
+    pos.x += randomFloat(seed) - 0.5f;
+    pos.y += randomFloat(seed) - 0.5f;
     
     pos.xy /= (float2)renderData.textureDims;
     pos.xy *= 2.f;
@@ -168,6 +188,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
     
     Payload hitData;
     Sphere currentSphere;
+    Material material;
     
     for (uint i = 0; i < NUM_BOUNCES; i++)
     {
@@ -179,17 +200,18 @@ void main( uint3 DTid : SV_DispatchThreadID )
         }
         
         currentSphere = sphereData[hitData.hitIdx];
-
+        material = currentSphere.material;
+        
         const float3 diffuseReflection = randomInHemisphere(seed, hitData.worldNormal);
         const float3 specularReflection = reflect(ray.direction, hitData.worldNormal);
-        const float specularFactor = float(currentSphere.specularProbability >= randomFloat(seed));
+        const float specularFactor = float(material.specularProbability >= randomFloat(seed));
         
         ray.origin = hitData.worldPosition + hitData.worldNormal * 0.001f;   
-        ray.direction = lerp(diffuseReflection, specularReflection, currentSphere.smoothness * specularFactor);
+        ray.direction = lerp(diffuseReflection, specularReflection, material.smoothness * specularFactor);
         
-        light += currentSphere.emissionColour * currentSphere.emissonPower * contribution;
-        contribution *= lerp(currentSphere.colour, currentSphere.specularColour, specularFactor);
-        //contribution *= currentSphere.colour;
+        light += material.emissionColour * material.emissionPower * contribution;
+        contribution *= lerp(material.albedoColour, material.specularColour, specularFactor);
+        contribution *= material.albedoColour;
     }
     
     if (renderData.accumulationEnabled == 1)

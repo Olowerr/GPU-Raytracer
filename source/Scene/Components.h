@@ -1,11 +1,19 @@
 #pragma once
 #include "glm/glm.hpp"
+#include "glm/gtx/quaternion.hpp"
 
 struct Transform
 {
 	glm::vec3 position = glm::vec3(0.f);
 	glm::vec3 rotation = glm::vec3(0.f);
 	glm::vec3 scale = glm::vec3(1.f);
+
+	glm::mat4 calculateMatrix() const
+	{
+		return glm::translate(glm::mat4(1.f), position) *
+			glm::toMat4(glm::quat(rotation)) *
+			glm::scale(glm::mat4(1.f), scale);
+	}
 };
 
 struct Material
@@ -22,8 +30,17 @@ struct Material
 
 struct Sphere
 {
+	Material material;
 	float radius = 4.f;
 };
+
+#if 0
+struct MeshComponent
+{
+	Material material;
+	uint32_t meshID;
+};
+#endif
 
 struct Camera
 {
