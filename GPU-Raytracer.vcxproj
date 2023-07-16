@@ -294,6 +294,7 @@ SET ERRORLEVEL=0</Command>
     <ClInclude Include="source\Application\ImGuiHelper.h" />
     <ClInclude Include="source\Application\Input.h" />
     <ClInclude Include="source\Application\KeyCodes.h" />
+    <ClInclude Include="source\Graphics\Mesh.h" />
     <ClInclude Include="source\Scene\Camera.h" />
     <ClInclude Include="source\Scene\Components.h" />
     <ClInclude Include="source\Scene\Entity.h" />

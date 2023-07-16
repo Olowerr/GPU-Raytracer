@@ -119,6 +119,9 @@
     <ClInclude Include="source\Application\KeyCodes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="source\Graphics\Mesh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\shaders\ShaderResourceRegisters.h" />
