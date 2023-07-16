@@ -12,8 +12,8 @@ struct MeshData
 class Mesh
 {
 public:
-	Mesh(MeshData&& meshData)
-		:m_meshData(std::move(meshData)) { }
+	Mesh(MeshData&& meshData, const std::string& name)
+		:m_meshData(std::move(meshData)), m_name(name) { }
 
 	~Mesh() = default;
 
@@ -21,6 +21,7 @@ public:
 	inline const MeshData& getMeshData() const;
 
 private:
+	std::string m_name;
 	MeshData m_meshData;
 };
 
