@@ -131,11 +131,11 @@ void Renderer::loadTriangleData(const ResourceManager& resourceManager)
 {
 	const std::vector<Mesh>& meshes = resourceManager.getAll<Mesh>();
 
-	uint32_t totTriangleCount = 0u;
+	m_renderData.numTriangles = 0u;
 	for (const Mesh& mesh : meshes)
-		totTriangleCount += (uint32_t)mesh.getMeshData().positions.size() / 3u;
+		m_renderData.numTriangles += (uint32_t)mesh.getMeshData().positions.size() / 3u;
 	
-	updateGPUStorage(m_meshData, totTriangleCount, [&](char* pCoursor)
+	updateGPUStorage(m_meshData, m_renderData.numTriangles, [&](char* pCoursor)
 	{
 		for (size_t i = 0; i < meshes.size(); i++)
 		{

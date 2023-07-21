@@ -3,14 +3,15 @@
 #include "ShaderResourceRegisters.h"
 
 // ---- Defines and constants
-#define NUM_BOUNCES (5u)
+#define NUM_BOUNCES (4u)
 
 
 // ---- Structs
 
 struct Payload
 {
-    uint hitIdx;
+    bool hit;
+    Material material;
     float3 worldPosition;
     float3 worldNormal;
 };
@@ -19,8 +20,9 @@ struct RenderData
 {
     uint accumulationEnabled;
     uint numAccumulationFrames;
+    
     uint numSpheres;
-    float renderDataPadding0;
+    uint numTriangles;
     
     uint2 textureDims;
     float2 viewPlaneDims;
@@ -47,7 +49,6 @@ StructuredBuffer<Triangle> triangleData : register(GPU_REG_TRIANGLE_DATA);
 
 
 // ---- Functions
-
 float3 getEnvironmentLight(float3 direction)
 {
     const static float3 SKY_COLOUR = float3(102.f, 204.f, 255.f) / 255.f;
@@ -63,31 +64,60 @@ float3 getEnvironmentLight(float3 direction)
 Payload findClosestHit(Ray ray)
 {
     Payload payload;
-    payload.hitIdx = UINT_MAX;
     
-    Sphere currentSphere;
     float cloestHitDistance = FLT_MAX;
-    
-    uint numSpheres = 0, stride = 0;
-    sphereData.GetDimensions(numSpheres, stride);
+    uint hitIdx = UINT_MAX;
+    uint hitType = 0;
     
     for (uint i = 0; i < renderData.numSpheres; i++)
     {
-        if (payload.hitIdx == i)
-            continue;
-        
         float distanceToHit = Collision::RayAndSphere(ray, sphereData[i]);
         
         if (distanceToHit > 0.f && distanceToHit < cloestHitDistance)
         {
             cloestHitDistance = distanceToHit;
-            payload.hitIdx = i;
+            hitIdx = i;
+            hitType = 0;
         }
     }
     
-    payload.worldPosition = ray.origin + ray.direction * cloestHitDistance;
-    payload.worldNormal = normalize(payload.worldPosition - sphereData[payload.hitIdx].position);
+    for (uint j = 0; j < renderData.numTriangles; j++)
+    {
+        float distanceToHit = Collision::RayAndTriangle(ray, triangleData[j]);
+        
+        if (distanceToHit > 0.f && distanceToHit < cloestHitDistance)
+        {
+            cloestHitDistance = distanceToHit;
+            hitIdx = j;
+            hitType = 1;
+        }
+    }
     
+    payload.hit = hitIdx != UINT_MAX;
+    payload.worldPosition = ray.origin + ray.direction * cloestHitDistance;
+    
+    // TODO: Make better system
+    switch (hitType)
+    {
+        case 0: // Sphere
+            payload.material = sphereData[hitIdx].material;
+            payload.worldNormal = normalize(payload.worldPosition - sphereData[hitIdx].position);
+            break;
+        
+        case 1: // Triangle
+            payload.material.albedoColour = float3(0.9f, 0.1f, 0.1f);
+            payload.material.specularColour = float3(1.f, 1.f, 1.f);
+            payload.material.smoothness = 0.f;
+            payload.material.specularProbability = 1.f;
+            payload.material.emissionColour = float3(0.f, 0.f, 0.f);
+            payload.material.emissionPower = 0.f;
+        
+            Triangle tri = triangleData[hitIdx];
+            float3 e1 = tri.p1 - tri.p0, e2 = tri.p2 - tri.p0;
+            payload.worldNormal = normalize(cross(e1, e2));
+            break;
+    }
+       
     return payload;
 }
 
@@ -138,17 +168,16 @@ void main( uint3 DTid : SV_DispatchThreadID )
     Sphere currentSphere;
     Material material;
     
-    for (uint i = 0; i < NUM_BOUNCES; i++)
+    for (uint i = 0; i <= NUM_BOUNCES; i++)
     {
         hitData = findClosestHit(ray);
-        if (hitData.hitIdx == UINT_MAX)
+        if (!hitData.hit)
         {
             light += getEnvironmentLight(ray.direction) * contribution;
             break;
         }
         
-        currentSphere = sphereData[hitData.hitIdx];
-        material = currentSphere.material;
+        material = hitData.material;
         
         const float3 diffuseReflection = randomInHemisphere(seed, hitData.worldNormal);
         const float3 specularReflection = reflect(ray.direction, hitData.worldNormal);

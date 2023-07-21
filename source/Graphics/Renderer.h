@@ -13,8 +13,9 @@ struct RenderData
 {
 	uint32_t accumulationEnabled = 0;
 	uint32_t numAccumulationFrames = 0u;
+
 	uint32_t numSpheres = 0u;
-	float padding0;
+	uint32_t numTriangles = 0u;
 	
 	glm::uvec2 textureDims{};
 	glm::vec2 viewPlaneDims{};
