@@ -25,6 +25,9 @@ Application::Application()
 
 	Okay::initiateImGui(m_window.getGLFWWindow());
 	Okay::getDevice()->CreateRenderTargetView(m_window.getBackBuffer(), nullptr, &m_pBackBuffer);
+
+	m_resourceManager.importFile("resources/meshes/cube.fbx");
+	m_renderer.loadTriangleData(m_resourceManager);
 }
 
 Application::~Application()

@@ -2,6 +2,7 @@
 #include "Scene/Scene.h"
 #include "Scene/Components.h"
 #include "shaders/ShaderResourceRegisters.h"
+#include "ResourceManager.h"
 
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtx/quaternion.hpp"
@@ -82,9 +83,7 @@ void Renderer::initiate(ID3D11Texture2D* pTarget, Scene* pScene)
 	// Scene GPU Data
 	const uint32_t SRV_START_SIZE = 10u;
 	createGPUStorage(m_spheres, sizeof(glm::vec3) + sizeof(Sphere), SRV_START_SIZE);
-#if 0
-	createGPUStorage(m_spheres, sizeof(glm::mat4) + sizeof(Material) + sizeof(uint32_t) * 2, SRV_START_SIZE);
-#endif
+	createGPUStorage(m_meshData, sizeof(glm::vec3) * 3, 100u);
 }
 
 void Renderer::render()
@@ -106,6 +105,7 @@ void Renderer::render()
 
 	// Bind scene data
 	pDevCon->CSSetShaderResources(CPU_SLOT_SPHERE_DATA, 1u, &m_spheres.pSRV);
+	pDevCon->CSSetShaderResources(CPU_SLOT_TRIANGLE_DATA, 1u, &m_meshData.pSRV);
 
 	// Dispatch and unbind
 	pDevCon->Dispatch(m_renderData.textureDims.x / 16u, m_renderData.textureDims.y / 9u, 1u);
@@ -124,6 +124,27 @@ void Renderer::reloadShaders()
 	m_pMainRaytracingCS = pNewShader;
 
 	resetAccumulation();
+}
+
+void Renderer::loadTriangleData(const ResourceManager& resourceManager)
+{
+	const std::vector<Mesh>& meshes = resourceManager.getAll<Mesh>();
+
+	uint32_t totTriangleCount = 0u;
+	for (const Mesh& mesh : meshes)
+		totTriangleCount += (uint32_t)mesh.getMeshData().positions.size() / 3u;
+	
+	updateGPUStorage(m_meshData, totTriangleCount, [&](char* pCoursor)
+	{
+		for (size_t i = 0; i < meshes.size(); i++)
+		{
+			const std::vector<glm::vec3>& positions = meshes[i].getMeshData().positions;
+			const size_t byteWidth = sizeof(glm::vec3) * positions.size();
+
+			memcpy(pCoursor, positions.data(), byteWidth);
+			pCoursor += byteWidth;
+		}
+	});
 }
 
 void Renderer::calculateProjectionData()

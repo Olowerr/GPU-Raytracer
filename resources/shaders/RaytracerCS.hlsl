@@ -41,17 +41,12 @@ struct Sphere
     float radius;
 };
 
-#if 0
-struct Mesh
+struct Triangle
 {
-    float4x4 transformMatrix;
-    
-    Material material;
-
-    uint startVertex;
-    uint vertexCount;
+    float3 p0;
+    float3 p1;
+    float3 p2;
 };
-#endif
 
 struct RenderData
 {
@@ -80,6 +75,7 @@ cbuffer RenderDataBuffer : register(GPU_REG_RENDER_DATA)
 
 // Scene data
 StructuredBuffer<Sphere> sphereData : register(GPU_REG_SPHERE_DATA);
+StructuredBuffer<Triangle> triangleData : register(GPU_REG_TRIANGLE_DATA);
 
 
 
@@ -216,7 +212,6 @@ void main( uint3 DTid : SV_DispatchThreadID )
     
     if (renderData.accumulationEnabled == 1)
     {
-        accumulationBuffer[DTid.xy] += float4(light, 0.f);
         resultBuffer[DTid.xy] = accumulationBuffer[DTid.xy] / (float)renderData.numAccumulationFrames;
     }
     else

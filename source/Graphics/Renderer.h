@@ -7,6 +7,7 @@
 #include "glm/glm.hpp"
 
 class Scene;
+class ResourceManager;
 
 struct RenderData
 {
@@ -43,6 +44,7 @@ public:
 	inline uint32_t getNumAccumulationFrames() const;
 
 	void reloadShaders();
+	void loadTriangleData(const ResourceManager& resourceManager);
 
 private: // Scene
 	Scene* m_pScene;
@@ -76,9 +78,8 @@ private: // Scene GPU Data
 	template<typename Func>
 	void updateGPUStorage(GPUStorage& storage, uint32_t resizeCapacity, Func function);
 
-#if 0
-	GPUStorage m_meshes;
-#endif
+
+	GPUStorage m_meshData; // Trianges
 	GPUStorage m_spheres;
 };
 
