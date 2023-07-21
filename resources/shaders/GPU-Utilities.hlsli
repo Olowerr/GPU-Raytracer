@@ -94,4 +94,42 @@ namespace Collision
         float sideB = sphereRadiusSqrd - sideA;
         return distToClosestPoint - sqrt(sideB);
     }
+    
+    // Returns distance to hit. -1 if miss
+    float RayAndTriangle(Ray ray, Triangle tri)
+    {
+        static const float EPSILON = 0.000001f;
+
+        float3 E1 = tri.p1 - tri.p0, E2 = tri.p2 - tri.p0;
+        float3 cross1 = cross(ray.direction, E2);
+        float determinant = dot(E1, cross1);
+
+	    // ray parallel with triangle
+        if (determinant < EPSILON && determinant > -EPSILON)
+            return false;
+
+        float inverseDet = 1.f / determinant;
+
+        float3 rayMoved = ray.origin - tri.p0;
+        float u = dot(rayMoved, cross1) * inverseDet;
+
+	    // p is outside the triangle, barycentric coordinates shows: u >= 0
+        if (u < -EPSILON)
+            return -1.f;
+
+        float3 cross2 = cross(rayMoved, E1);
+        float v = dot(ray.direction, cross2) * inverseDet;
+
+	    // p is outside the triangle, barycentric coordinates shows: v >= 0 && u + v <= 1
+        if (v < -EPSILON || u + v > 1.0)
+            return -1.f;
+
+        float t1 = dot(E2, cross2) * inverseDet;
+
+	    // Triangle behind the ray
+        if (t1 < -EPSILON)
+            return -1.f;
+
+        return t1;
+    }
 }
