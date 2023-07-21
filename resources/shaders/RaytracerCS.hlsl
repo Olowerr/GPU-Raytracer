@@ -7,45 +7,12 @@
 
 
 // ---- Structs
-struct Ray
-{
-    float3 origin;
-    float3 direction;
-};
 
 struct Payload
 {
     uint hitIdx;
     float3 worldPosition;
     float3 worldNormal;
-};
-
-struct Material
-{
-    float3 albedoColour;
-
-    float3 specularColour;
-    float smoothness;
-    float specularProbability;
-
-    float3 emissionColour;
-    float emissionPower;
-};
-
-struct Sphere
-{
-    float3 position;
-    
-    Material material;
-
-    float radius;
-};
-
-struct Triangle
-{
-    float3 p0;
-    float3 p1;
-    float3 p2;
 };
 
 struct RenderData
@@ -109,26 +76,11 @@ Payload findClosestHit(Ray ray)
         if (payload.hitIdx == i)
             continue;
         
-        currentSphere = sphereData[i];
-    
-        float3 rayToSphere = currentSphere.position - ray.origin;
-        float distToClosestPoint = dot(rayToSphere, ray.direction);
-        float rayToSphereMagSqrd = dot(rayToSphere, rayToSphere);
-        float sphereRadiusSqrd = currentSphere.radius * currentSphere.radius;
- 
-        if (distToClosestPoint < 0.f && rayToSphereMagSqrd > sphereRadiusSqrd)
-            continue;
-    
-        float sideA = rayToSphereMagSqrd - distToClosestPoint * distToClosestPoint;
-        if (sideA > sphereRadiusSqrd)
-            continue;
-    
-        float sideB = sphereRadiusSqrd - sideA;
-        float distanceTohit = distToClosestPoint - sqrt(sideB);
+        float distanceToHit = Collision::RayAndSphere(ray, sphereData[i]);
         
-        if (distanceTohit < cloestHitDistance)
+        if (distanceToHit > 0.f && distanceToHit < cloestHitDistance)
         {
-            cloestHitDistance = distanceTohit;
+            cloestHitDistance = distanceToHit;
             payload.hitIdx = i;
         }
     }
@@ -212,6 +164,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
     
     if (renderData.accumulationEnabled == 1)
     {
+        accumulationBuffer[DTid.xy] += float4(light, 0.f);
         resultBuffer[DTid.xy] = accumulationBuffer[DTid.xy] / (float)renderData.numAccumulationFrames;
     }
     else

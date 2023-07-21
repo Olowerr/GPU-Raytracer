@@ -3,6 +3,41 @@
 #define FLT_MAX (3.402823466e+38F)
 #define PI (3.14159265f)
 
+struct Material
+{
+    float3 albedoColour;
+
+    float3 specularColour;
+    float smoothness;
+    float specularProbability;
+
+    float3 emissionColour;
+    float emissionPower;
+};
+
+struct Ray
+{
+    float3 origin;
+    float3 direction;
+};
+
+struct Sphere
+{
+    float3 position;
+
+    Material material;
+
+    float radius;
+};
+
+struct Triangle
+{
+    float3 p0;
+    float3 p1;
+    float3 p2;
+};
+
+
 uint pcg_hash(inout uint seed)
 {
     // Ty Cherno
@@ -37,4 +72,26 @@ float3 randomInHemisphere(inout uint seed, float3 normal)
 {
     const float3 randVector = getRandomVector(seed);
     return randVector * (dot(randVector, normal) > 0.f ? 1.f : -1.f);
+}
+
+namespace Collision
+{
+    // Returns distance to hit. -1 if miss
+    float RayAndSphere(Ray ray, Sphere sphere)
+    {
+        float3 rayToSphere = sphere.position - ray.origin;
+        float distToClosestPoint = dot(rayToSphere, ray.direction);
+        float rayToSphereMagSqrd = dot(rayToSphere, rayToSphere);
+        float sphereRadiusSqrd = sphere.radius * sphere.radius;
+ 
+        if (distToClosestPoint < 0.f && rayToSphereMagSqrd > sphereRadiusSqrd)
+            return -1.f;
+    
+        float sideA = rayToSphereMagSqrd - distToClosestPoint * distToClosestPoint;
+        if (sideA > sphereRadiusSqrd)
+            return -1.f;
+    
+        float sideB = sphereRadiusSqrd - sideA;
+        return distToClosestPoint - sqrt(sideB);
+    }
 }

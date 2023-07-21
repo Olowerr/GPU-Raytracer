@@ -33,6 +33,7 @@ void Renderer::shutdown()
 	DX11_RELEASE(m_pRenderDataBuffer);
 	DX11_RELEASE(m_pMainRaytracingCS);
 	
+	shutdownGPUStorage(m_meshData);
 	shutdownGPUStorage(m_spheres);
 }
 
@@ -202,30 +203,6 @@ void Renderer::updateBuffers()
 			pMappedBufferData += sizeof(Sphere);
 		}
 	});
-
-#if 0
-	auto meshView = reg.view<MeshComponent, Transform>();
-	updateGPUStorage(m_meshes, (uint32_t)meshView.size_hint(), [&](char* pMappedBufferData)
-	{
-		glm::mat4 matrix{};
-		for (entt::entity entity : meshView)
-		{
-			auto [mesh, transform] = meshView[entity];
-
-			const MeshComponent& mesh = meshView.get<MeshComponent>(entity);
-			matrix = transform.calculateMatrix();
-	
-			memcpy(pMappedBufferData, &matrix, sizeof(glm::mat4));
-			pMappedBufferData += sizeof(glm::mat4);
-	
-			memcpy(pMappedBufferData, &mesh.material, sizeof(Material));
-			pMappedBufferData += sizeof(Material);
-	
-			// Copy vertexStart & vertexCount into buffer
-			// Move coursor
-		}
-	});
-#endif
 	
 	// Render Data
 	m_renderData.numSpheres = (uint32_t)sphereView.size_hint();
