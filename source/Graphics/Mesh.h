@@ -1,12 +1,15 @@
 #pragma once
+#include "Utilities.h"
+
 #include <vector>
-#include "glm/glm.hpp"
 
 struct MeshData
 {
 	std::vector<glm::vec3> positions;
 	//std::vector<glm::vec3> normals;
 	//std::vector<glm::vec2> uvs;
+
+	Okay::AABB boundingBox;
 };
 
 class Mesh

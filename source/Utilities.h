@@ -1,4 +1,6 @@
 #pragma once
+#include "glm/glm.hpp"
+
 #include <cassert>
 #include <stdint.h>
 #include <memory>
@@ -39,6 +41,16 @@ namespace Okay
 	{
 		return path.substr(path.find_last_of('.'));
 	}
+
+	struct AABB
+	{
+		AABB() = default;
+		AABB(const glm::vec3& center, const glm::vec3& extents)
+			:center(center), extents(extents) { }
+
+		glm::vec3 center = glm::vec3(0.f);
+		glm::vec3 extents = glm::vec3(0.f);
+	};
 
 	template<typename T>
 	using Ref = std::shared_ptr<T>;

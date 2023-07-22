@@ -7,6 +7,11 @@
 
 namespace Importer
 {
+	glm::vec3 assimpToGlmVec3(const aiVector3D& vector)
+	{
+		return glm::vec3(vector.x, vector.y, vector.z);
+	}
+
 	bool loadMesh(std::string_view filePath, MeshData& outData, std::string* pOutname)
 	{
 		Assimp::Importer importer;
@@ -21,18 +26,32 @@ namespace Importer
 		if (pOutname)
 			*pOutname = pMesh->mName.C_Str();
 
+		glm::vec3 min(FLT_MAX), max(-FLT_MAX);
+
 		outData.positions.resize(pMesh->mNumFaces * 3u);
 		for (uint32_t i = 0; i < pMesh->mNumFaces; i++)
 		{
-			uint32_t idx0 = pMesh->mFaces[i].mIndices[0];
-			uint32_t idx1 = pMesh->mFaces[i].mIndices[1];
-			uint32_t idx2 = pMesh->mFaces[i].mIndices[2];
+			glm::vec3 vtx0 = assimpToGlmVec3(pMesh->mVertices[pMesh->mFaces[i].mIndices[0]]);
+			glm::vec3 vtx1 = assimpToGlmVec3(pMesh->mVertices[pMesh->mFaces[i].mIndices[1]]);
+			glm::vec3 vtx2 = assimpToGlmVec3(pMesh->mVertices[pMesh->mFaces[i].mIndices[2]]);
 
 			uint32_t vertex0Idx = i * 3;
-			memcpy(&outData.positions[vertex0Idx	 ], &pMesh->mVertices[idx0], sizeof(glm::vec3));
-			memcpy(&outData.positions[vertex0Idx + 1u], &pMesh->mVertices[idx1], sizeof(glm::vec3));
-			memcpy(&outData.positions[vertex0Idx + 2u], &pMesh->mVertices[idx2], sizeof(glm::vec3));
+			memcpy(&outData.positions[vertex0Idx	 ], &vtx0, sizeof(glm::vec3));
+			memcpy(&outData.positions[vertex0Idx + 1u], &vtx1, sizeof(glm::vec3));
+			memcpy(&outData.positions[vertex0Idx + 2u], &vtx2, sizeof(glm::vec3));
+
+			// Perhaps not the best way but works
+			min = glm::min(vtx0, min);
+			min = glm::min(vtx1, min);
+			min = glm::min(vtx2, min);
+
+			max = glm::max(vtx0, max);
+			max = glm::max(vtx1, max);
+			max = glm::max(vtx2, max);
 		}
+
+		outData.boundingBox.center = (min + max) * 0.5f;
+		outData.boundingBox.extents = (max - min) * 0.5f;
 
 		return true;
 	}
