@@ -34,13 +34,23 @@ struct Sphere
 	float radius = 4.f;
 };
 
-#if 0
 struct MeshComponent
 {
 	Material material;
 	uint32_t meshID;
 };
-#endif
+
+// TODO: Find better system for sharing structs between GPU & CPU.
+// We can define them in a Header file but then we need to typedef float3...
+// Maybe not a problem tho? But probably best if mostly/only included in source files
+struct GPU_MeshComponent 
+{
+	uint32_t triStart;
+	uint32_t triCount;
+
+	Okay::AABB boundingBox;
+	Material material;
+};
 
 struct Camera
 {

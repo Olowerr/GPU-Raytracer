@@ -47,7 +47,6 @@ StructuredBuffer<Triangle> triangleData : register(GPU_REG_TRIANGLE_DATA);
 StructuredBuffer<Mesh> meshData : register(GPU_REG_TRIANGLE_DATA);
 
 
-
 // ---- Functions
 float3 getEnvironmentLight(float3 direction)
 {

@@ -84,7 +84,8 @@ void Renderer::initiate(ID3D11Texture2D* pTarget, Scene* pScene)
 	// Scene GPU Data
 	const uint32_t SRV_START_SIZE = 10u;
 	createGPUStorage(m_spheres, sizeof(glm::vec3) + sizeof(Sphere), SRV_START_SIZE);
-	createGPUStorage(m_meshData, sizeof(glm::vec3) * 3, 100u);
+	createGPUStorage(m_meshData, sizeof(GPU_MeshComponent), SRV_START_SIZE);
+	// m_triangleData created in Renderer::loadTriangleData().
 }
 
 void Renderer::render()
@@ -131,11 +132,13 @@ void Renderer::loadTriangleData(const ResourceManager& resourceManager)
 {
 	const std::vector<Mesh>& meshes = resourceManager.getAll<Mesh>();
 
-	m_renderData.numTriangles = 0u;
+	uint32_t numTriangles = 0u;
 	for (const Mesh& mesh : meshes)
-		m_renderData.numTriangles += (uint32_t)mesh.getMeshData().positions.size() / 3u;
-	
-	updateGPUStorage(m_meshData, m_renderData.numTriangles, [&](char* pCoursor)
+		numTriangles += (uint32_t)mesh.getMeshData().positions.size() / 3u;
+
+	createGPUStorage(m_triangleData, sizeof(glm::vec3) * 3, numTriangles);
+
+	updateGPUStorage(m_meshData, 0u, [&](char* pCoursor)
 	{
 		for (size_t i = 0; i < meshes.size(); i++)
 		{

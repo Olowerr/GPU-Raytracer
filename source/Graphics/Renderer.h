@@ -15,7 +15,7 @@ struct RenderData
 	uint32_t numAccumulationFrames = 0u;
 
 	uint32_t numSpheres = 0u;
-	uint32_t numTriangles = 0u;
+	uint32_t numMeshes = 0u;
 	
 	glm::uvec2 textureDims{};
 	glm::vec2 viewPlaneDims{};
@@ -80,7 +80,8 @@ private: // Scene GPU Data
 	void updateGPUStorage(GPUStorage& storage, uint32_t resizeCapacity, Func function);
 
 
-	GPUStorage m_meshData; // Trianges
+	GPUStorage m_triangleData;
+	GPUStorage m_meshData;
 	GPUStorage m_spheres;
 };
 
