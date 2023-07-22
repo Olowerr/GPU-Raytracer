@@ -43,7 +43,7 @@ struct Triangle
     float3 p2;
 };
 
-struct MeshComponent
+struct Mesh
 {
     uint triangleStartIdx;
     uint triangleCount;

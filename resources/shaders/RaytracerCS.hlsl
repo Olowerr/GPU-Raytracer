@@ -7,7 +7,6 @@
 
 
 // ---- Structs
-
 struct Payload
 {
     bool hit;
@@ -45,6 +44,7 @@ cbuffer RenderDataBuffer : register(GPU_REG_RENDER_DATA)
 // Scene data
 StructuredBuffer<Sphere> sphereData : register(GPU_REG_SPHERE_DATA);
 StructuredBuffer<Triangle> triangleData : register(GPU_REG_TRIANGLE_DATA);
+StructuredBuffer<Mesh> meshData : register(GPU_REG_TRIANGLE_DATA);
 
 
 
@@ -124,7 +124,7 @@ Payload findClosestHit(Ray ray)
 
 // ---- Main part of shader
 [numthreads(16, 9, 1)]
-void main( uint3 DTid : SV_DispatchThreadID )
+void main(uint3 DTid : SV_DispatchThreadID)
 {
     /*
         Flip Y-coordinate to convert to worldspace
@@ -183,7 +183,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
         const float3 specularReflection = reflect(ray.direction, hitData.worldNormal);
         const float specularFactor = float(material.specularProbability >= randomFloat(seed));
         
-        ray.origin = hitData.worldPosition + hitData.worldNormal * 0.001f;   
+        ray.origin = hitData.worldPosition + hitData.worldNormal * 0.001f;
         ray.direction = lerp(diffuseReflection, specularReflection, material.smoothness * specularFactor);
         
         light += material.emissionColour * material.emissionPower * contribution;
