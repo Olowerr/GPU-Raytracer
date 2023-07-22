@@ -26,7 +26,8 @@ namespace Importer
 		if (pOutname)
 			*pOutname = pMesh->mName.C_Str();
 
-		glm::vec3 min(FLT_MAX), max(-FLT_MAX);
+		outData.boundingBox.min = glm::vec3(FLT_MAX);
+		outData.boundingBox.max = glm::vec3(-FLT_MAX);
 
 		outData.positions.resize(pMesh->mNumFaces * 3u);
 		for (uint32_t i = 0; i < pMesh->mNumFaces; i++)
@@ -41,17 +42,14 @@ namespace Importer
 			memcpy(&outData.positions[vertex0Idx + 2u], &vtx2, sizeof(glm::vec3));
 
 			// Perhaps not the best way but works
-			min = glm::min(vtx0, min);
-			min = glm::min(vtx1, min);
-			min = glm::min(vtx2, min);
+			outData.boundingBox.min = glm::min(vtx0, outData.boundingBox.min);
+			outData.boundingBox.min = glm::min(vtx1, outData.boundingBox.min);
+			outData.boundingBox.min = glm::min(vtx2, outData.boundingBox.min);
 
-			max = glm::max(vtx0, max);
-			max = glm::max(vtx1, max);
-			max = glm::max(vtx2, max);
+			outData.boundingBox.max = glm::max(vtx0, outData.boundingBox.max);
+			outData.boundingBox.max = glm::max(vtx1, outData.boundingBox.max);
+			outData.boundingBox.max = glm::max(vtx2, outData.boundingBox.max);
 		}
-
-		outData.boundingBox.center = (min + max) * 0.5f;
-		outData.boundingBox.extents = (max - min) * 0.5f;
 
 		return true;
 	}

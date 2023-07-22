@@ -15,6 +15,12 @@ struct Material
     float emissionPower;
 };
 
+struct AABB
+{
+    float3 min;
+    float3 max;
+};
+
 struct Ray
 {
     float3 origin;
@@ -35,6 +41,15 @@ struct Triangle
     float3 p0;
     float3 p1;
     float3 p2;
+};
+
+struct MeshComponent
+{
+    uint triangleStartIdx;
+    uint triangleCount;
+ 
+    AABB boundingBox;
+    Material material;
 };
 
 
@@ -131,5 +146,28 @@ namespace Collision
             return -1.f;
 
         return t1;
+    }
+    
+    // Slab Method (Ty ChatGPT)
+    bool RayAndAABB(Ray ray, AABB aabb)
+    {
+        float t1 = (aabb.min.x - ray.origin.x) / ray.direction.x;
+        float t2 = (aabb.max.x - ray.origin.x) / ray.direction.x;
+        float tmin = min(t1, t2);
+        float tmax = max(t1, t2);
+
+        float t3 = (aabb.min.y - ray.origin.y) / ray.direction.y;
+        float t4 = (aabb.max.y - ray.origin.y) / ray.direction.y;
+        tmin = max(tmin, min(t3, t4));
+        tmax = min(tmax, max(t3, t4));
+
+        float t5 = (aabb.min.z - ray.origin.z) / ray.direction.z;
+        float t6 = (aabb.max.z - ray.origin.z) / ray.direction.z;
+        tmin = max(tmin, min(t5, t6));
+        tmax = min(tmax, max(t5, t6));
+
+        // If tmax is less than 0, the AABB is behind the ray, so no intersection.
+        // If tmin is greater than tmax, there is no intersection.
+        return tmax >= 0 && tmin <= tmax;
     }
 }

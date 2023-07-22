@@ -45,11 +45,11 @@ namespace Okay
 	struct AABB
 	{
 		AABB() = default;
-		AABB(const glm::vec3& center, const glm::vec3& extents)
-			:center(center), extents(extents) { }
+		AABB(const glm::vec3& min, const glm::vec3& max)
+			:min(min), max(max) { }
 
-		glm::vec3 center = glm::vec3(0.f);
-		glm::vec3 extents = glm::vec3(0.f);
+		glm::vec3 min = glm::vec3(0.f);
+		glm::vec3 max = glm::vec3(0.f);
 	};
 
 	template<typename T>
