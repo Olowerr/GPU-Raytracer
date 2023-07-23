@@ -20,14 +20,14 @@ Application::Application()
 
 	Okay::initiateDX11();
 	m_window.initiate(1600u, 900u, "GPU Raytracer");
-	m_renderer.initiate(m_window.getBackBuffer(), &m_scene);
+	m_renderer.initiate(m_window.getBackBuffer(), &m_scene, &m_resourceManager);
 	m_renderer.toggleAccumulation(true);
 
 	Okay::initiateImGui(m_window.getGLFWWindow());
 	Okay::getDevice()->CreateRenderTargetView(m_window.getBackBuffer(), nullptr, &m_pBackBuffer);
 
 	m_resourceManager.importFile("resources/meshes/cube.fbx");
-	m_renderer.loadTriangleData(m_resourceManager);
+	m_renderer.loadTriangleData();
 }
 
 Application::~Application()
@@ -66,6 +66,11 @@ void Application::run()
 	ballSphere.material.emissionColour = glm::vec3(0.f);
 	ballSphere.material.emissionPower = 0.f;
 	ballSphere.radius = 7.3f;
+
+	Entity meshEntity = m_scene.createEntity();
+	MeshComponent* meshComp = &meshEntity.addComponent<MeshComponent>();
+	meshComp->material = ballSphere.material;
+	meshComp->meshID = 0u;
 
 	while (m_window.isOpen())
 	{
