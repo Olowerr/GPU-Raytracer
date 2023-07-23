@@ -85,7 +85,7 @@ private: // Scene GPU Data
 	GPUStorage m_meshData;
 	GPUStorage m_spheres;
 
-	// Defines the startIdx and triCount of each mesh for the GPU triangle buffer.
+	// Defines the startIdx and endIdx of each mesh for the GPU triangle buffer.
 	// The order of the std::vector matches the std::vector in ResourceManager.
 	std::vector<std::pair<uint32_t, uint32_t>> m_meshTriangleDesc;
 };
