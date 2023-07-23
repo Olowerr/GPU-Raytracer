@@ -89,7 +89,14 @@ Payload findClosestHit(Ray ray)
             
             for (uint k = triStart; k < triEnd; k++)
             {
-                float distanceToHit = Collision::RayAndTriangle(ray, triangleData[k]);
+                float3 translation = meshData[j].transformMatrix[3].xyz;
+                Triangle tri = triangleData[k];
+                
+                tri.p0 += translation;
+                tri.p1 += translation;
+                tri.p2 += translation;
+                
+                float distanceToHit = Collision::RayAndTriangle(ray, tri);
                 
                 if (distanceToHit > 0.f && distanceToHit < cloestHitDistance)
                 {
@@ -97,7 +104,6 @@ Payload findClosestHit(Ray ray)
                     hitIdx = j;
                     hitType = 1;
                     
-                    Triangle tri = triangleData[k];
                     float3 e1 = tri.p1 - tri.p0, e2 = tri.p2 - tri.p0;
                     payload.worldNormal = normalize(cross(e1, e2));
                 }

@@ -67,10 +67,14 @@ void Application::run()
 	ballSphere.material.emissionPower = 0.f;
 	ballSphere.radius = 7.3f;
 
-	Entity meshEntity = m_scene.createEntity();
-	MeshComponent* meshComp = &meshEntity.addComponent<MeshComponent>();
-	meshComp->material = ballSphere.material;
-	meshComp->meshID = 0u;
+	for (size_t i = 0; i < 10; i++)
+	{
+		Entity meshEntity = m_scene.createEntity();
+		MeshComponent* meshComp = &meshEntity.addComponent<MeshComponent>();
+		meshComp->material = ballSphere.material;
+		meshComp->meshID = 0u;
+		meshEntity.getComponent<Transform>().position = glm::vec3(5.f * i, 0.f, 3.f);
+	}
 
 	while (m_window.isOpen())
 	{

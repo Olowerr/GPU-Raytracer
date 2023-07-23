@@ -45,10 +45,12 @@ struct MeshComponent
 // Maybe not a problem tho? But probably best if mostly/only included in source files
 struct GPU_MeshComponent 
 {
+	glm::mat4 transformMatrix;
+
 	uint32_t triStart;
 	uint32_t triCount;
-
 	Okay::AABB boundingBox;
+
 	Material material;
 };
 

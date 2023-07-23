@@ -45,10 +45,12 @@ struct Triangle
 
 struct Mesh
 {
+    float4x4 transformMatrix;
+    
     uint triangleStartIdx;
     uint triangleEndIdx;
- 
     AABB boundingBox;
+ 
     Material material;
 };
 

@@ -221,17 +221,25 @@ void Renderer::updateBuffers()
 	auto meshView = reg.view<MeshComponent, Transform>();
 	updateGPUStorage(m_meshData, (uint32_t)meshView.size_hint(), [&](char* pMappedBufferData)
 	{
+		glm::mat4 transformMatrix{};
 		GPU_MeshComponent* gpuData;
 		for (entt::entity entity : meshView)
 		{
 			gpuData = (GPU_MeshComponent*)pMappedBufferData;
 
 			auto [meshComp, transform] = meshView[entity];
+			transformMatrix = transform.calculateMatrix();
+
 			gpuData->triStart = m_meshTriangleDesc[meshComp.meshID].first;
 			gpuData->triCount = m_meshTriangleDesc[meshComp.meshID].second;
-				   
-			gpuData->material = meshComp.material;
+
 			gpuData->boundingBox = m_pResourceManager->getAsset<Mesh>(meshComp.meshID).getMeshData().boundingBox;
+			gpuData->boundingBox.min += glm::vec3(transformMatrix[3]);
+			gpuData->boundingBox.max += glm::vec3(transformMatrix[3]);
+
+			gpuData->transformMatrix = glm::transpose(transformMatrix);
+
+			gpuData->material = meshComp.material;
 			
 			pMappedBufferData += sizeof(GPU_MeshComponent);
 		}
