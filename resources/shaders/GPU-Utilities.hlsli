@@ -120,7 +120,7 @@ namespace Collision
         float determinant = dot(E1, cross1);
 
 	    // ray parallel with triangle
-        if (determinant < EPSILON && determinant > -EPSILON)
+        if (determinant < EPSILON)
             return false;
 
         float inverseDet = 1.f / determinant;
