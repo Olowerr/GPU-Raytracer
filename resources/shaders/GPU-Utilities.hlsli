@@ -46,7 +46,7 @@ struct Triangle
 struct Mesh
 {
     uint triangleStartIdx;
-    uint triangleCount;
+    uint triangleEndIdx;
  
     AABB boundingBox;
     Material material;

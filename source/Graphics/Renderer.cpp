@@ -155,9 +155,9 @@ void Renderer::loadTriangleData()
 			pCoursor += byteWidth;
 
 			m_meshTriangleDesc[i].first = currentStartIdx;
-			m_meshTriangleDesc[i].second = (uint32_t)positions.size();
+			m_meshTriangleDesc[i].second = currentStartIdx + (uint32_t)positions.size() / 3;
 
-			currentStartIdx += m_meshTriangleDesc[i].second;
+			currentStartIdx = m_meshTriangleDesc[i].second;
 		}
 	});
 }
@@ -240,6 +240,7 @@ void Renderer::updateBuffers()
 	
 	// Render Data
 	m_renderData.numSpheres = (uint32_t)sphereView.size_hint();
+	m_renderData.numMeshes = (uint32_t)meshView.size_hint();
 	if (m_renderData.accumulationEnabled == 1)
 		m_renderData.numAccumulationFrames++;
 	Okay::updateBuffer(m_pRenderDataBuffer, &m_renderData, sizeof(RenderData));

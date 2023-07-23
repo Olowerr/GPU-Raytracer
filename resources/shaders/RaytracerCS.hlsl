@@ -21,7 +21,6 @@ struct RenderData
     uint numAccumulationFrames;
     
     uint numSpheres;
-    uint numTriangles;
     uint numMeshes;
     
     uint2 textureDims;
@@ -46,7 +45,6 @@ cbuffer RenderDataBuffer : register(GPU_REG_RENDER_DATA)
 StructuredBuffer<Sphere> sphereData : register(GPU_REG_SPHERE_DATA);
 StructuredBuffer<Mesh> meshData : register(GPU_REG_MESH_DATA);
 StructuredBuffer<Triangle> triangleData : register(GPU_REG_TRIANGLE_DATA);
-StructuredBuffer<Mesh> meshData : register(GPU_REG_TRIANGLE_DATA);
 
 
 // ---- Functions
@@ -82,28 +80,30 @@ Payload findClosestHit(Ray ray)
         }
     }
     
-    for (uint j = 0; j < renderData.numTriangles; j++)
+    for (uint j = 0; j < renderData.numMeshes; j++)
     {
-        float distanceToHit = Collision::RayAndTriangle(ray, triangleData[j]);
-        
-        if (distanceToHit > 0.f && distanceToHit < cloestHitDistance)
+        if (Collision::RayAndAABB(ray, meshData[j].boundingBox))
         {
-            cloestHitDistance = distanceToHit;
-            hitIdx = j;
-            hitType = 1;
+            uint triStart = meshData[j].triangleStartIdx;
+            uint triEnd = meshData[j].triangleEndIdx;
+            
+            for (uint k = triStart; k < triEnd; k++)
+            {
+                float distanceToHit = Collision::RayAndTriangle(ray, triangleData[k]);
+                
+                if (distanceToHit > 0.f && distanceToHit < cloestHitDistance)
+                {
+                    cloestHitDistance = distanceToHit;
+                    hitIdx = j;
+                    hitType = 1;
+                    
+                    Triangle tri = triangleData[k];
+                    float3 e1 = tri.p1 - tri.p0, e2 = tri.p2 - tri.p0;
+                    payload.worldNormal = normalize(cross(e1, e2));
+                }
+            }
         }
     }
-    //for (uint j = 0; j < renderData.numMeshes; j++)
-    //{
-    //    float distanceToHit = Collision::RayAndTriangle(ray, triangleData[j]);
-    //    
-    //    if (distanceToHit > 0.f && distanceToHit < cloestHitDistance)
-    //    {
-    //        cloestHitDistance = distanceToHit;
-    //        hitIdx = j;
-    //        hitType = 1;
-    //    }
-    //}
     
     payload.hit = hitIdx != UINT_MAX;
     payload.worldPosition = ray.origin + ray.direction * cloestHitDistance;
@@ -116,17 +116,8 @@ Payload findClosestHit(Ray ray)
             payload.worldNormal = normalize(payload.worldPosition - sphereData[hitIdx].position);
             break;
         
-        case 1: // Triangle
-            payload.material.albedoColour = float3(0.9f, 0.1f, 0.1f);
-            payload.material.specularColour = float3(1.f, 1.f, 1.f);
-            payload.material.smoothness = 0.f;
-            payload.material.specularProbability = 1.f;
-            payload.material.emissionColour = float3(0.f, 0.f, 0.f);
-            payload.material.emissionPower = 0.f;
-        
-            Triangle tri = triangleData[hitIdx];
-            float3 e1 = tri.p1 - tri.p0, e2 = tri.p2 - tri.p0;
-            payload.worldNormal = normalize(cross(e1, e2));
+        case 1: // Mesh
+            payload.material = meshData[hitIdx].material;
             break;
     }
        
