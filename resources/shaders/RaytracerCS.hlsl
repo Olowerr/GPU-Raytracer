@@ -160,7 +160,6 @@ void main(uint3 DTid : SV_DispatchThreadID)
     
     Ray ray;
     ray.origin = renderData.cameraPosition;
-    ray.direction = mul(float4(normalize(target.xyz / target.z), 0.f), renderData.cameraInverseViewMatrix);
     ray.direction = mul(float4(normalize(target.xyz / target.z), 0.f), renderData.cameraInverseViewMatrix).xyz;
 #endif
 
