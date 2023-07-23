@@ -22,6 +22,7 @@ struct RenderData
     
     uint numSpheres;
     uint numTriangles;
+    uint numMeshes;
     
     uint2 textureDims;
     float2 viewPlaneDims;
@@ -43,6 +44,7 @@ cbuffer RenderDataBuffer : register(GPU_REG_RENDER_DATA)
 
 // Scene data
 StructuredBuffer<Sphere> sphereData : register(GPU_REG_SPHERE_DATA);
+StructuredBuffer<Mesh> meshData : register(GPU_REG_MESH_DATA);
 StructuredBuffer<Triangle> triangleData : register(GPU_REG_TRIANGLE_DATA);
 StructuredBuffer<Mesh> meshData : register(GPU_REG_TRIANGLE_DATA);
 
@@ -91,6 +93,17 @@ Payload findClosestHit(Ray ray)
             hitType = 1;
         }
     }
+    //for (uint j = 0; j < renderData.numMeshes; j++)
+    //{
+    //    float distanceToHit = Collision::RayAndTriangle(ray, triangleData[j]);
+    //    
+    //    if (distanceToHit > 0.f && distanceToHit < cloestHitDistance)
+    //    {
+    //        cloestHitDistance = distanceToHit;
+    //        hitIdx = j;
+    //        hitType = 1;
+    //    }
+    //}
     
     payload.hit = hitIdx != UINT_MAX;
     payload.worldPosition = ray.origin + ray.direction * cloestHitDistance;
@@ -157,6 +170,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
     Ray ray;
     ray.origin = renderData.cameraPosition;
     ray.direction = mul(float4(normalize(target.xyz / target.z), 0.f), renderData.cameraInverseViewMatrix);
+    ray.direction = mul(float4(normalize(target.xyz / target.z), 0.f), renderData.cameraInverseViewMatrix).xyz;
 #endif
 
     

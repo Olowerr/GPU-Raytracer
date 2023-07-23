@@ -30,11 +30,11 @@ class Renderer
 {
 public:
 	Renderer();
-	Renderer(ID3D11Texture2D* pTarget, Scene* pScene);
+	Renderer(ID3D11Texture2D* pTarget, Scene* pScene, ResourceManager* pResourceManager);
 	~Renderer();
 
 	void shutdown();
-	void initiate(ID3D11Texture2D* pTarget, Scene* pScene);
+	void initiate(ID3D11Texture2D* pTarget, Scene* pScene, ResourceManager* pResourceManager);
 
 	inline void setScene(Scene* pScene);
 	inline void setCamera(Entity camera);
@@ -45,12 +45,13 @@ public:
 	inline uint32_t getNumAccumulationFrames() const;
 
 	void reloadShaders();
-	void loadTriangleData(const ResourceManager& resourceManager);
+	void loadTriangleData();
 
-private: // Scene
+private: // Scene & Resources
 	Scene* m_pScene;
-	Entity m_camera;
+	ResourceManager* m_pResourceManager;
 
+	Entity m_camera;
 	void calculateProjectionData();
 
 private: // DX11
@@ -83,6 +84,10 @@ private: // Scene GPU Data
 	GPUStorage m_triangleData;
 	GPUStorage m_meshData;
 	GPUStorage m_spheres;
+
+	// Defines the startIdx and triCount of each mesh for the GPU triangle buffer.
+	// The order of the std::vector matches the std::vector in ResourceManager.
+	std::vector<std::pair<uint32_t, uint32_t>> m_meshTriangleDesc;
 };
 
 inline void Renderer::setScene(Scene* pScene)

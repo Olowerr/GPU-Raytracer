@@ -11,13 +11,13 @@
 
 Renderer::Renderer()
 	:m_pTargetUAV(nullptr), m_pMainRaytracingCS(nullptr), m_pScene(nullptr), m_renderData(),
-	m_pAccumulationUAV(nullptr), m_pRenderDataBuffer(nullptr)
+	m_pAccumulationUAV(nullptr), m_pRenderDataBuffer(nullptr), m_pResourceManager(nullptr)
 {
 }
 
-Renderer::Renderer(ID3D11Texture2D* pTarget, Scene* pScene)
+Renderer::Renderer(ID3D11Texture2D* pTarget, Scene* pScene, ResourceManager* pResourceManager)
 {
-	initiate(pTarget, pScene);
+	initiate(pTarget, pScene, pResourceManager);
 }
 
 Renderer::~Renderer()
@@ -35,16 +35,19 @@ void Renderer::shutdown()
 	
 	shutdownGPUStorage(m_meshData);
 	shutdownGPUStorage(m_spheres);
+	shutdownGPUStorage(m_triangleData);
 }
 
-void Renderer::initiate(ID3D11Texture2D* pTarget, Scene* pScene)
+void Renderer::initiate(ID3D11Texture2D* pTarget, Scene* pScene, ResourceManager* pResourceManager)
 {
 	OKAY_ASSERT(pTarget);
 	OKAY_ASSERT(pScene);
+	OKAY_ASSERT(pResourceManager);
 
 	shutdown();
 
 	m_pScene = pScene;
+	m_pResourceManager = pResourceManager;
 
 	D3D11_TEXTURE2D_DESC textureDesc{};
 	pTarget->GetDesc(&textureDesc);
@@ -107,7 +110,8 @@ void Renderer::render()
 
 	// Bind scene data
 	pDevCon->CSSetShaderResources(CPU_SLOT_SPHERE_DATA, 1u, &m_spheres.pSRV);
-	pDevCon->CSSetShaderResources(CPU_SLOT_TRIANGLE_DATA, 1u, &m_meshData.pSRV);
+	pDevCon->CSSetShaderResources(CPU_SLOT_MESH_DATA, 1u, &m_meshData.pSRV);
+	pDevCon->CSSetShaderResources(CPU_SLOT_TRIANGLE_DATA, 1u, &m_triangleData.pSRV);
 
 	// Dispatch and unbind
 	pDevCon->Dispatch(m_renderData.textureDims.x / 16u, m_renderData.textureDims.y / 9u, 1u);
@@ -128,9 +132,10 @@ void Renderer::reloadShaders()
 	resetAccumulation();
 }
 
-void Renderer::loadTriangleData(const ResourceManager& resourceManager)
+void Renderer::loadTriangleData()
 {
-	const std::vector<Mesh>& meshes = resourceManager.getAll<Mesh>();
+	const std::vector<Mesh>& meshes = m_pResourceManager->getAll<Mesh>();
+	m_meshTriangleDesc.resize(meshes.size());
 
 	uint32_t numTriangles = 0u;
 	for (const Mesh& mesh : meshes)
@@ -138,8 +143,9 @@ void Renderer::loadTriangleData(const ResourceManager& resourceManager)
 
 	createGPUStorage(m_triangleData, sizeof(glm::vec3) * 3, numTriangles);
 
-	updateGPUStorage(m_meshData, 0u, [&](char* pCoursor)
+	updateGPUStorage(m_triangleData, 0u, [&](char* pCoursor)
 	{
+		uint32_t currentStartIdx = 0u;
 		for (size_t i = 0; i < meshes.size(); i++)
 		{
 			const std::vector<glm::vec3>& positions = meshes[i].getMeshData().positions;
@@ -147,6 +153,11 @@ void Renderer::loadTriangleData(const ResourceManager& resourceManager)
 
 			memcpy(pCoursor, positions.data(), byteWidth);
 			pCoursor += byteWidth;
+
+			m_meshTriangleDesc[i].first = currentStartIdx;
+			m_meshTriangleDesc[i].second = (uint32_t)positions.size();
+
+			currentStartIdx += m_meshTriangleDesc[i].second;
 		}
 	});
 }
@@ -206,6 +217,26 @@ void Renderer::updateBuffers()
 			pMappedBufferData += sizeof(Sphere);
 		}
 	});
+
+	auto meshView = reg.view<MeshComponent, Transform>();
+	updateGPUStorage(m_meshData, (uint32_t)meshView.size_hint(), [&](char* pMappedBufferData)
+	{
+		GPU_MeshComponent* gpuData;
+		for (entt::entity entity : meshView)
+		{
+			gpuData = (GPU_MeshComponent*)pMappedBufferData;
+
+			auto [meshComp, transform] = meshView[entity];
+			gpuData->triStart = m_meshTriangleDesc[meshComp.meshID].first;
+			gpuData->triCount = m_meshTriangleDesc[meshComp.meshID].second;
+				   
+			gpuData->material = meshComp.material;
+			gpuData->boundingBox = m_pResourceManager->getAsset<Mesh>(meshComp.meshID).getMeshData().boundingBox;
+			
+			pMappedBufferData += sizeof(GPU_MeshComponent);
+		}
+	});
+
 	
 	// Render Data
 	m_renderData.numSpheres = (uint32_t)sphereView.size_hint();
