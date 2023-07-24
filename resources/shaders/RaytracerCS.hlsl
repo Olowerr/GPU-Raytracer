@@ -193,7 +193,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
         const float specularFactor = float(material.specularProbability >= randomFloat(seed));
         
         ray.origin = hitData.worldPosition + hitData.worldNormal * 0.001f;
-        ray.direction = lerp(diffuseReflection, specularReflection, material.smoothness * specularFactor);
+        ray.direction = normalize(lerp(diffuseReflection, specularReflection, material.smoothness * specularFactor));
         
         light += material.emissionColour * material.emissionPower * contribution;
         contribution *= lerp(material.albedoColour, material.specularColour, specularFactor);
