@@ -141,7 +141,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
         So it is flipped
     */
      
-    uint seed = DTid.x + (DTid.y + 1) * renderData.textureDims.x * (renderData.numAccumulationFrames + 1);
+    uint seed = DTid.x + (DTid.y + 74813) * renderData.textureDims.x * (renderData.numAccumulationFrames + 1);
     
     float3 pos = float3((float)DTid.x, float(renderData.textureDims.y - DTid.y), renderData.cameraNearZ);
     
@@ -188,7 +188,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
         
         material = hitData.material;
         
-        const float3 diffuseReflection = randomInHemisphere(seed, hitData.worldNormal);
+        const float3 diffuseReflection = normalize(hitData.worldNormal + getRandomVector(seed));
         const float3 specularReflection = reflect(ray.direction, hitData.worldNormal);
         const float specularFactor = float(material.specularProbability >= randomFloat(seed));
         

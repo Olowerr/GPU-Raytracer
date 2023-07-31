@@ -85,12 +85,6 @@ float3 getRandomVector(inout uint seed)
     return normalize(float3(x, y, z));
 }
 
-float3 randomInHemisphere(inout uint seed, float3 normal)
-{
-    const float3 randVector = getRandomVector(seed);
-    return randVector * (dot(randVector, normal) > 0.f ? 1.f : -1.f);
-}
-
 namespace Collision
 {
     // Returns distance to hit. -1 if miss
