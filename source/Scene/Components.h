@@ -22,7 +22,7 @@ struct Material
 
 	glm::vec3 specularColour = glm::vec3(1.f);
 	float smoothness = 0.f;
-	float specularProbability = 1.f;
+	float specularProbability = 0.f;
 
 	glm::vec3 emissionColour = glm::vec3(1.f);
 	float emissionPower = 0.f;

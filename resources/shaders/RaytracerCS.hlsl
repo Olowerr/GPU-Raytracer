@@ -197,7 +197,6 @@ void main(uint3 DTid : SV_DispatchThreadID)
         
         light += material.emissionColour * material.emissionPower * contribution;
         contribution *= lerp(material.albedoColour, material.specularColour, specularFactor);
-        contribution *= material.albedoColour;
     }
     
     if (renderData.accumulationEnabled == 1)
