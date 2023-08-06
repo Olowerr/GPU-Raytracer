@@ -60,8 +60,6 @@ struct Camera
 		:fov(fov), nearZ(nearZ), farZ(1000.f)
 	{ }
 
-	glm::vec3 position = glm::vec3(0.f);
-	glm::vec3 rotation = glm::vec3(0.f); // Degress
 	float fov; // Degress
 	float nearZ;
 	float farZ; // Only used in Cherno way

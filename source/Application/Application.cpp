@@ -213,7 +213,7 @@ void Application::run()
 	auto material3 = getMat(Color(0.7, 0.6, 0.5), 1.f, 1.f);
 	entityWithMat(material3, glm::vec3(4, 1, 0), 1.0);
 
-	Camera& camTra = m_camera.getComponent<Camera>();
+	Transform& camTra = m_camera.getComponent<Transform>();
 	camTra.position = glm::vec3(6.149f, 1.414f, -1.912f);
 	camTra.rotation = glm::vec3(16.502f, -66.649f, 0.f);
 #endif
@@ -310,14 +310,14 @@ void Application::updateCamera()
 {
 	static float rotationSpeed = 0.1f;
 	static float moveSpeed = 20.f;
-	Camera& cameraData = m_camera.getComponent<Camera>();
+	Transform& camTra = m_camera.getComponent<Transform>();
 
 	if (ImGui::Begin("Camera"))
 	{
 		ImGui::PushItemWidth(-120.f);
 
-		ImGui::Text("Pos: (%.3f, %.3f, %.3f)", cameraData.position.x, cameraData.position.y, cameraData.position.z);
-		ImGui::Text("Rot: (%.3f, %.3f, %.3f)", cameraData.rotation.x, cameraData.rotation.y, cameraData.rotation.z);
+		ImGui::Text("Pos: (%.3f, %.3f, %.3f)", camTra.position.x, camTra.position.y, camTra.position.z);
+		ImGui::Text("Rot: (%.3f, %.3f, %.3f)", camTra.rotation.x, camTra.rotation.y, camTra.rotation.z);
 
 		ImGui::Separator();
 
@@ -341,23 +341,23 @@ void Application::updateCamera()
 
 	const glm::vec2 mouseDelta = Input::getMouseDelta();
 
-	cameraData.rotation.x += mouseDelta.y * rotationSpeed;
-	cameraData.rotation.y += mouseDelta.x * rotationSpeed;
-	cameraData.rotation.x = glm::clamp(cameraData.rotation.x, -89.f, 89.f);
+	camTra.rotation.x += mouseDelta.y * rotationSpeed;
+	camTra.rotation.y += mouseDelta.x * rotationSpeed;
+	camTra.rotation.x = glm::clamp(camTra.rotation.x, -89.f, 89.f);
 
 	const float xInput = (float)Input::isKeyDown(Key::D) - (float)Input::isKeyDown(Key::A);
 	const float yInput = (float)Input::isKeyDown(Key::Space) - (float)Input::isKeyDown(Key::LeftControl);
 	const float zInput = (float)Input::isKeyDown(Key::W) - (float)Input::isKeyDown(Key::S);
 
-	const glm::mat3 rotationMatrix = glm::toMat3(glm::quat(glm::radians(cameraData.rotation)));
+	const glm::mat3 rotationMatrix = glm::toMat3(glm::quat(glm::radians(camTra.rotation)));
 
 	const glm::vec3 fwd = rotationMatrix[2];
 	const glm::vec3 right = rotationMatrix[0];
 
 	const float frameSpeed = ImGui::GetIO().DeltaTime * moveSpeed * (Input::isKeyDown(Key::LeftShift) ? 3.f : 1.f);
 
-	cameraData.position += (right * xInput + fwd * zInput) * frameSpeed;
-	cameraData.position.y += yInput * frameSpeed;
+	camTra.position += (right * xInput + fwd * zInput) * frameSpeed;
+	camTra.position.y += yInput * frameSpeed;
 
 
 	if (xInput || yInput || zInput || mouseDelta.x || mouseDelta.y)

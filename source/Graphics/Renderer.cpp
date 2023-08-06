@@ -169,11 +169,12 @@ void Renderer::calculateProjectionData()
 
 	OKAY_ASSERT(m_camera.isValid());
 	OKAY_ASSERT(m_camera.hasComponents<Camera>());
-	const Camera& camera = m_camera.getComponent<Camera>();
+	const Camera& camData = m_camera.getComponent<Camera>();
+	const Transform& camTra = m_camera.getComponent<Transform>();
 
 	// Trigonometry, tan(v) = a/b -> tan(v) * b = a
-	const float sideB = camera.nearZ; // NearZ
-	const float vAngleRadians = glm::radians(camera.fov * 0.5f); // FOV/2 to make right triangle (90deg angle, idk name)
+	const float sideB = camData.nearZ; // NearZ
+	const float vAngleRadians = glm::radians(camData.fov * 0.5f); // FOV/2 to make right triangle (90deg angle, idk name)
 	const float sideA = glm::tan(vAngleRadians) * sideB;
 
 
@@ -183,19 +184,19 @@ void Renderer::calculateProjectionData()
 
 
 	// Camera Data
-	m_renderData.cameraPosition = camera.position;
-	m_renderData.cameraNearZ = camera.nearZ;
+	m_renderData.cameraPosition = camTra.position;
+	m_renderData.cameraNearZ = camData.nearZ;
 
 
 	// Calculate inverseProjectionMatrix // Only used in Cherno way
 	m_renderData.cameraInverseProjectionMatrix = glm::transpose(glm::inverse(
-		glm::perspectiveFovLH(glm::radians(camera.fov), windowDimsVec.x, windowDimsVec.y, camera.nearZ, camera.farZ)));
+		glm::perspectiveFovLH(glm::radians(camData.fov), windowDimsVec.x, windowDimsVec.y, camData.nearZ, camData.farZ)));
 
 
 	// Calculate inverseViewMatrix, rotationMatrix used to get forward vector of camera
-	const glm::mat3 rotationMatrix = glm::toMat3(glm::quat(glm::radians(camera.rotation)));
+	const glm::mat3 rotationMatrix = glm::toMat3(glm::quat(glm::radians(camTra.rotation)));
 	m_renderData.cameraInverseViewMatrix = glm::transpose(glm::inverse(
-		glm::lookAtLH(camera.position, camera.position + rotationMatrix[2], glm::vec3(0.f, 1.f, 0.f))));
+		glm::lookAtLH(camTra.position, camTra.position + rotationMatrix[2], glm::vec3(0.f, 1.f, 0.f))));
 }
 
 void Renderer::updateBuffers()
