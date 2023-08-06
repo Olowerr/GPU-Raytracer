@@ -23,7 +23,7 @@ struct RenderData
 	glm::mat4 cameraInverseProjectionMatrix = glm::mat4(1.f);
 	glm::mat4 cameraInverseViewMatrix = glm::mat4(1.f);
 	glm::vec3 cameraPosition{};
-	float cameraNearZ;
+	float cameraNearZ = 0.f;
 };
 
 class Renderer

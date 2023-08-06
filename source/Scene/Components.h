@@ -37,7 +37,7 @@ struct Sphere
 struct MeshComponent
 {
 	Material material;
-	uint32_t meshID;
+	uint32_t meshID = 0u;
 };
 
 // TODO: Find better system for sharing structs between GPU & CPU.

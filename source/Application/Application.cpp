@@ -49,7 +49,7 @@ void Application::run()
 	m_camera.addComponent<Camera>(90.f, 0.1f);
 	m_renderer.setCamera(m_camera);
 
-#if 0
+#if 1
 	Entity ground = m_scene.createEntity();
 	Sphere& groundSphere = ground.addComponent<Sphere>();
 	Transform& groundTra = ground.getComponent<Transform>();
@@ -71,9 +71,9 @@ void Application::run()
 	for (size_t i = 0; i < 10; i++)
 	{
 		Entity meshEntity = m_scene.createEntity();
-		MeshComponent* meshComp = &meshEntity.addComponent<MeshComponent>();
-		meshComp->material = ballSphere.material;
-		meshComp->meshID = 0u;
+		MeshComponent& meshComp = meshEntity.addComponent<MeshComponent>();
+		meshComp.material = ballSphere.material;
+		meshComp.meshID = 0u;
 		meshEntity.getComponent<Transform>().position = glm::vec3(5.f * i, 0.f, 3.f);
 	}
 
@@ -141,7 +141,7 @@ void Application::run()
 		sphere.radius = radius;
 	};
 
-	srand(time(0));
+	srand((uint32_t)time(0));
 	auto randomFloat = []()
 	{
 		return rand() / (float)RAND_MAX;
@@ -184,15 +184,15 @@ void Application::run()
 					float smoothness = randomFloat2(0.f, 0.3f);
 					float specProb = randomFloat2(0.f, 0.3f);
 					sphere_material = getMat(albedo, smoothness, specProb);
-					entityWithMat(sphere_material, center, 0.2);
+					entityWithMat(sphere_material, center, 0.2f);
 				}
 				else if (choose_mat < 0.95) 
 				{
 					// metal
 					auto albedo = randomColour2(0.5, 1);
-					auto fuzz = randomFloat2(0.5, 1.f);
+					auto fuzz = randomFloat2(0.5f, 1.f);
 					sphere_material = getMat(albedo, fuzz, fuzz);
-					entityWithMat(sphere_material, center, 0.2);
+					entityWithMat(sphere_material, center, 0.2f);
 				}
 				//else 
 				//{
