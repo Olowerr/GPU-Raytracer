@@ -34,17 +34,17 @@ struct RenderData
 
 
 // ---- Resources
-RWTexture2D<unorm float4> resultBuffer : register(GPU_REG_RESULT_BUFFER);
-RWTexture2D<float4> accumulationBuffer : register(GPU_REG_ACCUMULATION_BUFFER);
-cbuffer RenderDataBuffer : register(GPU_REG_RENDER_DATA)
+RWTexture2D<unorm float4> resultBuffer : register(RESULT_BUFFER_GPU_REG);
+RWTexture2D<float4> accumulationBuffer : register(ACCUMULATION_BUFFER_GPU_REG);
+cbuffer RenderDataBuffer : register(RENDER_DATA_GPU_REG)
 {
     RenderData renderData;
 }
 
 // Scene data
-StructuredBuffer<Sphere> sphereData : register(GPU_REG_SPHERE_DATA);
-StructuredBuffer<Mesh> meshData : register(GPU_REG_MESH_DATA);
-StructuredBuffer<Triangle> triangleData : register(GPU_REG_TRIANGLE_DATA);
+StructuredBuffer<Sphere> sphereData : register(SPHERE_DATA_GPU_REG);
+StructuredBuffer<Mesh> meshData : register(MESH_DATA_GPU_REG);
+StructuredBuffer<Triangle> triangleData : register(TRIANGLE_DATA_GPU_REG);
 
 
 // ---- Functions

@@ -104,14 +104,14 @@ void Renderer::render()
 
 	// Bind standard resources
 	pDevCon->CSSetShader(m_pMainRaytracingCS, nullptr, 0u);
-	pDevCon->CSSetUnorderedAccessViews(CPU_SLOT_RESULT_BUFFER, 1u, &m_pTargetUAV, nullptr);
-	pDevCon->CSSetUnorderedAccessViews(CPU_SLOT_ACCUMULATION_BUFFER, 1u, &m_pAccumulationUAV, nullptr);
-	pDevCon->CSSetConstantBuffers(CPU_SLOT_RENDER_DATA, 1u, &m_pRenderDataBuffer);
+	pDevCon->CSSetUnorderedAccessViews(RESULT_BUFFER_CPU_SLOT, 1u, &m_pTargetUAV, nullptr);
+	pDevCon->CSSetUnorderedAccessViews(ACCUMULATION_BUFFER_CPU_SLOT, 1u, &m_pAccumulationUAV, nullptr);
+	pDevCon->CSSetConstantBuffers(RENDER_DATA_CPU_SLOT, 1u, &m_pRenderDataBuffer);
 
 	// Bind scene data
-	pDevCon->CSSetShaderResources(CPU_SLOT_SPHERE_DATA, 1u, &m_spheres.pSRV);
-	pDevCon->CSSetShaderResources(CPU_SLOT_MESH_DATA, 1u, &m_meshData.pSRV);
-	pDevCon->CSSetShaderResources(CPU_SLOT_TRIANGLE_DATA, 1u, &m_triangleData.pSRV);
+	pDevCon->CSSetShaderResources(SPHERE_DATA_CPU_SLOT, 1u, &m_spheres.pSRV);
+	pDevCon->CSSetShaderResources(MESH_DATA_CPU_SLOT, 1u, &m_meshData.pSRV);
+	pDevCon->CSSetShaderResources(TRIANGLE_DATA_CPU_SLOT, 1u, &m_triangleData.pSRV);
 
 	// Dispatch and unbind
 	pDevCon->Dispatch(m_renderData.textureDims.x / 16u, m_renderData.textureDims.y / 9u, 1u);
