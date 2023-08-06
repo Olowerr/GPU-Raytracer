@@ -137,25 +137,25 @@ void Renderer::loadTriangleData()
 	const std::vector<Mesh>& meshes = m_pResourceManager->getAll<Mesh>();
 	m_meshTriangleDesc.resize(meshes.size());
 
-	uint32_t numTriangles = 0u;
+	uint32_t numTotalTriangles = 0u;
 	for (const Mesh& mesh : meshes)
-		numTriangles += (uint32_t)mesh.getMeshData().positions.size() / 3u;
+		numTotalTriangles += (uint32_t)mesh.getTriangles().size();
 
-	createGPUStorage(m_triangleData, sizeof(glm::vec3) * 3, numTriangles);
+	createGPUStorage(m_triangleData, sizeof(Okay::Triangle), numTotalTriangles);
 
 	updateGPUStorage(m_triangleData, 0u, [&](char* pCoursor)
 	{
 		uint32_t currentStartIdx = 0u;
 		for (size_t i = 0; i < meshes.size(); i++)
 		{
-			const std::vector<glm::vec3>& positions = meshes[i].getMeshData().positions;
-			const size_t byteWidth = sizeof(glm::vec3) * positions.size();
+			const std::vector<Okay::Triangle>& triangles = meshes[i].getTriangles();
+			const size_t byteWidth = sizeof(Okay::Triangle) * triangles.size();
 
-			memcpy(pCoursor, positions.data(), byteWidth);
+			memcpy(pCoursor, triangles.data(), byteWidth);
 			pCoursor += byteWidth;
 
 			m_meshTriangleDesc[i].first = currentStartIdx;
-			m_meshTriangleDesc[i].second = currentStartIdx + (uint32_t)positions.size() / 3;
+			m_meshTriangleDesc[i].second = currentStartIdx + (uint32_t)triangles.size();
 
 			currentStartIdx = m_meshTriangleDesc[i].second;
 		}
@@ -234,7 +234,7 @@ void Renderer::updateBuffers()
 			gpuData->triStart = m_meshTriangleDesc[meshComp.meshID].first;
 			gpuData->triCount = m_meshTriangleDesc[meshComp.meshID].second;
 
-			gpuData->boundingBox = m_pResourceManager->getAsset<Mesh>(meshComp.meshID).getMeshData().boundingBox;
+			gpuData->boundingBox = m_pResourceManager->getAsset<Mesh>(meshComp.meshID).getBoundingBox();
 			gpuData->boundingBox.min += glm::vec3(transformMatrix[3]);
 			gpuData->boundingBox.max += glm::vec3(transformMatrix[3]);
 

@@ -36,11 +36,18 @@ struct Sphere
     float radius;
 };
 
+struct Vertex
+{
+    float3 position;
+    float3 normal;
+    float2 uv;
+};
+
 struct Triangle
 {
-    float3 p0;
-    float3 p1;
-    float3 p2;
+    Vertex p0;
+    Vertex p1;
+    Vertex p2;
 };
 
 struct Mesh
@@ -107,11 +114,11 @@ namespace Collision
     }
     
     // Returns distance to hit. -1 if miss
-    float RayAndTriangle(Ray ray, Triangle tri)
+    float RayAndTriangle(Ray ray, float3 p0, float3 p1, float3 p2)
     {
         static const float EPSILON = 0.000001f;
 
-        float3 E1 = tri.p1 - tri.p0, E2 = tri.p2 - tri.p0;
+        float3 E1 = p1 - p0, E2 = p2 - p0;
         float3 cross1 = cross(ray.direction, E2);
         float determinant = dot(E1, cross1);
 
@@ -121,7 +128,7 @@ namespace Collision
 
         float inverseDet = 1.f / determinant;
 
-        float3 rayMoved = ray.origin - tri.p0;
+        float3 rayMoved = ray.origin - p0;
         float u = dot(rayMoved, cross1) * inverseDet;
 
 	    // p is outside the triangle, barycentric coordinates shows: u >= 0

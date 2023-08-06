@@ -46,6 +46,13 @@ StructuredBuffer<Sphere> sphereData : register(SPHERE_DATA_GPU_REG);
 StructuredBuffer<Mesh> meshData : register(MESH_DATA_GPU_REG);
 StructuredBuffer<Triangle> triangleData : register(TRIANGLE_DATA_GPU_REG);
 
+/*
+    TODO: Check if seperating triangles into 3 buffers: positions, normals and uv, can be faster than current.
+    That way we don't need to access the normals and uv while doing intersection tests,
+    Meaning the cache can get more positions at once. (is this how it works?)
+    OR use one big buffer, but structure it like: all positions -> all normals -> all uvs
+*/
+
 
 // ---- Functions
 float3 getEnvironmentLight(float3 direction)
@@ -92,11 +99,11 @@ Payload findClosestHit(Ray ray)
                 float3 translation = meshData[j].transformMatrix[3].xyz;
                 Triangle tri = triangleData[k];
                 
-                tri.p0 += translation;
-                tri.p1 += translation;
-                tri.p2 += translation;
+                float3 pos0 = tri.p0.position + translation;
+                float3 pos1 = tri.p1.position + translation;
+                float3 pos2 = tri.p2.position + translation;
                 
-                float distanceToHit = Collision::RayAndTriangle(ray, tri);
+                float distanceToHit = Collision::RayAndTriangle(ray, pos0, pos1, pos2);
                 
                 if (distanceToHit > 0.f && distanceToHit < cloestHitDistance)
                 {
@@ -104,7 +111,7 @@ Payload findClosestHit(Ray ray)
                     hitIdx = j;
                     hitType = 1;
                     
-                    float3 e1 = tri.p1 - tri.p0, e2 = tri.p2 - tri.p0;
+                    float3 e1 = pos1 - pos0, e2 = pos2 - pos0;
                     payload.worldNormal = normalize(cross(e1, e2));
                 }
             }

@@ -52,6 +52,18 @@ namespace Okay
 		glm::vec3 max = glm::vec3(0.f);
 	};
 
+	struct Vertex
+	{
+		glm::vec3 position = glm::vec3(0.f);
+		glm::vec3 normal = glm::vec3(0.f);
+		glm::vec2 uv = glm::vec2(0.f);
+	};
+
+	struct Triangle
+	{
+		Vertex verticies[3]{};
+	};
+
 	template<typename T>
 	using Ref = std::shared_ptr<T>;
 

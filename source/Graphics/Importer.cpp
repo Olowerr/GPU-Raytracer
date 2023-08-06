@@ -29,26 +29,30 @@ namespace Importer
 		outData.boundingBox.min = glm::vec3(FLT_MAX);
 		outData.boundingBox.max = glm::vec3(-FLT_MAX);
 
-		outData.positions.resize(pMesh->mNumFaces * 3u);
+		uint32_t numVerticies = pMesh->mNumFaces * 3u;
+		outData.positions.resize(numVerticies);
+		outData.normals.resize(numVerticies);
+		outData.uvs.resize(numVerticies);
+
 		for (uint32_t i = 0; i < pMesh->mNumFaces; i++)
 		{
-			glm::vec3 vtx0 = assimpToGlmVec3(pMesh->mVertices[pMesh->mFaces[i].mIndices[0]]);
-			glm::vec3 vtx1 = assimpToGlmVec3(pMesh->mVertices[pMesh->mFaces[i].mIndices[1]]);
-			glm::vec3 vtx2 = assimpToGlmVec3(pMesh->mVertices[pMesh->mFaces[i].mIndices[2]]);
-
 			uint32_t vertex0Idx = i * 3;
-			memcpy(&outData.positions[vertex0Idx	 ], &vtx0, sizeof(glm::vec3));
-			memcpy(&outData.positions[vertex0Idx + 1u], &vtx1, sizeof(glm::vec3));
-			memcpy(&outData.positions[vertex0Idx + 2u], &vtx2, sizeof(glm::vec3));
+			uint32_t* aiIndices = pMesh->mFaces[i].mIndices;
 
-			// Perhaps not the best way but works
-			outData.boundingBox.min = glm::min(vtx0, outData.boundingBox.min);
-			outData.boundingBox.min = glm::min(vtx1, outData.boundingBox.min);
-			outData.boundingBox.min = glm::min(vtx2, outData.boundingBox.min);
+			for (uint32_t j = 0; j < 3; j++)
+			{
+				glm::vec3 p = assimpToGlmVec3(pMesh->mVertices[aiIndices[j]]);
+				glm::vec3 n = assimpToGlmVec3(pMesh->mNormals[aiIndices[j]]);
+				glm::vec2 u = assimpToGlmVec3(pMesh->mTextureCoords[0][aiIndices[j]]);
 
-			outData.boundingBox.max = glm::max(vtx0, outData.boundingBox.max);
-			outData.boundingBox.max = glm::max(vtx1, outData.boundingBox.max);
-			outData.boundingBox.max = glm::max(vtx2, outData.boundingBox.max);
+				outData.positions[vertex0Idx + j] = p;
+				outData.normals[vertex0Idx + j] = n;
+				outData.uvs[vertex0Idx + j] = u;
+
+				// Perhaps not the best way but works
+				outData.boundingBox.min = glm::min(p, outData.boundingBox.min);
+				outData.boundingBox.max = glm::max(p, outData.boundingBox.max);
+			}	
 		}
 
 		return true;

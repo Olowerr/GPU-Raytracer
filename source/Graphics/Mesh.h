@@ -6,8 +6,8 @@
 struct MeshData
 {
 	std::vector<glm::vec3> positions;
-	//std::vector<glm::vec3> normals;
-	//std::vector<glm::vec2> uvs;
+	std::vector<glm::vec3> normals;
+	std::vector<glm::vec2> uvs;
 
 	Okay::AABB boundingBox;
 };
@@ -15,18 +15,36 @@ struct MeshData
 class Mesh
 {
 public:
-	Mesh(MeshData&& meshData, const std::string& name)
-		:m_meshData(std::move(meshData)), m_name(name) { }
+	Mesh(const MeshData& meshData, const std::string& name)
+		:m_name(name), m_boundingBox(meshData.boundingBox)
+	{
+		const uint32_t numVerticies = (uint32_t)meshData.positions.size();
+		m_triangles.resize(numVerticies / 3);
+
+		for (uint32_t i = 0; i < numVerticies; i++)
+		{
+			const uint32_t triangleIdx = i / 3;
+			const uint32_t localVertexIdx = i % 3;
+
+			Okay::Vertex& localVertex = m_triangles[triangleIdx].verticies[localVertexIdx];
+
+			localVertex.position = meshData.positions[i];
+			localVertex.normal = meshData.normals[i];
+			localVertex.uv = meshData.uvs[i];
+		}
+	}
 
 	~Mesh() = default;
 
-	inline MeshData& getMeshData();
-	inline const MeshData& getMeshData() const;
+	inline const std::vector<Okay::Triangle>& getTriangles() const;	
+	inline const Okay::AABB& getBoundingBox() const;
 
 private:
 	std::string m_name;
-	MeshData m_meshData;
+
+	std::vector<Okay::Triangle> m_triangles;
+	Okay::AABB m_boundingBox;
 };
 
-inline MeshData& Mesh::getMeshData()				{ return m_meshData; }
-inline const MeshData& Mesh::getMeshData() const	{ return m_meshData; }
+inline const std::vector<Okay::Triangle>& Mesh::getTriangles() const	{ return m_triangles; }
+inline const Okay::AABB& Mesh::getBoundingBox() const	{ return m_boundingBox; }
