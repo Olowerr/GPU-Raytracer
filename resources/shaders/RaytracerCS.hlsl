@@ -67,6 +67,16 @@ float3 getEnvironmentLight(float3 direction)
     return lerp(GROUND_COLOUR, colour, transitionDotty);
 }
 
+float3 barycentricInterpolation(float3 uvw, float3 value0, float3 value1, float3 value2)
+{
+    return value0 * uvw.x + value1 * uvw.y + value2 * uvw.z;
+}
+
+float2 barycentricInterpolation(float3 uvw, float2 value0, float2 value1, float2 value2)
+{
+    return value0 * uvw.x + value1 * uvw.y + value2 * uvw.z;
+}
+
 Payload findClosestHit(Ray ray)
 {
     Payload payload;
@@ -103,7 +113,8 @@ Payload findClosestHit(Ray ray)
                 float3 pos1 = tri.p1.position + translation;
                 float3 pos2 = tri.p2.position + translation;
                 
-                float distanceToHit = Collision::RayAndTriangle(ray, pos0, pos1, pos2);
+                float3 baryUVCoord;
+                float distanceToHit = Collision::RayAndTriangle(ray, pos0, pos1, pos2, baryUVCoord.xy);
                 
                 if (distanceToHit > 0.f && distanceToHit < cloestHitDistance)
                 {
@@ -111,8 +122,11 @@ Payload findClosestHit(Ray ray)
                     hitIdx = j;
                     hitType = 1;
                     
-                    float3 e1 = pos1 - pos0, e2 = pos2 - pos0;
-                    payload.worldNormal = normalize(cross(e1, e2));
+                    baryUVCoord.z = 1.f - (baryUVCoord.x + baryUVCoord.y);
+                    float3 normal = barycentricInterpolation(baryUVCoord, tri.p0.normal, tri.p1.normal, tri.p2.normal);
+                    float3 lerpedUV = float3(barycentricInterpolation(baryUVCoord, tri.p0.uv, tri.p1.uv, tri.p2.uv), 0.f);
+                    
+                    payload.worldNormal = normalize(normal);
                 }
             }
         }

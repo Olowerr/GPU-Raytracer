@@ -114,11 +114,14 @@ namespace Collision
     }
     
     // Returns distance to hit. -1 if miss
-    float RayAndTriangle(Ray ray, float3 p0, float3 p1, float3 p2)
+    float RayAndTriangle(Ray ray, float3 p0, float3 p1, float3 p2, inout float2 baryUVCoord)
     {
         static const float EPSILON = 0.000001f;
 
-        float3 E1 = p1 - p0, E2 = p2 - p0;
+        // Which vectors we use (E1 = (p0 - p2) or (p1 - p0)) will affect the barycentric interpolation later on
+        // Doing it this way allows us to pass in the values to barycentric functions nicely
+        // (p0 -> p1 -> p2) instead of: (p1 -> p2 -> p0)
+        float3 E1 = p0 - p2, E2 = p1 - p2;
         float3 cross1 = cross(ray.direction, E2);
         float determinant = dot(E1, cross1);
 
@@ -128,18 +131,18 @@ namespace Collision
 
         float inverseDet = 1.f / determinant;
 
-        float3 rayMoved = ray.origin - p0;
-        float u = dot(rayMoved, cross1) * inverseDet;
+        float3 rayMoved = ray.origin - p2;
+        baryUVCoord.x = dot(rayMoved, cross1) * inverseDet;
 
 	    // p is outside the triangle, barycentric coordinates shows: u >= 0
-        if (u < -EPSILON)
+        if (baryUVCoord.x < -EPSILON)
             return -1.f;
 
         float3 cross2 = cross(rayMoved, E1);
-        float v = dot(ray.direction, cross2) * inverseDet;
+        baryUVCoord.y = dot(ray.direction, cross2) * inverseDet;
 
 	    // p is outside the triangle, barycentric coordinates shows: v >= 0 && u + v <= 1
-        if (v < -EPSILON || u + v > 1.0)
+        if (baryUVCoord.y < -EPSILON || baryUVCoord.x + baryUVCoord.y > 1.0)
             return -1.f;
 
         float t1 = dot(E2, cross2) * inverseDet;
