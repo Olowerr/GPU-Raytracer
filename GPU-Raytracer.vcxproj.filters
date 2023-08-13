@@ -134,6 +134,9 @@
     <ClInclude Include="source\Graphics\Importer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="source\Graphics\Texture.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\shaders\ShaderResourceRegisters.h" />
