@@ -1,7 +1,9 @@
 #pragma once
 
 #include "Utilities.h"
+
 #include "Mesh.h"
+#include "Texture.h"
 
 #include <string_view>
 #include <vector>
@@ -31,8 +33,10 @@ public:
 
 private:
 	std::vector<Mesh> m_meshes;
+	std::vector<Texture> m_textures;
 
 	bool loadMesh(std::string_view path);
+	bool loadTexture(std::string_view path);
 
 	template<typename Asset>
 	inline std::vector<Asset>& getAssets();
@@ -42,7 +46,8 @@ private:
 };
 
 #define STATIC_ASSERT_ASSET_TYPE()\
-static_assert(std::is_same<Asset, Mesh>(),\
+static_assert(std::is_same<Asset, Mesh>() || \
+			  std::is_same<Asset, Texture>(),\
 			  "Invalid Asset type")
 
 // Public:
