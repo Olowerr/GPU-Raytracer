@@ -14,16 +14,16 @@ public:
 	ResourceManager() = default;
 	~ResourceManager() = default;
 
-	bool importFile(std::string_view filePath);
+	AssetID importFile(std::string_view filePath);
 
 	template<typename Asset, typename... Args>
 	inline Asset& addAsset(Args&&... args);
 
 	template<typename Asset>
-	inline Asset& getAsset(uint32_t index);
+	inline Asset& getAsset(AssetID id);
 
 	template<typename Asset>
-	inline const Asset& getAsset(uint32_t index) const;
+	inline const Asset& getAsset(AssetID id) const;
 
 	template<typename Asset>
 	inline uint32_t getCount() const;
@@ -35,8 +35,8 @@ private:
 	std::vector<Mesh> m_meshes;
 	std::vector<Texture> m_textures;
 
-	bool loadMesh(std::string_view path);
-	bool loadTexture(std::string_view path);
+	AssetID loadMesh(std::string_view path);
+	AssetID loadTexture(std::string_view path);
 
 	template<typename Asset>
 	inline std::vector<Asset>& getAssets();
@@ -59,25 +59,25 @@ inline Asset& ResourceManager::addAsset(Args && ...args)
 }
 
 template<typename Asset>
-inline Asset& ResourceManager::getAsset(uint32_t index)
+inline Asset& ResourceManager::getAsset(AssetID id)
 {
 	STATIC_ASSERT_ASSET_TYPE();
 	std::vector<Asset>& assets = getAssets<Asset>();
 
-	OKAY_ASSERT(index < (uint32_t)assets.size());
-	return assets[index];
+	OKAY_ASSERT((uint32_t)id < (uint32_t)assets.size());
+	return assets[id];
 }
 
 template<typename Asset>
-inline const Asset& ResourceManager::getAsset(uint32_t index) const
+inline const Asset& ResourceManager::getAsset(AssetID id) const
 {
 	// Same definition as getAsset(), but just returning getAsset() looks recursive and thats spooky :eyes:
 
 	STATIC_ASSERT_ASSET_TYPE();
 	const std::vector<Asset>& assets = getAssets<Asset>();
 
-	OKAY_ASSERT(index < (uint32_t)assets.size());
-	return assets[index];
+	OKAY_ASSERT((uint32_t)id < (uint32_t)assets.size());
+	return assets[id];
 }
 
 template<typename Asset>

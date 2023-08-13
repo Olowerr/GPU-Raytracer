@@ -2,6 +2,8 @@
 #include "glm/glm.hpp"
 #include "glm/gtx/quaternion.hpp"
 
+#include "Utilities.h"
+
 struct Transform
 {
 	glm::vec3 position = glm::vec3(0.f);
@@ -43,7 +45,7 @@ struct Sphere
 struct MeshComponent
 {
 	Material material;
-	uint32_t meshID = 0u;
+	AssetID meshID = 0u;
 };
 
 // TODO: Find better system for sharing structs between GPU & CPU.

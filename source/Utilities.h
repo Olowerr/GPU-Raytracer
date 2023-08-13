@@ -63,13 +63,19 @@ namespace Okay
 	{
 		Vertex verticies[3]{};
 	};
-
-	template<typename T>
-	using Ref = std::shared_ptr<T>;
-
-	template<typename T, typename... Args>
-	static inline Ref<T> createRef(Args&&... args)
-	{
-		return std::make_shared<T>(std::forward<Args>(args)...);
-	}
 }
+
+struct AssetID
+{
+	AssetID() = default;
+	AssetID(uint32_t id) :id(id) { };
+	AssetID(size_t id) :id((uint32_t)id) { };
+
+	operator uint32_t() const { return id; };
+	operator size_t() const { return (size_t)id; };
+	operator bool() const { return id != Okay::INVALID_UINT; }
+	AssetID& operator= (uint32_t newId) { id = newId; return *this; }
+
+private:
+	uint32_t id = Okay::INVALID_UINT;
+};
