@@ -41,6 +41,7 @@ public:
 		OKAY_ASSERT(success);
 
 		success = SUCCEEDED(pDevice->CreateShaderResourceView(pTexture, nullptr, &m_pSRV));
+		DX11_RELEASE(pTexture);
 		OKAY_ASSERT(success);
 	}
 
@@ -49,10 +50,10 @@ public:
 		DX11_RELEASE(m_pSRV);
 	}
 
-	inline ID3D11ShaderResourceView* getSRV();
+	inline ID3D11ShaderResourceView* const* getSRV() const;
 
 private:
 	ID3D11ShaderResourceView* m_pSRV;
 };
 
-inline ID3D11ShaderResourceView* Texture::getSRV() { return m_pSRV; }
+inline ID3D11ShaderResourceView* const* Texture::getSRV() const { return &m_pSRV; }

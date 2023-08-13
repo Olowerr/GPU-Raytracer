@@ -37,6 +37,7 @@ AssetID ResourceManager::loadTexture(std::string_view path)
 		return AssetID();
 
 	m_textures.emplace_back(pData, (uint32_t)width, (uint32_t)height);
+	stbi_image_free(pData);
 
 	return AssetID(m_textures.size() - 1);
 }

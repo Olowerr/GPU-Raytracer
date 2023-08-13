@@ -21,7 +21,7 @@ struct Transform
 struct MaterialColour
 {
 	glm::vec3 colour = glm::vec3(1.f);
-	uint32_t textureIdx = Okay::INVALID_UINT;
+	AssetID textureId = Okay::INVALID_UINT;
 };
 
 struct Material

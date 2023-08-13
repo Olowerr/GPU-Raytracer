@@ -103,6 +103,9 @@ inline std::vector<Asset>& ResourceManager::getAssets()
 
 	if constexpr (std::is_same<Asset, Mesh>())
 		return m_meshes;
+
+	else if constexpr (std::is_same<Asset, Texture>())
+		return m_textures;
 }
 
 template<typename Asset>
