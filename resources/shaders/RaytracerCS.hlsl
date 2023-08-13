@@ -216,8 +216,8 @@ void main(uint3 DTid : SV_DispatchThreadID)
         ray.origin = hitData.worldPosition + hitData.worldNormal * 0.001f;
         ray.direction = normalize(lerp(diffuseReflection, specularReflection, material.smoothness * specularFactor));
         
-        light += material.emissionColour * material.emissionPower * contribution;
-        contribution *= lerp(material.albedoColour, material.specularColour, specularFactor);
+        light += material.emission.colour * material.emissionPower * contribution;
+        contribution *= lerp(material.albedo.colour, material.specular.colour, specularFactor);
     }
     
     if (renderData.accumulationEnabled == 1)

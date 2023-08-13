@@ -16,15 +16,21 @@ struct Transform
 	}
 };
 
+struct MaterialColour
+{
+	glm::vec3 colour = glm::vec3(1.f);
+	uint32_t textureIdx = Okay::INVALID_UINT;
+};
+
 struct Material
 {
-	glm::vec3 albedoColour = glm::vec3(1.f);
+	MaterialColour albedo;
 
-	glm::vec3 specularColour = glm::vec3(1.f);
+	MaterialColour specular;
 	float smoothness = 0.f;
 	float specularProbability = 0.f;
 
-	glm::vec3 emissionColour = glm::vec3(1.f);
+	MaterialColour emission;
 	float emissionPower = 0.f;
 };
 

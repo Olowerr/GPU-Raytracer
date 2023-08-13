@@ -3,15 +3,21 @@
 #define FLT_MAX (3.402823466e+38F)
 #define PI (3.14159265f)
 
+struct MaterialColour
+{
+    float3 colour;
+    uint textureIdx;
+};
+
 struct Material
 {
-    float3 albedoColour;
+    MaterialColour albedo;
 
-    float3 specularColour;
+    MaterialColour specular;
     float smoothness;
     float specularProbability;
 
-    float3 emissionColour;
+    MaterialColour emission;
     float emissionPower;
 };
 
