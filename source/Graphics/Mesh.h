@@ -31,6 +31,9 @@ public:
 			localVertex.position = meshData.positions[i];
 			localVertex.normal = meshData.normals[i];
 			localVertex.uv = meshData.uvs[i];
+			
+			// Ensure all UVs are between [0, 1]
+			localVertex.uv -= glm::floor(localVertex.uv);
 		}
 	}
 

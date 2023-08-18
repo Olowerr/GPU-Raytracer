@@ -10,6 +10,7 @@
 #include "glm/gtx/quaternion.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 
+
 Application::Application()
 	:m_pBackBuffer(nullptr), m_accumulationTime(0.f)
 {
@@ -26,8 +27,14 @@ Application::Application()
 	Okay::initiateImGui(m_window.getGLFWWindow());
 	Okay::getDevice()->CreateRenderTargetView(m_window.getBackBuffer(), nullptr, &m_pBackBuffer);
 
-	m_resourceManager.importFile("resources/meshes/cube.fbx");
-	m_renderer.loadTriangleData();
+	m_resourceManager.importFile("resources/meshes/cube.fbx");	
+
+	m_resourceManager.importFile("resources/bean.PNG");
+	m_resourceManager.importFile("resources/VAS.PNG");
+	m_resourceManager.importFile("resources/noCat.PNG");
+	m_resourceManager.importFile("resources/quack.jpg");
+
+	m_renderer.loadAssetData();
 }
 
 Application::~Application()
@@ -73,6 +80,7 @@ void Application::run()
 		Entity meshEntity = m_scene.createEntity();
 		MeshComponent& meshComp = meshEntity.addComponent<MeshComponent>();
 		meshComp.material = ballSphere.material;
+		meshComp.material.albedo.textureId = i % 4;
 		meshComp.meshID = 0u;
 		meshEntity.getComponent<Transform>().position = glm::vec3(5.f * i, 0.f, 3.f);
 	}

@@ -32,6 +32,12 @@ struct RenderData
     float cameraNearZ;
 };
 
+struct AtlasTextureDesc
+{
+    float2 uvRatio;
+    float2 uvOffset;
+};
+
 
 // ---- Resources
 RWTexture2D<unorm float4> resultBuffer : register(RESULT_BUFFER_GPU_REG);
@@ -40,11 +46,15 @@ cbuffer RenderDataBuffer : register(RENDER_DATA_GPU_REG)
 {
     RenderData renderData;
 }
+SamplerState simp : register(s0);
 
 // Scene data
 StructuredBuffer<Sphere> sphereData : register(SPHERE_DATA_GPU_REG);
 StructuredBuffer<Mesh> meshData : register(MESH_DATA_GPU_REG);
 StructuredBuffer<Triangle> triangleData : register(TRIANGLE_DATA_GPU_REG);
+
+StructuredBuffer<AtlasTextureDesc> textureDescs : register(TEXTURE_ATLAS_DESC_GPU_REG);
+Texture2D<unorm float4> textureAtlas : register(TEXTURE_ATLAS_GPU_REG);
 
 /*
     TODO: Check if seperating triangles into 3 buffers: positions, normals and uv, can be faster than current.
@@ -77,10 +87,37 @@ float2 barycentricInterpolation(float3 uvw, float2 value0, float2 value1, float2
     return value0 * uvw.x + value1 * uvw.y + value2 * uvw.z;
 }
 
+bool isValidIdx(uint idx)
+{
+    return idx != UINT_MAX;
+}
+
+float3 sampleTexture(uint textureIdx, float2 meshUVs)
+{
+    AtlasTextureDesc texDesc = textureDescs[textureIdx];
+    meshUVs *= texDesc.uvRatio;
+    meshUVs += texDesc.uvOffset;
+    
+    return textureAtlas.SampleLevel(simp, meshUVs, 0.f).rgb;
+}
+
+void findMaterialTextureColours(inout Material material, float2 meshUVs)
+{
+    if (isValidIdx(material.albedo.textureIdx))
+        material.albedo.colour = sampleTexture(material.albedo.textureIdx, meshUVs);
+    
+    if (isValidIdx(material.specular.textureIdx))
+        material.specular.colour = sampleTexture(material.specular.textureIdx, meshUVs);
+    
+    if (isValidIdx(material.emission.textureIdx))
+        material.emission.colour = sampleTexture(material.emission.textureIdx, meshUVs);
+}
+
 Payload findClosestHit(Ray ray)
 {
     Payload payload;
     
+    float2 meshUVs = float2(0.f, 0.f);
     float cloestHitDistance = FLT_MAX;
     uint hitIdx = UINT_MAX;
     uint hitType = 0;
@@ -124,9 +161,10 @@ Payload findClosestHit(Ray ray)
                     
                     baryUVCoord.z = 1.f - (baryUVCoord.x + baryUVCoord.y);
                     float3 normal = barycentricInterpolation(baryUVCoord, tri.p0.normal, tri.p1.normal, tri.p2.normal);
-                    float3 lerpedUV = float3(barycentricInterpolation(baryUVCoord, tri.p0.uv, tri.p1.uv, tri.p2.uv), 0.f);
+                    float2 lerpedUV = barycentricInterpolation(baryUVCoord, tri.p0.uv, tri.p1.uv, tri.p2.uv);
                     
                     payload.worldNormal = normalize(normal);
+                    meshUVs = lerpedUV;
                 }
             }
         }
@@ -145,6 +183,7 @@ Payload findClosestHit(Ray ray)
         
         case 1: // Mesh
             payload.material = meshData[hitIdx].material;
+            findMaterialTextureColours(payload.material, meshUVs);
             break;
     }
        
@@ -222,7 +261,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
     
     if (renderData.accumulationEnabled == 1)
     {
-        accumulationBuffer[DTid.xy] += float4(light, 0.f);
+        accumulationBuffer[DTid.xy] += float4(light, 0.f) + float4(textureDescs[0].uvRatio * 0.00001f, 0.f, 0.f);
         resultBuffer[DTid.xy] = accumulationBuffer[DTid.xy] / (float)renderData.numAccumulationFrames;
     }
     else

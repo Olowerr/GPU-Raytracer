@@ -7,6 +7,11 @@
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtx/quaternion.hpp"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb/stb_image.h"
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb/stb_image_write.h"
+
 #include <execution>
 
 Renderer::Renderer()
@@ -32,10 +37,12 @@ void Renderer::shutdown()
 	DX11_RELEASE(m_pAccumulationUAV);
 	DX11_RELEASE(m_pRenderDataBuffer);
 	DX11_RELEASE(m_pMainRaytracingCS);
+	DX11_RELEASE(m_pTextureAtlasSRV);
 	
 	shutdownGPUStorage(m_meshData);
 	shutdownGPUStorage(m_spheres);
 	shutdownGPUStorage(m_triangleData);
+	shutdownGPUStorage(m_textureAtlasDesc);
 }
 
 void Renderer::initiate(ID3D11Texture2D* pTarget, Scene* pScene, ResourceManager* pResourceManager)
@@ -89,6 +96,27 @@ void Renderer::initiate(ID3D11Texture2D* pTarget, Scene* pScene, ResourceManager
 	createGPUStorage(m_spheres, sizeof(glm::vec3) + sizeof(Sphere), SRV_START_SIZE);
 	createGPUStorage(m_meshData, sizeof(GPU_MeshComponent), SRV_START_SIZE);
 	// m_triangleData created in Renderer::loadTriangleData().
+	// m_textureAtlasData created in Renderer::createTextureAtlas().
+
+
+
+	{ // Basic Sampler
+		D3D11_SAMPLER_DESC simpDesc{};
+		simpDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+		simpDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+		simpDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+		simpDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+		simpDesc.MinLOD = -FLT_MAX;
+		simpDesc.MaxLOD = FLT_MAX;
+		simpDesc.MipLODBias = 0.f;
+		simpDesc.MaxAnisotropy = 1u;
+		simpDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+		ID3D11SamplerState* pSimp = nullptr;
+		success = SUCCEEDED(pDevice->CreateSamplerState(&simpDesc, &pSimp));
+		OKAY_ASSERT(success);
+		Okay::getDeviceContext()->CSSetSamplers(0u, 1u, &pSimp);
+		DX11_RELEASE(pSimp);
+	}
 }
 
 void Renderer::render()
@@ -112,6 +140,8 @@ void Renderer::render()
 	pDevCon->CSSetShaderResources(SPHERE_DATA_CPU_SLOT, 1u, &m_spheres.pSRV);
 	pDevCon->CSSetShaderResources(MESH_DATA_CPU_SLOT, 1u, &m_meshData.pSRV);
 	pDevCon->CSSetShaderResources(TRIANGLE_DATA_CPU_SLOT, 1u, &m_triangleData.pSRV);
+	pDevCon->CSSetShaderResources(TEXTURE_ATLAS_DESC_CPU_SLOT, 1u, &m_textureAtlasDesc.pSRV);
+	pDevCon->CSSetShaderResources(TEXTURE_ATLAS_CPU_SLOT, 1u, &m_pTextureAtlasSRV);
 
 	// Dispatch and unbind
 	pDevCon->Dispatch(m_renderData.textureDims.x / 16u, m_renderData.textureDims.y / 9u, 1u);
@@ -130,6 +160,12 @@ void Renderer::reloadShaders()
 	m_pMainRaytracingCS = pNewShader;
 
 	resetAccumulation();
+}
+
+void Renderer::loadAssetData()
+{
+	loadTriangleData();
+	createTextureAtlas();
 }
 
 void Renderer::loadTriangleData()
@@ -158,6 +194,89 @@ void Renderer::loadTriangleData()
 			m_meshTriangleDesc[i].second = currentStartIdx + (uint32_t)triangles.size();
 
 			currentStartIdx = m_meshTriangleDesc[i].second;
+		}
+	});
+}
+
+void Renderer::createTextureAtlas()
+{
+	static const uint32_t CHANNELS = STBI_rgb_alpha;
+	static const uint32_t SPACING = 0u;
+
+	const std::vector<Texture>& textures = m_pResourceManager->getAll<Texture>();
+	const size_t numTextures = textures.size();
+	if (!numTextures)
+		return;
+
+	std::vector<uint32_t> xPositions;
+	xPositions.resize(numTextures, 0u);
+
+	/*
+	* TODO: Outline the textures with the edge colours for n-pixels.
+	* This could remove bleeding between textures or empty areas.
+	* Need to adjust texture atlas width and make sure they UVs still start at the orignal texture positions.
+	* Only need to outline sides of textures with nothing next to it, e.g. no outline needed for top side.
+	* Can maybe rework SPACING into OUTLINE_THICKNESS or something, don't think SPACING will be necessary after this change.
+	*/ 
+
+	uint32_t totWidth = 0u, maxHeight = 0u;
+	for (size_t i = 0; i < numTextures; i++)
+	{
+		totWidth += textures[i].getWidth() + (i > 0u ? SPACING : 0u);
+		if (textures[i].getHeight() > maxHeight)
+			maxHeight = textures[i].getHeight();
+
+		if (i > 0)
+			xPositions[i] = xPositions[i - 1] + textures[i - 1].getWidth() + SPACING;
+	}
+
+	unsigned char* pResultData = new unsigned char[totWidth * maxHeight * CHANNELS]{};
+	const uint32_t rowPitch = totWidth * CHANNELS;
+
+	unsigned char* coursor = nullptr;
+	for (size_t i = 0; i < numTextures; i++)
+	{
+		for (uint32_t y = 0; y < textures[i].getHeight(); y++)
+		{
+			coursor = pResultData + xPositions[i] * CHANNELS + y * rowPitch;
+			memcpy(coursor, textures[i].getTextureData() + y * textures[i].getWidth() * CHANNELS, textures[i].getWidth() * CHANNELS);
+		}
+		stbi_image_free(textures[i].getTextureData());
+	}
+	stbi_write_png("TextureAtlas.png", totWidth, maxHeight, 4, pResultData, rowPitch);
+	
+	bool success = Okay::createSRVFromTextureData(&m_pTextureAtlasSRV, pResultData, totWidth, maxHeight);
+	delete[] pResultData;
+	OKAY_ASSERT(success);
+	
+	/*
+	* Need for each texture:
+	* UV offset
+	* Ratio between texture size and atlas size
+	* 
+	* In Shader:
+	* Find ratio & offset based on TextureIdx
+	* Multiply UV Coordinate by ratio and apply offset
+	*/
+
+	glm::vec2 inverseAtlasDims = 1.f / glm::vec2((float)totWidth, (float)maxHeight);
+	createGPUStorage(m_textureAtlasDesc, sizeof(std::pair<glm::vec2, glm::vec2>), (uint32_t)numTextures);
+
+	updateGPUStorage(m_textureAtlasDesc, 0u, [&](char* pMappedBufferData)
+	{
+		using Vec2Pair = std::pair<glm::vec2, glm::vec2>;
+		Vec2Pair* pointer = (Vec2Pair*)pMappedBufferData;
+
+		for (size_t i = 0; i < numTextures; i++)
+		{
+			glm::vec2 textureDims((float)textures[i].getWidth(), (float)textures[i].getHeight());
+			glm::vec2 texturePos((float)xPositions[i], 0.f); // All textures on line until fancier atlas generation
+
+			// Defines ratio (first) and offset (second) of each individual texture in the textureAtlas
+			pointer->first = textureDims * inverseAtlasDims;
+			pointer->second = texturePos * inverseAtlasDims;
+
+			pointer += 1u;
 		}
 	});
 }

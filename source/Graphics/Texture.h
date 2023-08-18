@@ -5,55 +5,24 @@
 class Texture
 {
 public:
-	Texture(const unsigned char* pTextureData, uint32_t width, uint32_t height)
-		:m_pSRV(nullptr)
+	Texture(unsigned char* pTextureData, uint32_t width, uint32_t height)
+		:m_pTextureData(pTextureData), m_width(width), m_height(height)
 	{
 		OKAY_ASSERT(pTextureData);
-		OKAY_ASSERT(width);
-		OKAY_ASSERT(height);
-
-		D3D11_TEXTURE2D_DESC desc{};
-		desc.Width = width;
-		desc.Height = height;
-		desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-		desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-		desc.MipLevels = 1u;
-
-		desc.Usage = D3D11_USAGE_IMMUTABLE;
-		desc.CPUAccessFlags = 0u;
-
-		desc.SampleDesc.Count = 1u;
-		desc.SampleDesc.Quality = 0u;
-
-		desc.ArraySize = 1u;
-		desc.MiscFlags = 0u;
-
-		D3D11_SUBRESOURCE_DATA inData{};
-		inData.pSysMem = pTextureData;
-		inData.SysMemPitch = width * 4u; // four 1 byte channels
-		inData.SysMemSlicePitch = 0u;
-
-		bool success = false;
-		ID3D11Device* pDevice = Okay::getDevice();
-		ID3D11Texture2D* pTexture = nullptr;
-
-		success = SUCCEEDED(pDevice->CreateTexture2D(&desc, &inData, &pTexture));
-		OKAY_ASSERT(success);
-
-		success = SUCCEEDED(pDevice->CreateShaderResourceView(pTexture, nullptr, &m_pSRV));
-		DX11_RELEASE(pTexture);
-		OKAY_ASSERT(success);
 	}
 
-	~Texture()
-	{
-		DX11_RELEASE(m_pSRV);
-	}
+	~Texture() = default;
 
-	inline ID3D11ShaderResourceView* const* getSRV() const;
+	inline uint32_t getWidth() const;
+	inline uint32_t getHeight() const;
+	inline unsigned char* getTextureData() const;
+
 
 private:
-	ID3D11ShaderResourceView* m_pSRV;
+	uint32_t m_width, m_height;
+	unsigned char* m_pTextureData;
 };
 
-inline ID3D11ShaderResourceView* const* Texture::getSRV() const { return &m_pSRV; }
+inline uint32_t Texture::getWidth()	const 				{return m_width;		}
+inline uint32_t Texture::getHeight() const				{return m_height;		}
+inline unsigned char* Texture::getTextureData() const	{return m_pTextureData;	}

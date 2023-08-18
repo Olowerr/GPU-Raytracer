@@ -45,7 +45,7 @@ public:
 	inline uint32_t getNumAccumulationFrames() const;
 
 	void reloadShaders();
-	void loadTriangleData();
+	void loadAssetData();
 
 private: // Scene & Resources
 	Scene* m_pScene;
@@ -85,9 +85,16 @@ private: // Scene GPU Data
 	GPUStorage m_meshData;
 	GPUStorage m_spheres;
 
-	// Defines the startIdx and endIdx of each mesh for the GPU triangle buffer.
-	// The order of the std::vector matches the std::vector in ResourceManager.
+	ID3D11ShaderResourceView* m_pTextureAtlasSRV;
+	GPUStorage m_textureAtlasDesc;
+
+	// The order of m_meshTriangleDesc & m_textureAtlasData matches the respective std::vector in ResourceManager.
+	
+	// Defines the startIdx (.first) and endIdx (.second) of each mesh for the GPU triangle buffer.
 	std::vector<std::pair<uint32_t, uint32_t>> m_meshTriangleDesc;
+	
+	void loadTriangleData();
+	void createTextureAtlas();
 };
 
 inline void Renderer::setScene(Scene* pScene)

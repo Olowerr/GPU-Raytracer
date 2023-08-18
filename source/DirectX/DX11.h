@@ -19,4 +19,7 @@ namespace Okay
 
 	bool createConstantBuffer(ID3D11Buffer** ppBuffer, const void* pData, size_t byteSize, bool immutable = false);
 	void updateBuffer(ID3D11Buffer* pBuffer, const void* pData, size_t byteWidth);
+
+	// Assumes 4 channels consisting of 1 byte per channel
+	bool createSRVFromTextureData(ID3D11ShaderResourceView** ppSRV, const unsigned char* pTextureData, uint32_t width, uint32_t height);
 }

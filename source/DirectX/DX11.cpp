@@ -138,6 +138,47 @@ namespace Okay
 		dx11.pDeviceContext->Unmap(pBuffer, 0u);
 	}
 
+	bool createSRVFromTextureData(ID3D11ShaderResourceView** ppSRV, const unsigned char* pTextureData, uint32_t width, uint32_t height)
+	{
+		OKAY_ASSERT(ppSRV);
+		OKAY_ASSERT(pTextureData);
+		OKAY_ASSERT(width);
+		OKAY_ASSERT(height);
+
+		D3D11_TEXTURE2D_DESC desc{};
+		desc.Width = width;
+		desc.Height = height;
+		
+		desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+		desc.MipLevels = 1u;
+		
+		desc.Usage = D3D11_USAGE_IMMUTABLE;
+		desc.CPUAccessFlags = 0u;
+		desc.SampleDesc.Count = 1u;
+		desc.SampleDesc.Quality = 0u;
+		
+		desc.ArraySize = 1u;
+		desc.MiscFlags = 0u;
+
+		D3D11_SUBRESOURCE_DATA inData{};
+		inData.pSysMem = pTextureData;
+		inData.SysMemPitch = width * 4u;
+		inData.SysMemSlicePitch = 0u;
+
+		ID3D11Texture2D* pTexture = nullptr;
+		bool success = false;
+
+		success = SUCCEEDED(dx11.pDevice->CreateTexture2D(&desc, &inData, &pTexture));
+		if (!success)
+			return false;
+
+		success = SUCCEEDED(dx11.pDevice->CreateShaderResourceView(pTexture, nullptr, ppSRV));
+		DX11_RELEASE(pTexture);
+
+		return success;
+	}
+
 
 	class IncludeReader : public ID3DInclude
 	{
