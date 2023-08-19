@@ -3,21 +3,27 @@
 #define FLT_MAX (3.402823466e+38F)
 #define PI (3.14159265f)
 
-struct MaterialColour
+struct MaterialColour3
 {
     float3 colour;
     uint textureIdx;
 };
 
+struct MaterialColour1
+{
+    float colour;
+    uint textureIdx;
+};
+
 struct Material
 {
-    MaterialColour albedo;
+    MaterialColour3 albedo;
+    MaterialColour1 roughness;
+    MaterialColour1 metallic;
 
-    MaterialColour specular;
-    float smoothness;
-    float specularProbability;
-
-    MaterialColour emission;
+    float3 specularColour;
+    
+    float3 emissionColour;
     float emissionPower;
 };
 
@@ -75,6 +81,30 @@ uint pcg_hash(inout uint seed)
     seed = ((seed >> ((seed >> 28u) + 4u)) ^ seed) * 277803737u;
     seed = (seed >> 22u) ^ seed;
     return seed;
+}
+
+uint pcg_hash2(uint seed)
+{
+    seed *= 747796405u + 2891336453u;
+    seed = ((seed >> ((seed >> 28u) + 4u)) ^ seed) * 277803737u;
+    seed = (seed >> 22u) ^ seed;
+    return seed;
+}
+
+float pseudorandomNumber(float3 normalizedDirection)
+{
+    float3 permute = float3(1.0, 57.0, 113.0); // Permutation constants
+    float3 grad = normalize(float3(1.0, 1.0, 1.0)); // Gradient direction
+
+    float3 p = frac(float3(normalizedDirection.xyx) * permute);
+    p = p * 2.0 - 1.0;
+
+    float3 d = abs(p) - 0.5;
+    float3 h = 1.0 - abs(d);
+    float3 n = max(h, 0.0) * h * h;
+    float3 g = grad * dot(d, p);
+
+    return dot(n, g);
 }
 
 float randomFloat(inout uint seed)

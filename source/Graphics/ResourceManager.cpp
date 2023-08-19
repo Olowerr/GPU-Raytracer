@@ -8,6 +8,8 @@ AssetID ResourceManager::importFile(std::string_view filePath)
 {
 	AssetID id;
 
+	// Assimp throws "Deadly import error" on fail, doesn't seem to affect anything tho lol
+	// Assimp just returns nullptr, maybe there's is way to surpress?
 	if (id = loadMesh(filePath))
 		return id;
 

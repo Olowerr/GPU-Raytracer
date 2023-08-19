@@ -77,6 +77,16 @@ float3 getEnvironmentLight(float3 direction)
     return lerp(GROUND_COLOUR, colour, transitionDotty);
 }
 
+float3 getNightLight(float3 direction)
+{
+    //uint asd = pcg_hash2(abs(direction.x) * UINT_MAX) + pcg_hash2(abs(direction.y) * UINT_MAX) + pcg_hash2(abs(direction.z) * UINT_MAX);
+    //return pcg_hash2(asd) % 100 < 5 ? float3(1.f, 1.f, 1.f) : float3(0.f, 0.f, 0.f);
+    
+    float aqwe = pseudorandomNumber(direction);
+    return float3(aqwe, aqwe, aqwe);
+
+}
+
 float3 barycentricInterpolation(float3 uvw, float3 value0, float3 value1, float3 value2)
 {
     return value0 * uvw.x + value1 * uvw.y + value2 * uvw.z;
@@ -106,11 +116,11 @@ void findMaterialTextureColours(inout Material material, float2 meshUVs)
     if (isValidIdx(material.albedo.textureIdx))
         material.albedo.colour = sampleTexture(material.albedo.textureIdx, meshUVs);
     
-    if (isValidIdx(material.specular.textureIdx))
-        material.specular.colour = sampleTexture(material.specular.textureIdx, meshUVs);
+    if (isValidIdx(material.roughness.textureIdx))
+        material.roughness.colour = sampleTexture(material.roughness.textureIdx, meshUVs).r;
     
-    if (isValidIdx(material.emission.textureIdx))
-        material.emission.colour = sampleTexture(material.emission.textureIdx, meshUVs);
+    if (isValidIdx(material.metallic.textureIdx))
+        material.metallic.colour = sampleTexture(material.metallic.textureIdx, meshUVs).r;
 }
 
 Payload findClosestHit(Ray ray)
@@ -242,7 +252,8 @@ void main(uint3 DTid : SV_DispatchThreadID)
         hitData = findClosestHit(ray);
         if (!hitData.hit)
         {
-            light += getEnvironmentLight(ray.direction) * contribution;
+            //light += getEnvironmentLight(ray.direction) * contribution;
+            //light += getNightLight(ray.direction) * contribution;
             break;
         }
         
@@ -250,13 +261,14 @@ void main(uint3 DTid : SV_DispatchThreadID)
         
         const float3 diffuseReflection = normalize(hitData.worldNormal + getRandomVector(seed));
         const float3 specularReflection = reflect(ray.direction, hitData.worldNormal);
-        const float specularFactor = float(material.specularProbability >= randomFloat(seed));
+        const float specularFactor = float(material.metallic.colour <= randomFloat(seed));
         
         ray.origin = hitData.worldPosition + hitData.worldNormal * 0.001f;
-        ray.direction = normalize(lerp(diffuseReflection, specularReflection, material.smoothness * specularFactor));
+        //ray.direction = normalize(lerp(diffuseReflection, specularReflection, (1.f - material.roughness.colour) * specularFactor));
+        ray.direction = normalize(lerp(diffuseReflection, specularReflection, material.roughness.colour * specularFactor));
         
-        light += material.emission.colour * material.emissionPower * contribution;
-        contribution *= lerp(material.albedo.colour, material.specular.colour, specularFactor);
+        light += material.emissionColour * material.emissionPower * contribution;
+        contribution *= lerp(material.albedo.colour, material.specularColour, specularFactor);
     }
     
     if (renderData.accumulationEnabled == 1)

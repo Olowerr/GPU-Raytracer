@@ -29,10 +29,9 @@ Application::Application()
 
 	m_resourceManager.importFile("resources/meshes/cube.fbx");	
 
-	m_resourceManager.importFile("resources/bean.PNG");
-	m_resourceManager.importFile("resources/VAS.PNG");
-	m_resourceManager.importFile("resources/noCat.PNG");
-	m_resourceManager.importFile("resources/quack.jpg");
+	m_resourceManager.importFile("resources/textures/rev/rev_albedo.png");
+	m_resourceManager.importFile("resources/textures/rev/rev_metallic.png");
+	m_resourceManager.importFile("resources/textures/rev/rev_roughness.png");
 
 	m_renderer.loadAssetData();
 }
@@ -62,7 +61,7 @@ void Application::run()
 	Transform& groundTra = ground.getComponent<Transform>();
 	groundTra.position = glm::vec3(0.f, -1468.f, 91.8f);
 	groundSphere.material.albedo.colour = glm::vec3(1.f);
-	groundSphere.material.emission.colour = glm::vec3(0.f);
+	groundSphere.material.emissionColour = glm::vec3(0.f);
 	groundSphere.material.emissionPower = 0.f;
 	groundSphere.radius = 1465.f;
 
@@ -71,16 +70,18 @@ void Application::run()
 	Transform& ballTra = ball.getComponent<Transform>();
 	ballTra.position = glm::vec3(0.f, -1.4f, 20.f);
 	ballSphere.material.albedo.colour = glm::vec3(0.89f, 0.5f, 0.5f);
-	ballSphere.material.emission.colour = glm::vec3(0.f);
+	ballSphere.material.emissionColour = glm::vec3(0.f);
 	ballSphere.material.emissionPower = 0.f;
 	ballSphere.radius = 7.3f;
 
-	for (size_t i = 0; i < 10; i++)
+	for (size_t i = 0; i < 1; i++)
 	{
 		Entity meshEntity = m_scene.createEntity();
 		MeshComponent& meshComp = meshEntity.addComponent<MeshComponent>();
 		meshComp.material = ballSphere.material;
-		meshComp.material.albedo.textureId = i % 4;
+		meshComp.material.albedo.textureId = 0u;
+		meshComp.material.roughness.textureId = 1u;
+		meshComp.material.metallic.textureId = 2u;
 		meshComp.meshID = 0u;
 		meshEntity.getComponent<Transform>().position = glm::vec3(5.f * i, 0.f, 3.f);
 	}
@@ -282,12 +283,12 @@ void Application::run()
 				ImGui::Text("Sphere: %u", entityID);
 				if (ImGui::DragFloat3("Position", &transform.position.x, 0.1f))							resetAcu = true;
 				if (ImGui::ColorEdit3("Colour", &mat.albedo.colour.x))									resetAcu = true;
-				if (ImGui::ColorEdit3("Emission Colour", &mat.emission.colour.x))						resetAcu = true;
+				if (ImGui::ColorEdit3("Emission Colour", &mat.emissionColour.x))						resetAcu = true;
 				if (ImGui::DragFloat("Emission Power", &mat.emissionPower, 0.01f))						resetAcu = true;
 				if (ImGui::DragFloat("Radius", &sphere.radius, 0.1f))									resetAcu = true;
-				if (ImGui::DragFloat("Smoothness", &mat.smoothness, 0.01f, 0.f, 1.f))					resetAcu = true;
-				if (ImGui::DragFloat("Specular Probabilty", &mat.specularProbability, 0.01f, 0.f, 1.f))	resetAcu = true;
-				if (ImGui::ColorEdit3("Specular Colour", &mat.specular.colour.x))						resetAcu = true;
+				if (ImGui::DragFloat("Roughness", &mat.roughness.colour, 0.01f, 0.f, 1.f))				resetAcu = true;
+				if (ImGui::DragFloat("Metallic", &mat.metallic.colour, 0.01f, 0.f, 1.f))				resetAcu = true;
+				if (ImGui::ColorEdit3("Specular Colour", &mat.specularColour.x))						resetAcu = true;
 			
 				ImGui::Separator();
 
