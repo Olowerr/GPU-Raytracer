@@ -279,13 +279,13 @@ void main(uint3 DTid : SV_DispatchThreadID)
     Sphere currentSphere;
     Material material;
     
-#if 0
+#if 1
     for (uint i = 0; i <= NUM_BOUNCES; i++)
     {
         hitData = findClosestHit(ray);
         if (!hitData.hit)
         {
-            //light += getEnvironmentLight(ray.direction) * contribution;
+            light += getEnvironmentLight(ray.direction) * contribution;
             //light += getNightLight(ray.direction) * contribution;
             break;
         }
@@ -296,7 +296,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
         //const float metallic = material.metallic.colour * (MinMaxMetallic.y - MinMaxMetallic.x) + MinMaxMetallic.x;
         material.metallic.colour = clamp(material.metallic.colour, MinMaxMetallic.x, MinMaxMetallic.y);
         #if 1
-        
+
         const float3 diffuseReflection = normalize(hitData.worldNormal + getRandomVector(seed));
         const float3 specularReflection = reflect(ray.direction, hitData.worldNormal);
         const float specularFactor = float(material.metallic.colour >= randomFloat(seed));
@@ -308,7 +308,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
         light += material.emissionColour * material.emissionPower * contribution;
         contribution *= lerp(material.albedo.colour, material.specularColour, specularFactor);
         
-        #elif 1
+#elif 0
         
         const float3 diffuseReflection = normalize(hitData.worldNormal + getRandomVector(seed));
         const float3 specularReflection = reflect(ray.direction, hitData.worldNormal);
@@ -340,7 +340,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
         hitData = findClosestHit(ray);
         if (!hitData.hit)
         {
-            //light += getEnvironmentLight(ray.direction) * contribution;
+            light += getEnvironmentLight(ray.direction) * contribution;
             break;
         }
 
@@ -390,7 +390,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
     
     if (renderData.accumulationEnabled == 1)
     {
-        accumulationBuffer[DTid.xy] += float4(light, 0.f) + float4(textureDescs[0].uvRatio * 0.00001f, 0.f, 0.f);
+        accumulationBuffer[DTid.xy] += float4(light, 0.f) + float4(triangleData[0].p0.position.xyz * 0.00000001f, 0.f);
         resultBuffer[DTid.xy] = accumulationBuffer[DTid.xy] / (float)renderData.numAccumulationFrames;
     }
     else

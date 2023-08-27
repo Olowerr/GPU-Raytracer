@@ -3,6 +3,7 @@
 #include "Scene/Components.h"
 #include "shaders/ShaderResourceRegisters.h"
 #include "ResourceManager.h"
+#include "BvhBuilder.h"
 
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtx/quaternion.hpp"
@@ -170,30 +171,81 @@ void Renderer::loadAssetData()
 
 void Renderer::loadTriangleData()
 {
+	struct GPUNode
+	{
+		Okay::AABB boundingBox;
+		uint32_t triStart = Okay::INVALID_UINT, triEnd = Okay::INVALID_UINT;
+		uint32_t childIdxs[2] { Okay::INVALID_UINT, Okay::INVALID_UINT };
+	};
+
 	const std::vector<Mesh>& meshes = m_pResourceManager->getAll<Mesh>();
-	m_meshTriangleDesc.resize(meshes.size());
+	const uint32_t numMeshes = (uint32_t)meshes.size();
+
+	m_meshTriangleDesc.resize(numMeshes);
 
 	uint32_t numTotalTriangles = 0u;
-	for (const Mesh& mesh : meshes)
-		numTotalTriangles += (uint32_t)mesh.getTriangles().size();
+	uint32_t currentStartIdx = 0u;
+	for (uint32_t i = 0; i < numMeshes; i++)
+	{
+		uint32_t numTriangles = (uint32_t)meshes[i].getTriangles().size();
+		numTotalTriangles += numTriangles;
+
+		m_meshTriangleDesc[i].first = currentStartIdx;
+		m_meshTriangleDesc[i].second = currentStartIdx + numTriangles;
+
+		currentStartIdx = m_meshTriangleDesc[i].second;
+	}
 
 	createGPUStorage(m_triangleData, sizeof(Okay::Triangle), numTotalTriangles);
 
-	updateGPUStorage(m_triangleData, 0u, [&](char* pCoursor)
+	updateGPUStorage(m_triangleData, 0u, [&](char* pMappedBufferData)
 	{
-		uint32_t currentStartIdx = 0u;
+		Okay::Triangle* pTriWriteLocation = (Okay::Triangle*)pMappedBufferData;
+
+		BvhBuilder bvhBuilder(50u, 1u);
+		std::vector<GPUNode> gpuNodes;
 		for (size_t i = 0; i < meshes.size(); i++)
 		{
-			const std::vector<Okay::Triangle>& triangles = meshes[i].getTriangles();
-			const size_t byteWidth = sizeof(Okay::Triangle) * triangles.size();
+			const Mesh& mesh = meshes[i];
 
-			memcpy(pCoursor, triangles.data(), byteWidth);
-			pCoursor += byteWidth;
+			bvhBuilder.buildTree(mesh);
+			const std::vector<BvhNode>& nodes = bvhBuilder.getTree();
 
-			m_meshTriangleDesc[i].first = currentStartIdx;
-			m_meshTriangleDesc[i].second = currentStartIdx + (uint32_t)triangles.size();
+			uint32_t numNodes = (uint32_t)nodes.size();
+			size_t gpuPrevSize = gpuNodes.size();
 
-			currentStartIdx = m_meshTriangleDesc[i].second;
+			gpuNodes.resize(gpuPrevSize + numNodes);
+
+			uint32_t localTriStart = 0u;
+			for (uint32_t k = 0; k < numNodes; k++)
+			{
+				GPUNode& gpuNode = gpuNodes[gpuPrevSize + k];
+				const BvhNode& bvhNode = nodes[k];
+				
+				uint32_t numTriIndicies = (uint32_t)bvhNode.triIndicies.size();
+
+				gpuNode.boundingBox = bvhNode.boundingBox;
+
+				gpuNode.childIdxs[0] = bvhNode.childIdxs[0];
+				gpuNode.childIdxs[1] = bvhNode.childIdxs[1];
+
+				gpuNode.triStart = m_meshTriangleDesc[i].first + localTriStart;
+				gpuNode.triEnd = gpuNode.triStart + numTriIndicies;
+
+				localTriStart += numTriIndicies;
+
+				if (bvhNode.isLeaf())
+				{
+					const std::vector<Okay::Triangle>& meshTris = mesh.getTriangles();
+
+					for (uint32_t j = 0; j < numTriIndicies; j++)
+					{
+						pTriWriteLocation[j] = meshTris[bvhNode.triIndicies[j]];
+					}
+
+					pTriWriteLocation += numTriIndicies;
+				}
+			}
 		}
 	});
 }
@@ -243,7 +295,9 @@ void Renderer::createTextureAtlas()
 		}
 		stbi_image_free(textures[i].getTextureData());
 	}
-	stbi_write_png("TextureAtlas.png", totWidth, maxHeight, 4, pResultData, rowPitch);
+
+	// For debugging
+	//stbi_write_png("TextureAtlas.png", totWidth, maxHeight, 4, pResultData, rowPitch);
 	
 	bool success = Okay::createSRVFromTextureData(&m_pTextureAtlasSRV, pResultData, totWidth, maxHeight);
 	delete[] pResultData;

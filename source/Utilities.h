@@ -63,6 +63,12 @@ namespace Okay
 	{
 		Vertex verticies[3]{};
 	};
+
+	struct Plane
+	{
+		glm::vec3 position;
+		glm::vec3 normal;
+	};
 }
 
 struct AssetID
