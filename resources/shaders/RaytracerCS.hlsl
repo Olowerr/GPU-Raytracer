@@ -200,6 +200,38 @@ Payload findClosestHit(Ray ray)
     return payload;
 }
 
+float chiGGX(float v)
+{
+    return v > 0.f ? 1.f : 0.f;
+}
+
+float GGX_PartialGeometryTerm(float3 viewVec, float3 normal, float3 halfwayVec, float roughness)
+{
+    float VoH2 = saturate(dot(viewVec, halfwayVec));
+    float chi = chiGGX(VoH2 / max(dot(viewVec, normal), 0.f));
+    VoH2 = VoH2 * VoH2;
+    float tan2 = (1.f - VoH2) / VoH2;
+    return (chi * 2.f) / (1.f + sqrt(1.f + roughness * roughness * tan2));
+}
+
+float3 FresnelSchlick(float3 F0, float cosTheta)
+{
+    return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
+}
+
+float GGX_Distribution(float3 normal, float3 halfwayVec, float roughness)
+{
+    float NoH = dot(normal, halfwayVec);
+    float roughness2 = roughness * roughness;
+    float NoH2 = NoH * NoH;
+    
+    float thing = pow((1.f + NoH2) * (roughness2 - 1.f), 2.f);
+    return (chiGGX(NoH) * roughness2) / (PI * thing);
+    
+    float den = NoH2 * roughness2 + (1.f - NoH2);
+    return (chiGGX(NoH) * roughness2) / (PI * den * den);
+}
+
 
 // ---- Main part of shader
 [numthreads(16, 9, 1)]
@@ -247,6 +279,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
     Sphere currentSphere;
     Material material;
     
+#if 0
     for (uint i = 0; i <= NUM_BOUNCES; i++)
     {
         hitData = findClosestHit(ray);
@@ -259,17 +292,101 @@ void main(uint3 DTid : SV_DispatchThreadID)
         
         material = hitData.material;
         
+        static const float2 MinMaxMetallic = float2(0.0f, 0.2f);
+        //const float metallic = material.metallic.colour * (MinMaxMetallic.y - MinMaxMetallic.x) + MinMaxMetallic.x;
+        material.metallic.colour = clamp(material.metallic.colour, MinMaxMetallic.x, MinMaxMetallic.y);
+        #if 1
+        
         const float3 diffuseReflection = normalize(hitData.worldNormal + getRandomVector(seed));
         const float3 specularReflection = reflect(ray.direction, hitData.worldNormal);
-        const float specularFactor = float(material.metallic.colour <= randomFloat(seed));
+        const float specularFactor = float(material.metallic.colour >= randomFloat(seed));
         
         ray.origin = hitData.worldPosition + hitData.worldNormal * 0.001f;
         //ray.direction = normalize(lerp(diffuseReflection, specularReflection, (1.f - material.roughness.colour) * specularFactor));
-        ray.direction = normalize(lerp(diffuseReflection, specularReflection, material.roughness.colour * specularFactor));
+        ray.direction = normalize(lerp(diffuseReflection, specularReflection, (1.f - material.roughness.colour) * specularFactor));
         
         light += material.emissionColour * material.emissionPower * contribution;
         contribution *= lerp(material.albedo.colour, material.specularColour, specularFactor);
+        
+        #elif 1
+        
+        const float3 diffuseReflection = normalize(hitData.worldNormal + getRandomVector(seed));
+        const float3 specularReflection = reflect(ray.direction, hitData.worldNormal);
+        const float specularFactor = float(material.metallic.colour >= randomFloat(seed));
+        
+        ray.origin = hitData.worldPosition + hitData.worldNormal * 0.001f;
+        ray.direction = normalize(lerp(specularReflection, diffuseReflection, material.roughness.colour));
+        
+        float albedoIntensity = material.albedo.colour.x + material.albedo.colour.y + material.albedo.colour.z;
+        
+        light += material.emissionColour * material.emissionPower * contribution;
+        contribution *= lerp(material.albedo.colour, material.specularColour, (albedoIntensity * 0.3f) * material.metallic.colour);
+        #else
+
+        const float3 diffuseReflection = normalize(hitData.worldNormal + getRandomVector(seed));
+        const float3 specularReflection = reflect(ray.direction, hitData.worldNormal);
+        const float specularFactor = float(material.metallic.colour >= randomFloat(seed));
+
+        ray.origin = hitData.worldPosition + hitData.worldNormal * 0.001f;
+        ray.direction = normalize(lerp(specularReflection, diffuseReflection, material.roughness.colour));
+        
+        light += material.emissionColour * material.emissionPower * contribution;
+        contribution *= lerp(material.albedo.colour, material.specularColour, randomFloat(seed) * material.metallic.colour);
+        #endif
     }
+#else
+    for (uint i = 0; i <= NUM_BOUNCES; i++)
+    {
+        hitData = findClosestHit(ray);
+        if (!hitData.hit)
+        {
+            //light += getEnvironmentLight(ray.direction) * contribution;
+            break;
+        }
+
+        material = hitData.material;
+
+        float3 hitPoint = hitData.worldPosition + hitData.worldNormal * 0.001f;
+
+        // Calculate reflection vector for specular reflection
+        //float3 reflectedDir = reflect(ray.direction, hitData.worldNormal);
+        float3 diffuseReflection = normalize(hitData.worldNormal + getRandomVector(seed));
+        float3 specularReflection = reflect(ray.direction, hitData.worldNormal);
+        float3 reflectedDir = normalize(lerp(specularReflection, diffuseReflection, material.roughness.colour));
+        
+        // Calculate the microfacet distribution (GGX distribution)
+        float roughness = material.roughness.colour;
+        float3 halfVector = normalize(reflectedDir - ray.direction);
+        float D = GGX_Distribution(hitData.worldNormal, halfVector, roughness);
+
+        // Calculate the Fresnel-Schlick approximation for metallic and dielectric materials
+        float3 F0 = lerp(float3(0.04f, 0.04f, 0.04f), material.specularColour, material.metallic.colour);
+        float3 F = FresnelSchlick(F0, dot(halfVector, -ray.direction));
+
+        // Calculate the geometric attenuation (Smith-GGX)
+        float G = GGX_PartialGeometryTerm(-ray.direction, hitData.worldNormal, halfVector, material.roughness.colour);
+
+        // Calculate the specular reflection contribution
+        float3 specularContribution = (D * F * G) / (4.0 * /*max(dot(hitData.worldNormal, -ray.direction), 0.2f) **/
+                                                 max(dot(hitData.worldNormal, reflectedDir), 0.f));
+        
+        // Update ray direction for the next bounce
+        ray.origin = hitPoint;
+        ray.direction = reflectedDir;
+
+
+        // Apply specular and diffuse shading
+        float3 albedo = material.albedo.colour;
+        float3 diffuseContribution = albedo * (1.0 - material.metallic.colour);
+        float3 shadingContribution = diffuseContribution + specularContribution;
+
+        // Add emission contribution from the material
+        light += material.emissionColour * material.emissionPower * contribution;
+        
+        // Update contribution for next bounce
+        contribution *= shadingContribution;
+    }
+    #endif
     
     if (renderData.accumulationEnabled == 1)
     {

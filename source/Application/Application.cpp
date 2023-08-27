@@ -27,7 +27,7 @@ Application::Application()
 	Okay::initiateImGui(m_window.getGLFWWindow());
 	Okay::getDevice()->CreateRenderTargetView(m_window.getBackBuffer(), nullptr, &m_pBackBuffer);
 
-	m_resourceManager.importFile("resources/meshes/cube.fbx");	
+	m_resourceManager.importFile("resources/meshes/revolver.fbx");	
 
 	m_resourceManager.importFile("resources/textures/rev/rev_albedo.png");
 	m_resourceManager.importFile("resources/textures/rev/rev_metallic.png");
@@ -63,6 +63,7 @@ void Application::run()
 	groundSphere.material.albedo.colour = glm::vec3(1.f);
 	groundSphere.material.emissionColour = glm::vec3(0.f);
 	groundSphere.material.emissionPower = 0.f;
+	groundSphere.material.roughness = 1.f;
 	groundSphere.radius = 1465.f;
 
 	Entity ball = m_scene.createEntity();
@@ -72,7 +73,7 @@ void Application::run()
 	ballSphere.material.albedo.colour = glm::vec3(0.89f, 0.5f, 0.5f);
 	ballSphere.material.emissionColour = glm::vec3(0.f);
 	ballSphere.material.emissionPower = 0.f;
-	ballSphere.radius = 7.3f;
+	ballSphere.radius = 7.f;
 
 	for (size_t i = 0; i < 1; i++)
 	{
@@ -80,11 +81,14 @@ void Application::run()
 		MeshComponent& meshComp = meshEntity.addComponent<MeshComponent>();
 		meshComp.material = ballSphere.material;
 		meshComp.material.albedo.textureId = 0u;
-		meshComp.material.roughness.textureId = 1u;
-		meshComp.material.metallic.textureId = 2u;
+		meshComp.material.roughness.textureId = 2u;
+		meshComp.material.metallic.textureId = 1u;
 		meshComp.meshID = 0u;
-		meshEntity.getComponent<Transform>().position = glm::vec3(5.f * i, 0.f, 3.f);
+		meshEntity.getComponent<Transform>().position = glm::vec3(5.f * i, 0.f, 0.f);
 	}
+
+	m_camera.getComponent<Transform>().position.x = 20.f;
+	m_camera.getComponent<Transform>().rotation.y = -90.f;
 
 #elif 0
 	glm::vec3 colours[3] = 
@@ -105,8 +109,8 @@ void Application::run()
 
 			Sphere& sphere = entity.addComponent<Sphere>();
 			sphere.radius = dist * 0.4f;
-			sphere.material.smoothness = x / (num - 1.f);
-			sphere.material.specularProbability = y / (num - 1.f);
+			sphere.material.roughness = x / (num - 1.f);
+			sphere.material.metallic = y / (num - 1.f);
 
 			Transform& tra = entity.getComponent<Transform>();
 			tra.position = glm::vec3(x * dist - offset, y * dist - offset, 10.f);
@@ -118,7 +122,7 @@ void Application::run()
 			int idx2 = (idx1 + 1) % 3;
 			float tBlend = (t * (3 - 1)) - idx1;
 
-			sphere.material.albedoColour = glm::mix(colours[idx1], colours[idx2], tBlend);
+			sphere.material.albedo.colour = glm::vec3(1.f, 0.1f, 0.1f);// glm::mix(colours[idx1], colours[idx2], tBlend);
 		}
 	}
 
