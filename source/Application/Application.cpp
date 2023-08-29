@@ -27,7 +27,7 @@ Application::Application()
 	Okay::initiateImGui(m_window.getGLFWWindow());
 	Okay::getDevice()->CreateRenderTargetView(m_window.getBackBuffer(), nullptr, &m_pBackBuffer);
 
-	m_resourceManager.importFile("resources/meshes/revolver.fbx");	
+	m_resourceManager.importFile("resources/meshes/sphere.fbx");	
 
 	m_resourceManager.importFile("resources/textures/rev/rev_albedo.png");
 	m_resourceManager.importFile("resources/textures/rev/rev_metallic.png");
@@ -84,7 +84,7 @@ void Application::run()
 		meshComp.material.roughness.textureId = 2u;
 		meshComp.material.metallic.textureId = 1u;
 		meshComp.meshID = 0u;
-		meshEntity.getComponent<Transform>().position = glm::vec3(5.f * i, 0.f, 0.f);
+		//meshEntity.getComponent<Transform>().position = glm::vec3(5.f * i, 0.f, 0.f);
 	}
 
 	m_camera.getComponent<Transform>().position.x = 20.f;

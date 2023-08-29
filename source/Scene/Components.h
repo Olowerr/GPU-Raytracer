@@ -66,10 +66,11 @@ struct GPU_MeshComponent
 	glm::mat4 transformMatrix;
 
 	uint32_t triStart;
-	uint32_t triCount;
+	uint32_t triEnd;
 	Okay::AABB boundingBox;
 
 	Material material;
+	uint32_t bvhNodeStartIdx;
 };
 
 struct Camera

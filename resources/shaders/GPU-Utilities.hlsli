@@ -71,6 +71,8 @@ struct Mesh
     AABB boundingBox;
  
     Material material;
+    
+    uint bvhNodeStartIdx;
 };
 
 

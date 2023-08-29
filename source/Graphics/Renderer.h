@@ -84,14 +84,22 @@ private: // Scene GPU Data
 	GPUStorage m_triangleData;
 	GPUStorage m_meshData;
 	GPUStorage m_spheres;
+	GPUStorage m_bvhTree;
 
 	ID3D11ShaderResourceView* m_pTextureAtlasSRV;
 	GPUStorage m_textureAtlasDesc;
 
-	// The order of m_meshTriangleDesc & m_textureAtlasData matches the respective std::vector in ResourceManager.
+
+	// The order of m_meshDescs & m_textureAtlasData matches the respective std::vector in ResourceManager.
 	
-	// Defines the startIdx (.first) and endIdx (.second) of each mesh for the GPU triangle buffer.
-	std::vector<std::pair<uint32_t, uint32_t>> m_meshTriangleDesc;
+	// Defines the start & end vertex index for a mesh in the vertex buffer, as well as the index of the root node in m_bvhTree
+	struct MeshDesc
+	{
+		uint32_t startIdx;
+		uint32_t endIdx;
+		uint32_t bvhTreeStartIdx;
+	};
+	std::vector<MeshDesc> m_meshDescs;
 	
 	void loadTriangleData();
 	void createTextureAtlas();

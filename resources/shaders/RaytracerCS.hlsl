@@ -38,6 +38,15 @@ struct AtlasTextureDesc
     float2 uvOffset;
 };
 
+struct Node
+{
+    AABB boundingBox;
+    uint triStart;
+    uint triEnd;
+    uint childIdxs[2];
+    uint parentIdx;
+};
+
 
 // ---- Resources
 RWTexture2D<unorm float4> resultBuffer : register(RESULT_BUFFER_GPU_REG);
@@ -52,6 +61,7 @@ SamplerState simp : register(s0);
 StructuredBuffer<Sphere> sphereData : register(SPHERE_DATA_GPU_REG);
 StructuredBuffer<Mesh> meshData : register(MESH_DATA_GPU_REG);
 StructuredBuffer<Triangle> triangleData : register(TRIANGLE_DATA_GPU_REG);
+StructuredBuffer<Node> bvhNodes : register(BVH_TREE_GPU_REG);
 
 StructuredBuffer<AtlasTextureDesc> textureDescs : register(TEXTURE_ATLAS_DESC_GPU_REG);
 Texture2D<unorm float4> textureAtlas : register(TEXTURE_ATLAS_GPU_REG);
@@ -128,22 +138,24 @@ Payload findClosestHit(Ray ray)
     Payload payload;
     
     float2 meshUVs = float2(0.f, 0.f);
-    float cloestHitDistance = FLT_MAX;
+    float closestHitDistance = FLT_MAX;
     uint hitIdx = UINT_MAX;
     uint hitType = 0;
     
-    for (uint i = 0; i < renderData.numSpheres; i++)
+    uint i = 0;
+    for (i = 0; i < renderData.numSpheres; i++)
     {
         float distanceToHit = Collision::RayAndSphere(ray, sphereData[i]);
         
-        if (distanceToHit > 0.f && distanceToHit < cloestHitDistance)
+        if (distanceToHit > 0.f && distanceToHit < closestHitDistance)
         {
-            cloestHitDistance = distanceToHit;
+            closestHitDistance = distanceToHit;
             hitIdx = i;
             hitType = 0;
         }
     }
     
+#if 0
     for (uint j = 0; j < renderData.numMeshes; j++)
     {
         if (Collision::RayAndAABB(ray, meshData[j].boundingBox))
@@ -153,19 +165,19 @@ Payload findClosestHit(Ray ray)
             
             for (uint k = triStart; k < triEnd; k++)
             {
-                float3 translation = meshData[j].transformMatrix[3].xyz;
+                //float3 translation = meshData[j].transformMatrix[3].xyz;
                 Triangle tri = triangleData[k];
                 
-                float3 pos0 = tri.p0.position + translation;
-                float3 pos1 = tri.p1.position + translation;
-                float3 pos2 = tri.p2.position + translation;
+                float3 pos0 = tri.p0.position/* + translation*/;
+                float3 pos1 = tri.p1.position/* + translation*/;
+                float3 pos2 = tri.p2.position/* + translation*/;
                 
                 float3 baryUVCoord;
                 float distanceToHit = Collision::RayAndTriangle(ray, pos0, pos1, pos2, baryUVCoord.xy);
                 
-                if (distanceToHit > 0.f && distanceToHit < cloestHitDistance)
+                if (distanceToHit > 0.f && distanceToHit < closestHitDistance)
                 {
-                    cloestHitDistance = distanceToHit;
+                    closestHitDistance = distanceToHit;
                     hitIdx = j;
                     hitType = 1;
                     
@@ -179,9 +191,71 @@ Payload findClosestHit(Ray ray)
             }
         }
     }
+#else
+    // TODO: Rework the 'for each mesh' loop to go through the BVH tree for each mesh.
+    // Recursion is fine to start with but I believe a loop would be better to avoid stack overflow
+    // NOTE: Recursive functions are not allowed in cs_5_0, using a stack approach instead
+    
+    // TODO: Rewrite the upcoming loop to reduce nesting
+    
+    uint triHitIdx = UINT_MAX;
+    for (uint j = 0; j < renderData.numMeshes; j++)
+    {
+        static const uint MAX_STACK_SIZE = 300;
+        uint stack[MAX_STACK_SIZE];
+        uint stackSize = 0;
+        
+        uint currentNodeIdx = meshData[j].bvhNodeStartIdx;
+        stack[stackSize++] = currentNodeIdx;
+        
+        while (stackSize > 0)
+        {
+            currentNodeIdx = stack[--stackSize];
+            
+            Node node = bvhNodes[currentNodeIdx];
+            if (Collision::RayAndAABB(ray, node.boundingBox)) // Hit boundingBox?
+            {
+                if (node.childIdxs[0] == UINT_MAX) // Is leaf?
+                {
+                    for (i = node.triStart; i < node.triEnd; i++)
+                    {
+                        //float3 translation = meshData[j].transformMatrix[3].xyz;
+                        Triangle tri = triangleData[i];
+            
+                        float3 pos0 = tri.p0.position/* + translation*/;
+                        float3 pos1 = tri.p1.position/* + translation*/;
+                        float3 pos2 = tri.p2.position/* + translation*/;
+            
+                        float3 baryUVCoord;
+                        float distanceToHit = Collision::RayAndTriangle(ray, pos0, pos1, pos2, baryUVCoord.xy);
+            
+                        if (distanceToHit > 0.f && distanceToHit < closestHitDistance)
+                        {
+                            closestHitDistance = distanceToHit;
+                            hitIdx = j;
+                            hitType = 1;
+                
+                            baryUVCoord.z = 1.f - (baryUVCoord.x + baryUVCoord.y);
+                            float3 normal = barycentricInterpolation(baryUVCoord, tri.p0.normal, tri.p1.normal, tri.p2.normal);
+                            float2 lerpedUV = barycentricInterpolation(baryUVCoord, tri.p0.uv, tri.p1.uv, tri.p2.uv);
+                                
+                            payload.worldNormal = normalize(normal);
+                            meshUVs = lerpedUV;
+                        }
+                    }
+                }
+                else
+                {
+                    stack[stackSize++] = node.childIdxs[0];
+                    stack[stackSize++] = node.childIdxs[1];
+                }
+            }
+        }
+    }
+#endif
     
     payload.hit = hitIdx != UINT_MAX;
-    payload.worldPosition = ray.origin + ray.direction * cloestHitDistance;
+    payload.worldPosition = ray.origin + ray.direction * closestHitDistance;
     
     // TODO: Make better system
     switch (hitType)
@@ -390,7 +464,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
     
     if (renderData.accumulationEnabled == 1)
     {
-        accumulationBuffer[DTid.xy] += float4(light, 0.f) + float4(triangleData[0].p0.position.xyz * 0.00000001f, 0.f);
+        accumulationBuffer[DTid.xy] += float4(light, 0.f);
         resultBuffer[DTid.xy] = accumulationBuffer[DTid.xy] / (float)renderData.numAccumulationFrames;
     }
     else

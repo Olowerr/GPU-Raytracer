@@ -22,3 +22,6 @@
 
 #define TEXTURE_ATLAS_GPU_REG t4
 #define TEXTURE_ATLAS_CPU_SLOT 4
+
+#define BVH_TREE_GPU_REG t5
+#define BVH_TREE_CPU_SLOT 5

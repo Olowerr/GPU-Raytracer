@@ -17,7 +17,8 @@
 
 Renderer::Renderer()
 	:m_pTargetUAV(nullptr), m_pMainRaytracingCS(nullptr), m_pScene(nullptr), m_renderData(),
-	m_pAccumulationUAV(nullptr), m_pRenderDataBuffer(nullptr), m_pResourceManager(nullptr)
+	m_pAccumulationUAV(nullptr), m_pRenderDataBuffer(nullptr), m_pResourceManager(nullptr),
+	m_pTextureAtlasSRV(nullptr)
 {
 }
 
@@ -44,6 +45,7 @@ void Renderer::shutdown()
 	shutdownGPUStorage(m_spheres);
 	shutdownGPUStorage(m_triangleData);
 	shutdownGPUStorage(m_textureAtlasDesc);
+	shutdownGPUStorage(m_bvhTree);
 }
 
 void Renderer::initiate(ID3D11Texture2D* pTarget, Scene* pScene, ResourceManager* pResourceManager)
@@ -97,6 +99,7 @@ void Renderer::initiate(ID3D11Texture2D* pTarget, Scene* pScene, ResourceManager
 	createGPUStorage(m_spheres, sizeof(glm::vec3) + sizeof(Sphere), SRV_START_SIZE);
 	createGPUStorage(m_meshData, sizeof(GPU_MeshComponent), SRV_START_SIZE);
 	// m_triangleData created in Renderer::loadTriangleData().
+	// m_bvhTree created in Renderer::loadTriangleData().
 	// m_textureAtlasData created in Renderer::createTextureAtlas().
 
 
@@ -143,6 +146,7 @@ void Renderer::render()
 	pDevCon->CSSetShaderResources(TRIANGLE_DATA_CPU_SLOT, 1u, &m_triangleData.pSRV);
 	pDevCon->CSSetShaderResources(TEXTURE_ATLAS_DESC_CPU_SLOT, 1u, &m_textureAtlasDesc.pSRV);
 	pDevCon->CSSetShaderResources(TEXTURE_ATLAS_CPU_SLOT, 1u, &m_pTextureAtlasSRV);
+	pDevCon->CSSetShaderResources(BVH_TREE_CPU_SLOT, 1u, &m_bvhTree.pSRV);
 
 	// Dispatch and unbind
 	pDevCon->Dispatch(m_renderData.textureDims.x / 16u, m_renderData.textureDims.y / 9u, 1u);
@@ -176,37 +180,39 @@ void Renderer::loadTriangleData()
 		Okay::AABB boundingBox;
 		uint32_t triStart = Okay::INVALID_UINT, triEnd = Okay::INVALID_UINT;
 		uint32_t childIdxs[2] { Okay::INVALID_UINT, Okay::INVALID_UINT };
+		uint32_t parentIdx = Okay::INVALID_UINT;
 	};
 
 	const std::vector<Mesh>& meshes = m_pResourceManager->getAll<Mesh>();
 	const uint32_t numMeshes = (uint32_t)meshes.size();
 
-	m_meshTriangleDesc.resize(numMeshes);
+	m_meshDescs.resize(numMeshes);
 
 	uint32_t numTotalTriangles = 0u;
-	uint32_t currentStartIdx = 0u;
 	for (uint32_t i = 0; i < numMeshes; i++)
-	{
-		uint32_t numTriangles = (uint32_t)meshes[i].getTriangles().size();
-		numTotalTriangles += numTriangles;
-
-		m_meshTriangleDesc[i].first = currentStartIdx;
-		m_meshTriangleDesc[i].second = currentStartIdx + numTriangles;
-
-		currentStartIdx = m_meshTriangleDesc[i].second;
-	}
+		numTotalTriangles += (uint32_t)meshes[i].getTriangles().size();
 
 	createGPUStorage(m_triangleData, sizeof(Okay::Triangle), numTotalTriangles);
+
+	uint32_t triBufferCurStartIdx = 0;
+	std::vector<GPUNode> gpuNodes;
 
 	updateGPUStorage(m_triangleData, 0u, [&](char* pMappedBufferData)
 	{
 		Okay::Triangle* pTriWriteLocation = (Okay::Triangle*)pMappedBufferData;
+		BvhBuilder bvhBuilder(50u, 50u);
 
-		BvhBuilder bvhBuilder(50u, 1u);
-		std::vector<GPUNode> gpuNodes;
+		// RMV once sure everything works with all changes, this is for debugging
+		memset(pTriWriteLocation, 0, sizeof(Okay::Triangle) * meshes[0].getTriangles().size());
+
+		// RMV this once using pTriWriteLocation again
+		std::vector<Okay::Triangle> resultTriBuffer;
+		resultTriBuffer.reserve(10700);
+
 		for (size_t i = 0; i < meshes.size(); i++)
 		{
 			const Mesh& mesh = meshes[i];
+			const std::vector<Okay::Triangle>& meshTris = mesh.getTriangles();
 
 			bvhBuilder.buildTree(mesh);
 			const std::vector<BvhNode>& nodes = bvhBuilder.getTree();
@@ -228,25 +234,45 @@ void Renderer::loadTriangleData()
 
 				gpuNode.childIdxs[0] = bvhNode.childIdxs[0];
 				gpuNode.childIdxs[1] = bvhNode.childIdxs[1];
+				gpuNode.parentIdx = bvhNode.parentIdx;
 
-				gpuNode.triStart = m_meshTriangleDesc[i].first + localTriStart;
+				if (!bvhNode.isLeaf())
+					continue;
+
+				gpuNode.triStart = triBufferCurStartIdx + localTriStart;
 				gpuNode.triEnd = gpuNode.triStart + numTriIndicies;
 
 				localTriStart += numTriIndicies;
 
-				if (bvhNode.isLeaf())
+#if 0
+				//for (uint32_t j = 0; j < numTriIndicies; j++)
+				//{
+				//	pTriWriteLocation[j] = meshTris[bvhNode.triIndicies[j]];
+				//}
+				//pTriWriteLocation += numTriIndicies;
+#else			
+				for (uint32_t j = 0; j < numTriIndicies; j++)
 				{
-					const std::vector<Okay::Triangle>& meshTris = mesh.getTriangles();
-
-					for (uint32_t j = 0; j < numTriIndicies; j++)
-					{
-						pTriWriteLocation[j] = meshTris[bvhNode.triIndicies[j]];
-					}
-
-					pTriWriteLocation += numTriIndicies;
+					resultTriBuffer.emplace_back(meshTris[bvhNode.triIndicies[j]]);
 				}
+#endif
 			}
+
+			// RMV this once using pTriWriteLocation again
+			memcpy(pMappedBufferData, resultTriBuffer.data(), sizeof(Okay::Triangle) * resultTriBuffer.size());
+
+			m_meshDescs[i].bvhTreeStartIdx = gpuPrevSize;
+			m_meshDescs[i].startIdx = triBufferCurStartIdx;
+			m_meshDescs[i].endIdx = triBufferCurStartIdx + (uint32_t)meshTris.size();
+
+			triBufferCurStartIdx += (uint32_t)meshTris.size();
 		}
+	});
+
+	createGPUStorage(m_bvhTree, sizeof(GPUNode), (uint32_t)gpuNodes.size());
+	updateGPUStorage(m_bvhTree, 0u, [&](char* pMappedBufferData)
+	{
+		memcpy(pMappedBufferData, gpuNodes.data(), sizeof(GPUNode) * gpuNodes.size());
 	});
 }
 
@@ -404,16 +430,16 @@ void Renderer::updateBuffers()
 			auto [meshComp, transform] = meshView[entity];
 			transformMatrix = transform.calculateMatrix();
 
-			gpuData->triStart = m_meshTriangleDesc[meshComp.meshID].first;
-			gpuData->triCount = m_meshTriangleDesc[meshComp.meshID].second;
-
+			gpuData->triStart = m_meshDescs[meshComp.meshID].startIdx;
+			gpuData->triEnd = m_meshDescs[meshComp.meshID].endIdx;
+			
 			gpuData->boundingBox = m_pResourceManager->getAsset<Mesh>(meshComp.meshID).getBoundingBox();
-			gpuData->boundingBox.min += glm::vec3(transformMatrix[3]);
-			gpuData->boundingBox.max += glm::vec3(transformMatrix[3]);
+			//puData->boundingBox.min += glm::vec3(transformMatrix[3]);
+			//puData->boundingBox.max += glm::vec3(transformMatrix[3]);
 
 			gpuData->transformMatrix = glm::transpose(transformMatrix);
-
 			gpuData->material = meshComp.material;
+			gpuData->bvhNodeStartIdx = m_meshDescs[meshComp.meshID].bvhTreeStartIdx;
 			
 			pMappedBufferData += sizeof(GPU_MeshComponent);
 		}

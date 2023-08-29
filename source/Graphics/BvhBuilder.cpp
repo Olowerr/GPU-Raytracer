@@ -51,14 +51,18 @@ void BvhBuilder::findChildren(uint32_t parentNodeIdx, const Okay::Plane& splitti
 	m_nodes.emplace_back();
 	m_nodes.emplace_back();
 
+	m_nodes[childNodeIdxs[0]].parentIdx = parentNodeIdx;
+	m_nodes[childNodeIdxs[1]].parentIdx = parentNodeIdx;
+
 	for (uint32_t i = 0; i < parentNumTris; i++)
 	{
-		glm::vec3 triToPlane = OkayMath::getMiddle((*m_pMeshTris)[m_nodes[parentNodeIdx].triIndicies[i]]) - splittingPlane.position;
+		uint32_t meshTriIndex = m_nodes[parentNodeIdx].triIndicies[i];
+		glm::vec3 triToPlane = OkayMath::getMiddle((*m_pMeshTris)[meshTriIndex]) - splittingPlane.position;
 
 		uint32_t localChildIdx = glm::dot(triToPlane, splittingPlane.normal) > 0.f ? 1u : 0u;
 		BvhNode& childNode = m_nodes[childNodeIdxs[localChildIdx]];
 
-		childNode.triIndicies.emplace_back(i);
+		childNode.triIndicies.emplace_back(meshTriIndex);
 	}
 	
 	// TODO: Check if 0 tris in children
