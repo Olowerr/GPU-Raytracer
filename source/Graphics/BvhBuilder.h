@@ -48,7 +48,11 @@ private:
 
 	void findAABB(BvhNode& node);
 	void reset();
+
+	// Recursive approach for building the node tree
 	void findChildren(uint32_t parentNodeIdx, const Okay::Plane& splittingPlane, uint32_t curDepth);
+	
+	// std::stack approach for building the node tree
 	void buildTreeInternal(const Okay::Plane& startingPlane);
 };
 

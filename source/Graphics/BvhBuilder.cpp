@@ -32,7 +32,9 @@ void BvhBuilder::buildTree(const Mesh& mesh)
 	startingPlane.position = OkayMath::getMiddle(root.boundingBox);
 	startingPlane.normal = glm::vec3(1.f, 0.f, 0.f);
 
-#if 0
+#define RECURSIVE 0
+
+#if RECURSIVE
 	// TODO: Avoid recursion to decrease risk of stack overflow, or use an arena allocator
 	findChildren(0u, startingPlane, 0u);
 #else
@@ -92,13 +94,15 @@ void BvhBuilder::findChildren(uint32_t parentNodeIdx, const Okay::Plane& splitti
 
 void BvhBuilder::buildTreeInternal(const Okay::Plane& startingPlane)
 {
+	// A NodeStack contains the data a Node needs while it is being processed in the upcoming 'while' loop.
+	// It is the same data that each function call would contain in the recursive approach
 	struct NodeStack
 	{
 		NodeStack() = default;
-		NodeStack(uint32_t parentNodeIdx, const Okay::Plane& splittingPlane, uint32_t depth)
-			:parentNodeIdx(parentNodeIdx), splittingPlane(splittingPlane), depth(depth) { }
+		NodeStack(uint32_t nodeIndex, const Okay::Plane& splittingPlane, uint32_t depth)
+			:nodeIndex(nodeIndex), splittingPlane(splittingPlane), depth(depth) { }
 
-		uint32_t parentNodeIdx;
+		uint32_t nodeIndex;
 		Okay::Plane splittingPlane;
 		uint32_t depth;
 	};
@@ -107,57 +111,63 @@ void BvhBuilder::buildTreeInternal(const Okay::Plane& startingPlane)
 	std::stack<NodeStack> stack;
 	stack.push(NodeStack(0u, startingPlane, 0u));
 
-	// Preperation
-	NodeStack node;
+	// Stack variables
+	NodeStack nodeData;
+	BvhNode* pCurrentNode = nullptr;
 	uint32_t parentNumTris = 0u;
-	uint32_t childNodeIdxs[2]{};
-	Okay::Plane plane0{};
-	Okay::Plane plane1{};
+	BvhNode* pChildren[2]{};
+	Okay::Plane planes[2]{};
 
 	while (!stack.empty())
 	{
-		node = stack.top();
+		nodeData = stack.top();
 		stack.pop();
 
-		parentNumTris = (uint32_t)m_nodes[node.parentNodeIdx].triIndicies.size();
+		pCurrentNode = &m_nodes[nodeData.nodeIndex];
+		parentNumTris = (uint32_t)pCurrentNode->triIndicies.size();
 
 		// Reached maxDepth or maxTriangles in node?
-		if (node.depth >= m_maxDepth - 1u || parentNumTris <= m_maxLeafTriangles)
+		if (nodeData.depth >= m_maxDepth - 1u || parentNumTris <= m_maxLeafTriangles)
 			continue;
 
-		childNodeIdxs[0] = m_nodes[node.parentNodeIdx].childIdxs[0] = (uint32_t)m_nodes.size();
-		childNodeIdxs[1] = m_nodes[node.parentNodeIdx].childIdxs[1] = (uint32_t)m_nodes.size() + 1u;
-
 		m_nodes.emplace_back();
 		m_nodes.emplace_back();
 
-		m_nodes[childNodeIdxs[0]].parentIdx = node.parentNodeIdx;
-		m_nodes[childNodeIdxs[1]].parentIdx = node.parentNodeIdx;
+		// Need to get the new pointer for the node again incase the m_nodes std::vector had to reallocate
+		pCurrentNode = &m_nodes[nodeData.nodeIndex];
+		
+		pCurrentNode->childIdxs[0] = (uint32_t)m_nodes.size() - 2u;
+		pCurrentNode->childIdxs[1] = (uint32_t)m_nodes.size() - 1u;
+
+		pChildren[0] = &m_nodes[pCurrentNode->childIdxs[0]];
+		pChildren[1] = &m_nodes[pCurrentNode->childIdxs[1]];
+
+		pChildren[0]->parentIdx = nodeData.nodeIndex;
+		pChildren[1]->parentIdx = nodeData.nodeIndex;
 
 		for (uint32_t i = 0; i < parentNumTris; i++)
 		{
-			uint32_t meshTriIndex = m_nodes[node.parentNodeIdx].triIndicies[i];
-			glm::vec3 triToPlane = OkayMath::getMiddle((*m_pMeshTris)[meshTriIndex]) - node.splittingPlane.position;
+			uint32_t meshTriIndex = pCurrentNode->triIndicies[i];
+			glm::vec3 triToPlane = OkayMath::getMiddle((*m_pMeshTris)[meshTriIndex]) - nodeData.splittingPlane.position;
 
-			uint32_t localChildIdx = glm::dot(triToPlane, node.splittingPlane.normal) > 0.f ? 1u : 0u;
-			BvhNode& childNode = m_nodes[childNodeIdxs[localChildIdx]];
-
-			childNode.triIndicies.emplace_back(meshTriIndex);
+			uint32_t localChildIdx = glm::dot(triToPlane, nodeData.splittingPlane.normal) > 0.f ? 1u : 0u;
+			
+			pChildren[localChildIdx]->triIndicies.emplace_back(meshTriIndex);
 		}
 
 		// TODO: Check if 0 tris in children // Shouldn't happen if using SAH (?)
 
-		findAABB(m_nodes[childNodeIdxs[0]]);
-		findAABB(m_nodes[childNodeIdxs[1]]);
+		findAABB(*pChildren[0]);
+		findAABB(*pChildren[1]);
 
 		// -- temp for testing before SAH
-		plane0.position = OkayMath::getMiddle(m_nodes[childNodeIdxs[0]].boundingBox);
-		plane1.position = OkayMath::getMiddle(m_nodes[childNodeIdxs[1]].boundingBox);
-		plane0.normal = plane1.normal = (node.depth % 2 ? glm::vec3(1.f, 0.f, 0.f) : glm::vec3(0.f, 0.f, 1.f)); // test random vector
+		planes[0].position = OkayMath::getMiddle(pChildren[0]->boundingBox);
+		planes[1].position = OkayMath::getMiddle(pChildren[1]->boundingBox);
+		planes[0].normal = planes[1].normal = (nodeData.depth % 2 ? glm::vec3(1.f, 0.f, 0.f) : glm::vec3(0.f, 0.f, 1.f)); // test random vector
 		// --
 
-		stack.push(NodeStack(childNodeIdxs[0], plane0, node.depth + 1u));
-		stack.push(NodeStack(childNodeIdxs[1], plane1, node.depth + 1u));
+		stack.push(NodeStack(pCurrentNode->childIdxs[0], planes[0], nodeData.depth + 1u));
+		stack.push(NodeStack(pCurrentNode->childIdxs[1], planes[1], nodeData.depth + 1u));
 	}
 }
 

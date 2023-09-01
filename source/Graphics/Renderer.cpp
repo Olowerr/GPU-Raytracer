@@ -202,14 +202,9 @@ void Renderer::loadTriangleData()
 		Okay::Triangle* pTriWriteLocation = (Okay::Triangle*)pMappedBufferData;
 		BvhBuilder bvhBuilder(50u, 50u);
 
-		// RMV once sure everything works with all changes, this is for debugging
-		memset(pTriWriteLocation, 0, sizeof(Okay::Triangle) * meshes[0].getTriangles().size());
+		uint32_t numMeshes = (uint32_t)meshes.size();
 
-		// RMV this once using pTriWriteLocation again
-		std::vector<Okay::Triangle> resultTriBuffer;
-		resultTriBuffer.reserve(10700);
-
-		for (size_t i = 0; i < meshes.size(); i++)
+		for (uint32_t i = 0; i < numMeshes; i++)
 		{
 			const Mesh& mesh = meshes[i];
 			const std::vector<Okay::Triangle>& meshTris = mesh.getTriangles();
@@ -218,7 +213,7 @@ void Renderer::loadTriangleData()
 			const std::vector<BvhNode>& nodes = bvhBuilder.getTree();
 
 			uint32_t numNodes = (uint32_t)nodes.size();
-			size_t gpuPrevSize = gpuNodes.size();
+			uint32_t gpuPrevSize = (uint32_t)gpuNodes.size();
 
 			gpuNodes.resize(gpuPrevSize + numNodes);
 
@@ -244,22 +239,12 @@ void Renderer::loadTriangleData()
 
 				localTriStart += numTriIndicies;
 
-#if 0
-				//for (uint32_t j = 0; j < numTriIndicies; j++)
-				//{
-				//	pTriWriteLocation[j] = meshTris[bvhNode.triIndicies[j]];
-				//}
-				//pTriWriteLocation += numTriIndicies;
-#else			
 				for (uint32_t j = 0; j < numTriIndicies; j++)
 				{
-					resultTriBuffer.emplace_back(meshTris[bvhNode.triIndicies[j]]);
+					pTriWriteLocation[j] = meshTris[bvhNode.triIndicies[j]];
 				}
-#endif
+				pTriWriteLocation += numTriIndicies;
 			}
-
-			// RMV this once using pTriWriteLocation again
-			memcpy(pMappedBufferData, resultTriBuffer.data(), sizeof(Okay::Triangle) * resultTriBuffer.size());
 
 			m_meshDescs[i].bvhTreeStartIdx = gpuPrevSize;
 			m_meshDescs[i].startIdx = triBufferCurStartIdx;
