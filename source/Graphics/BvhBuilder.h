@@ -49,6 +49,7 @@ private:
 	void findAABB(BvhNode& node);
 	void reset();
 	void findChildren(uint32_t parentNodeIdx, const Okay::Plane& splittingPlane, uint32_t curDepth);
+	void buildTreeInternal(const Okay::Plane& startingPlane);
 };
 
 inline void BvhBuilder::setMaxLeafTriangles(uint32_t minimumTriangles)	{ m_maxLeafTriangles = minimumTriangles; }
