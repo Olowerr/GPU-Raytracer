@@ -6,6 +6,9 @@
 
 #include "glm/glm.hpp"
 
+#include <atomic>
+#include <thread>
+
 class Scene;
 class ResourceManager;
 
@@ -38,7 +41,11 @@ public:
 
 	inline void setScene(Scene* pScene);
 	inline void setCamera(Entity camera);
-	void render();
+
+	void beginAsyncRender();
+	void stopAsyncRender();
+
+	void renderOnce();
 
 	inline void toggleAccumulation(bool enable);
 	inline void resetAccumulation();
@@ -46,6 +53,14 @@ public:
 
 	void reloadShaders();
 	void loadAssetData();
+
+	std::atomic<bool> renderedOnce;
+	std::thread* m_pRenderThread;
+
+private: 
+	void bindDX11Resources();
+
+	std::atomic<bool> m_renderAsync;
 
 private: // Scene & Resources
 	Scene* m_pScene;

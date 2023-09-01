@@ -123,7 +123,7 @@ void Renderer::initiate(ID3D11Texture2D* pTarget, Scene* pScene, ResourceManager
 	}
 }
 
-void Renderer::render()
+void Renderer::renderOnce()
 {
 	calculateProjectionData();
 	updateBuffers();
@@ -133,26 +133,55 @@ void Renderer::render()
 	// Clear
 	static const float CLEAR_COLOUR[4]{ 0.2f, 0.4f, 0.6f, 1.f };
 	pDevCon->ClearUnorderedAccessViewFloat(m_pTargetUAV, CLEAR_COLOUR);
-
-	// Bind standard resources
-	pDevCon->CSSetShader(m_pMainRaytracingCS, nullptr, 0u);
-	pDevCon->CSSetUnorderedAccessViews(RESULT_BUFFER_CPU_SLOT, 1u, &m_pTargetUAV, nullptr);
-	pDevCon->CSSetUnorderedAccessViews(ACCUMULATION_BUFFER_CPU_SLOT, 1u, &m_pAccumulationUAV, nullptr);
-	pDevCon->CSSetConstantBuffers(RENDER_DATA_CPU_SLOT, 1u, &m_pRenderDataBuffer);
-
-	// Bind scene data
-	pDevCon->CSSetShaderResources(SPHERE_DATA_CPU_SLOT, 1u, &m_spheres.pSRV);
-	pDevCon->CSSetShaderResources(MESH_DATA_CPU_SLOT, 1u, &m_meshData.pSRV);
-	pDevCon->CSSetShaderResources(TRIANGLE_DATA_CPU_SLOT, 1u, &m_triangleData.pSRV);
-	pDevCon->CSSetShaderResources(TEXTURE_ATLAS_DESC_CPU_SLOT, 1u, &m_textureAtlasDesc.pSRV);
-	pDevCon->CSSetShaderResources(TEXTURE_ATLAS_CPU_SLOT, 1u, &m_pTextureAtlasSRV);
-	pDevCon->CSSetShaderResources(BVH_TREE_CPU_SLOT, 1u, &m_bvhTree.pSRV);
+	
+	// Bind
+	bindDX11Resources();
 
 	// Dispatch and unbind
 	pDevCon->Dispatch(m_renderData.textureDims.x / 16u, m_renderData.textureDims.y / 9u, 1u);
 
 	static ID3D11UnorderedAccessView* nullUAV = nullptr;
 	pDevCon->CSSetUnorderedAccessViews(0u, 1u, &nullUAV, nullptr);
+}
+
+void Renderer::beginAsyncRender()
+{
+	printf("begin called\n");
+
+	calculateProjectionData();
+	updateBuffers();
+	bindDX11Resources();
+
+	renderedOnce = false;
+	m_renderAsync = true;
+
+	bool flag = false;
+
+	m_pRenderThread = new std::thread([&]()
+	{
+		ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
+
+		uint32_t x = m_renderData.textureDims.x / 16u;
+		uint32_t y = m_renderData.textureDims.y / 9u;
+		while (m_renderAsync)
+		{
+			pDevCon->Dispatch(x, y, 1u);
+			if (flag)
+				renderedOnce = true;
+
+			flag = true;
+		}
+		printf("while exited\n");
+	});
+}
+
+void Renderer::stopAsyncRender()
+{
+	printf("stop called\n");
+	m_renderAsync = false;
+	if (m_pRenderThread)
+		m_pRenderThread->join();
+	OKAY_DELETE(m_pRenderThread);
 }
 
 void Renderer::reloadShaders()
@@ -171,6 +200,25 @@ void Renderer::loadAssetData()
 {
 	loadTriangleData();
 	createTextureAtlas();
+}
+
+void Renderer::bindDX11Resources()
+{
+	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
+
+	// Bind standard resources
+	pDevCon->CSSetShader(m_pMainRaytracingCS, nullptr, 0u);
+	pDevCon->CSSetUnorderedAccessViews(RESULT_BUFFER_CPU_SLOT, 1u, &m_pTargetUAV, nullptr);
+	pDevCon->CSSetUnorderedAccessViews(ACCUMULATION_BUFFER_CPU_SLOT, 1u, &m_pAccumulationUAV, nullptr);
+	pDevCon->CSSetConstantBuffers(RENDER_DATA_CPU_SLOT, 1u, &m_pRenderDataBuffer);
+
+	// Bind scene data
+	pDevCon->CSSetShaderResources(SPHERE_DATA_CPU_SLOT, 1u, &m_spheres.pSRV);
+	pDevCon->CSSetShaderResources(MESH_DATA_CPU_SLOT, 1u, &m_meshData.pSRV);
+	pDevCon->CSSetShaderResources(TRIANGLE_DATA_CPU_SLOT, 1u, &m_triangleData.pSRV);
+	pDevCon->CSSetShaderResources(TEXTURE_ATLAS_DESC_CPU_SLOT, 1u, &m_textureAtlasDesc.pSRV);
+	pDevCon->CSSetShaderResources(TEXTURE_ATLAS_CPU_SLOT, 1u, &m_pTextureAtlasSRV);
+	pDevCon->CSSetShaderResources(BVH_TREE_CPU_SLOT, 1u, &m_bvhTree.pSRV);
 }
 
 void Renderer::loadTriangleData()
@@ -200,7 +248,7 @@ void Renderer::loadTriangleData()
 	updateGPUStorage(m_triangleData, 0u, [&](char* pMappedBufferData)
 	{
 		Okay::Triangle* pTriWriteLocation = (Okay::Triangle*)pMappedBufferData;
-		BvhBuilder bvhBuilder(50u, 50u);
+		BvhBuilder bvhBuilder(80u, 20u);
 
 		uint32_t numMeshes = (uint32_t)meshes.size();
 

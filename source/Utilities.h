@@ -12,9 +12,10 @@
 #define OKAY_ASSERT(condition) if (!(condition)) {printf("ASSERTION FAILED: %s  |  FILE: %s  |  LINE: %d\n", #condition, __FILE__, __LINE__); __debugbreak(); }0
 #endif
 
-#define DX11_RELEASE(x) if (x) {x->Release(); x = nullptr; }0
-#define OKAY_DELETE(X)		 if (X) { delete X;		X = nullptr; }
-#define OKAY_DELETE_ARRAY(X) if (X) { delete[]X;	X = nullptr; }
+#define DX11_RELEASE(x)			if (x) {x->Release(); x = nullptr; }0
+#define OKAY_DELETE(X)			if (X) { delete X;		X = nullptr; }
+#define OKAY_DELETE_ARRAY(X)	if (X) { delete[]X;	X = nullptr; }
+#define CHECK_BIT(X, pos)		((X) & 1<<(pos))
 
 #define SHADER_PATH "resources/shaders/"
 

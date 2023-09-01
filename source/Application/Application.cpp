@@ -2,6 +2,7 @@
 #include "DirectX/DX11.h"
 #include "Utilities.h"
 #include "Scene/Components.h"
+#include "Graphics/RenderTexture.h"
 
 #include "ImGuiHelper.h"
 
@@ -21,7 +22,10 @@ Application::Application()
 
 	Okay::initiateDX11();
 	m_window.initiate(1600u, 900u, "GPU Raytracer");
-	m_renderer.initiate(m_window.getBackBuffer(), &m_scene, &m_resourceManager);
+
+	m_target.create(1600u, 900u, RenderTexture::SHADER_WRITE, RenderTexture::F_8X4);
+
+	m_renderer.initiate(m_target.getTexture(), &m_scene, &m_resourceManager);
 	m_renderer.toggleAccumulation(true);
 
 	Okay::initiateImGui(m_window.getGLFWWindow());
@@ -231,14 +235,35 @@ void Application::run()
 	camTra.rotation = glm::vec3(16.502f, -66.649f, 0.f);
 #endif
 
+
+	m_renderer.beginAsyncRender();
+
+	float timer = 0.f;
+	
 	while (m_window.isOpen())
 	{
 		m_window.processMessages();
 		Okay::newFrameImGui();
 
+		timer += ImGui::GetIO().DeltaTime;
+
+#if 0
 		updateImgui();
 		updateCamera();
 		m_renderer.renderOnce();
+#endif
+
+		if (ImGui::Begin("Test"))
+			ImGui::Text("Timer: %.3f", timer);
+		ImGui::End();
+
+		if (m_renderer.renderedOnce && timer >= (6.f))
+		{
+			timer = 0.f;
+			m_renderer.stopAsyncRender();
+			Okay::getDeviceContext()->CopyResource(m_window.getBackBuffer(), m_target.getTexture());
+			m_renderer.beginAsyncRender();
+		}
 
 		Okay::getDeviceContext()->OMSetRenderTargets(1u, &m_pBackBuffer, nullptr);
 		Okay::endFrameImGui();
@@ -246,6 +271,8 @@ void Application::run()
 
 		m_window.present();
 	}
+
+	m_renderer.stopAsyncRender();
 }
 
 void Application::updateImgui()

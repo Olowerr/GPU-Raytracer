@@ -3,6 +3,7 @@
 #include "Graphics/Renderer.h"
 #include "Graphics/ResourceManager.h"
 #include "Scene/Scene.h"
+#include "Graphics/RenderTexture.h"
 
 class Application
 {
@@ -18,6 +19,7 @@ private:
 	Scene m_scene;
 	ResourceManager m_resourceManager;
 	ID3D11RenderTargetView* m_pBackBuffer; //Only used for ImGui
+	RenderTexture m_target;
 
 	void updateImgui();
 
