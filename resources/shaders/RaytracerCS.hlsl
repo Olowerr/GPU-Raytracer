@@ -199,17 +199,14 @@ Payload findClosestHit(Ray ray)
     // TODO: Rewrite the upcoming loop to reduce nesting
     
     uint triHitIdx = UINT_MAX;
-    
-    static const uint MAX_STACK_SIZE = 300;
-    half stack[MAX_STACK_SIZE];
-    uint stackSize = 0;
-    
     for (uint j = 0; j < renderData.numMeshes; j++)
     {
+        static const uint MAX_STACK_SIZE = 300;
+        uint stack[MAX_STACK_SIZE];
+        uint stackSize = 0;
         
         uint currentNodeIdx = meshData[j].bvhNodeStartIdx;
-        stack[0] = currentNodeIdx;
-        stackSize = 1;
+        stack[stackSize++] = currentNodeIdx;
         
         while (stackSize > 0)
         {
