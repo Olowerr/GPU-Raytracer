@@ -19,6 +19,8 @@ private:
 	ResourceManager m_resourceManager;
 	ID3D11RenderTargetView* m_pBackBuffer; //Only used for ImGui
 
+	void updateImGui();
+
 	Entity m_camera;
 	void updateCamera();
 

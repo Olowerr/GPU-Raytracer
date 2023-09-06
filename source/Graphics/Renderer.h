@@ -45,7 +45,11 @@ public:
 	inline uint32_t getNumAccumulationFrames() const;
 
 	void reloadShaders();
-	void loadAssetData();
+	void loadTriangleData();
+	void loadTextureData();
+
+	inline uint32_t& getMaxBvhLeafTriangles();
+	inline uint32_t& getMaxBvhDepth();
 
 private: // Scene & Resources
 	Scene* m_pScene;
@@ -53,6 +57,9 @@ private: // Scene & Resources
 
 	Entity m_camera;
 	void calculateProjectionData();
+
+	uint32_t m_maxBvhLeafTriangles;
+	uint32_t m_maxBvhDepth;
 
 private: // DX11
 	void updateBuffers();
@@ -100,9 +107,6 @@ private: // Scene GPU Data
 		uint32_t bvhTreeStartIdx;
 	};
 	std::vector<MeshDesc> m_meshDescs;
-	
-	void loadTriangleData();
-	void createTextureAtlas();
 };
 
 inline void Renderer::setScene(Scene* pScene)
@@ -152,3 +156,6 @@ void Renderer::updateGPUStorage(GPUStorage& storage, uint32_t resizeCapacity, Fu
 
 	pDevCon->Unmap(storage.pBuffer, 0u);
 }
+
+inline uint32_t& Renderer::getMaxBvhLeafTriangles()				{ return m_maxBvhLeafTriangles; }
+inline uint32_t& Renderer::getMaxBvhDepth()						{ return m_maxBvhDepth; }

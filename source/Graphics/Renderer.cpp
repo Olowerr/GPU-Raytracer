@@ -18,7 +18,7 @@
 Renderer::Renderer()
 	:m_pTargetUAV(nullptr), m_pMainRaytracingCS(nullptr), m_pScene(nullptr), m_renderData(),
 	m_pAccumulationUAV(nullptr), m_pRenderDataBuffer(nullptr), m_pResourceManager(nullptr),
-	m_pTextureAtlasSRV(nullptr)
+	m_pTextureAtlasSRV(nullptr), m_maxBvhLeafTriangles(100u), m_maxBvhDepth(100u)
 {
 }
 
@@ -167,12 +167,6 @@ void Renderer::reloadShaders()
 	resetAccumulation();
 }
 
-void Renderer::loadAssetData()
-{
-	loadTriangleData();
-	createTextureAtlas();
-}
-
 void Renderer::loadTriangleData()
 {
 	struct GPUNode
@@ -200,7 +194,7 @@ void Renderer::loadTriangleData()
 	updateGPUStorage(m_triangleData, 0u, [&](char* pMappedBufferData)
 	{
 		Okay::Triangle* pTriWriteLocation = (Okay::Triangle*)pMappedBufferData;
-		BvhBuilder bvhBuilder(50u, 50u);
+		BvhBuilder bvhBuilder(m_maxBvhLeafTriangles, m_maxBvhDepth);
 
 		uint32_t numMeshes = (uint32_t)meshes.size();
 
@@ -261,7 +255,7 @@ void Renderer::loadTriangleData()
 	});
 }
 
-void Renderer::createTextureAtlas()
+void Renderer::loadTextureData()
 {
 	static const uint32_t CHANNELS = STBI_rgb_alpha;
 	static const uint32_t SPACING = 0u;

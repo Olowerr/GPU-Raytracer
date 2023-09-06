@@ -27,13 +27,14 @@ Application::Application()
 	Okay::initiateImGui(m_window.getGLFWWindow());
 	Okay::getDevice()->CreateRenderTargetView(m_window.getBackBuffer(), nullptr, &m_pBackBuffer);
 
-	m_resourceManager.importFile("resources/meshes/sphere.fbx");	
+	m_resourceManager.importFile("resources/meshes/revolver.fbx");	
 
 	m_resourceManager.importFile("resources/textures/rev/rev_albedo.png");
 	m_resourceManager.importFile("resources/textures/rev/rev_metallic.png");
 	m_resourceManager.importFile("resources/textures/rev/rev_roughness.png");
 
-	m_renderer.loadAssetData();
+	m_renderer.loadTextureData();
+	m_renderer.loadTriangleData();
 }
 
 Application::~Application()
@@ -87,7 +88,7 @@ void Application::run()
 		//meshEntity.getComponent<Transform>().position = glm::vec3(5.f * i, 0.f, 0.f);
 	}
 
-	m_camera.getComponent<Transform>().position.x = 20.f;
+	m_camera.getComponent<Transform>().position.x = 60.f;
 	m_camera.getComponent<Transform>().rotation.y = -90.f;
 
 #elif 0
@@ -236,79 +237,9 @@ void Application::run()
 		m_window.processMessages();
 		Okay::newFrameImGui();
 
-		static bool accumulate = true;
-		m_accumulationTime += ImGui::GetIO().DeltaTime;
-		m_accumulationTime *= (float)accumulate;
-
-		if (ImGui::Begin("Data"))
-		{
-			ImGui::Text("FPS: %.3f", 1.f / ImGui::GetIO().DeltaTime);
-			ImGui::Text("MS: %.4f", ImGui::GetIO().DeltaTime * 1000.f);
-
-			ImGui::Separator();
-
-			ImGui::Text("Accumulation Frames: %u", m_renderer.getNumAccumulationFrames());
-			ImGui::Text("Accumulation Time:	%.2f", m_accumulationTime);
-			if (ImGui::Checkbox("Accumulate", &accumulate))
-				m_renderer.toggleAccumulation(accumulate);
-			if (ImGui::Button("Reset Accumulation"))
-			{
-				m_renderer.resetAccumulation();
-				m_accumulationTime = 0.f;
-			}
-
-			ImGui::Separator();
-
-			if (ImGui::Button("Reload Shaders"))
-				m_renderer.reloadShaders();
-		}
-		ImGui::End();
-
-		if (ImGui::Begin("Spheres"))
-		{
-			ImGui::PushItemWidth(-120.f);
-
-			if (ImGui::Button("Add Sphere"))
-				m_scene.createEntity().addComponent<Sphere>();
-
-			ImGui::Separator();
-
-			bool resetAcu = false;
-			auto sphereView = m_scene.getRegistry().view<Sphere, Transform>();
-			for (entt::entity entity : sphereView)
-			{
-				auto [sphere, transform] = sphereView.get<Sphere, Transform>(entity);
-				Material& mat = sphere.material;
-
-				const uint32_t entityID = (uint32_t)entity;
-				
-				ImGui::PushID(entityID);
-
-				ImGui::Text("Sphere: %u", entityID);
-				if (ImGui::DragFloat3("Position", &transform.position.x, 0.1f))							resetAcu = true;
-				if (ImGui::ColorEdit3("Colour", &mat.albedo.colour.x))									resetAcu = true;
-				if (ImGui::ColorEdit3("Emission Colour", &mat.emissionColour.x))						resetAcu = true;
-				if (ImGui::DragFloat("Emission Power", &mat.emissionPower, 0.01f))						resetAcu = true;
-				if (ImGui::DragFloat("Radius", &sphere.radius, 0.1f))									resetAcu = true;
-				if (ImGui::DragFloat("Roughness", &mat.roughness.colour, 0.01f, 0.f, 1.f))				resetAcu = true;
-				if (ImGui::DragFloat("Metallic", &mat.metallic.colour, 0.01f, 0.f, 1.f))				resetAcu = true;
-				if (ImGui::ColorEdit3("Specular Colour", &mat.specularColour.x))						resetAcu = true;
-			
-				ImGui::Separator();
-
-				ImGui::PopID();
-			}
-			ImGui::PopItemWidth();
-
-			if (resetAcu)
-			{
-				m_renderer.resetAccumulation();
-				m_accumulationTime = 0.f;
-			}
-		}
-		ImGui::End();
-
+		updateImGui();
 		updateCamera();
+
 		m_renderer.render();
 
 		Okay::getDeviceContext()->OMSetRenderTargets(1u, &m_pBackBuffer, nullptr);
@@ -317,6 +248,99 @@ void Application::run()
 
 		m_window.present();
 	}
+}
+
+void Application::updateImGui()
+{
+	static bool accumulate = true;
+	m_accumulationTime += ImGui::GetIO().DeltaTime;
+	m_accumulationTime *= (float)accumulate;
+
+	if (ImGui::Begin("Rendering"))
+	{
+		ImGui::PushItemWidth(-120.f);
+
+		ImGui::Text("FPS: %.3f", 1.f / ImGui::GetIO().DeltaTime);
+		ImGui::Text("MS: %.3f", ImGui::GetIO().DeltaTime * 1000.f);
+
+		ImGui::Separator();
+
+		ImGui::Text("Accumulation Frames: %u", m_renderer.getNumAccumulationFrames());
+		ImGui::Text("Accumulation Time:	%.2f", m_accumulationTime);
+		if (ImGui::Checkbox("Accumulate", &accumulate))
+			m_renderer.toggleAccumulation(accumulate);
+
+		if (ImGui::Button("Reset Accumulation"))
+		{
+			m_renderer.resetAccumulation();
+			m_accumulationTime = 0.f;
+		}
+
+		ImGui::Separator();
+
+		if (ImGui::Button("Reload Shaders"))
+		{
+			m_accumulationTime = 0.f;
+			m_renderer.reloadShaders();
+		}
+
+		ImGui::Separator();
+
+		ImGui::DragInt("BVH Max triangles", (int*)&m_renderer.getMaxBvhLeafTriangles(), 1, 0, Okay::INVALID_UINT / 2);
+		ImGui::DragInt("BVH Max depth", (int*)&m_renderer.getMaxBvhDepth(), 1, 0, Okay::INVALID_UINT / 2);
+
+		if (ImGui::Button("Rebuild BVH tree"))
+		{
+			m_renderer.loadTriangleData();
+		}
+
+		ImGui::PopItemWidth();
+	}
+	ImGui::End();
+
+	if (ImGui::Begin("Spheres"))
+	{
+		ImGui::PushItemWidth(-120.f);
+
+		if (ImGui::Button("Add Sphere"))
+			m_scene.createEntity().addComponent<Sphere>();
+
+		ImGui::Separator();
+
+		bool resetAcu = false;
+		auto sphereView = m_scene.getRegistry().view<Sphere, Transform>();
+		for (entt::entity entity : sphereView)
+		{
+			auto [sphere, transform] = sphereView.get<Sphere, Transform>(entity);
+			Material& mat = sphere.material;
+
+			const uint32_t entityID = (uint32_t)entity;
+
+			ImGui::PushID(entityID);
+
+			ImGui::Text("Sphere: %u", entityID);
+			if (ImGui::DragFloat3("Position", &transform.position.x, 0.1f))							resetAcu = true;
+			if (ImGui::ColorEdit3("Colour", &mat.albedo.colour.x))									resetAcu = true;
+			if (ImGui::ColorEdit3("Emission Colour", &mat.emissionColour.x))						resetAcu = true;
+			if (ImGui::DragFloat("Emission Power", &mat.emissionPower, 0.01f))						resetAcu = true;
+			if (ImGui::DragFloat("Radius", &sphere.radius, 0.1f))									resetAcu = true;
+			if (ImGui::DragFloat("Roughness", &mat.roughness.colour, 0.01f, 0.f, 1.f))				resetAcu = true;
+			if (ImGui::DragFloat("Metallic", &mat.metallic.colour, 0.01f, 0.f, 1.f))				resetAcu = true;
+			if (ImGui::ColorEdit3("Specular Colour", &mat.specularColour.x))						resetAcu = true;
+
+			ImGui::Separator();
+
+			ImGui::PopID();
+		}
+		ImGui::PopItemWidth();
+
+		if (resetAcu)
+		{
+			m_renderer.resetAccumulation();
+			m_accumulationTime = 0.f;
+		}
+	}
+	ImGui::End();
 }
 
 void Application::updateCamera()
