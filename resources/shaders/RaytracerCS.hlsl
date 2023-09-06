@@ -198,57 +198,58 @@ Payload findClosestHit(Ray ray)
     
     // TODO: Rewrite the upcoming loop to reduce nesting
     
+    static const uint MAX_STACK_SIZE = 300;
+    half stack[MAX_STACK_SIZE];
+    uint stackSize = 0;
+    
     uint triHitIdx = UINT_MAX;
     for (uint j = 0; j < renderData.numMeshes; j++)
     {
-        static const uint MAX_STACK_SIZE = 300;
-        uint stack[MAX_STACK_SIZE];
-        uint stackSize = 0;
-        
         uint currentNodeIdx = meshData[j].bvhNodeStartIdx;
-        stack[stackSize++] = currentNodeIdx;
+        stack[0] = currentNodeIdx;
+        stackSize = 1;
         
         while (stackSize > 0)
         {
             currentNodeIdx = stack[--stackSize];
             
             Node node = bvhNodes[currentNodeIdx];
-            if (Collision::RayAndAABB(ray, node.boundingBox)) // Hit boundingBox?
+            if (!Collision::RayAndAABB(ray, node.boundingBox))
+                continue; // Missed AABB
+            
+            if (node.childIdxs[0] == UINT_MAX) // Is leaf?
             {
-                if (node.childIdxs[0] == UINT_MAX) // Is leaf?
+                for (i = node.triStart; i < node.triEnd; i++)
                 {
-                    for (i = node.triStart; i < node.triEnd; i++)
+                    //float3 translation = meshData[j].transformMatrix[3].xyz;
+                    Triangle tri = triangleData[i];
+            
+                    float3 pos0 = tri.p0.position/* + translation*/;
+                    float3 pos1 = tri.p1.position/* + translation*/;
+                    float3 pos2 = tri.p2.position/* + translation*/;
+            
+                    float3 baryUVCoord;
+                    float distanceToHit = Collision::RayAndTriangle(ray, pos0, pos1, pos2, baryUVCoord.xy);
+            
+                    if (distanceToHit > 0.f && distanceToHit < closestHitDistance)
                     {
-                        //float3 translation = meshData[j].transformMatrix[3].xyz;
-                        Triangle tri = triangleData[i];
+                        closestHitDistance = distanceToHit;
+                        hitIdx = j;
+                        hitType = 1;
             
-                        float3 pos0 = tri.p0.position/* + translation*/;
-                        float3 pos1 = tri.p1.position/* + translation*/;
-                        float3 pos2 = tri.p2.position/* + translation*/;
-            
-                        float3 baryUVCoord;
-                        float distanceToHit = Collision::RayAndTriangle(ray, pos0, pos1, pos2, baryUVCoord.xy);
-            
-                        if (distanceToHit > 0.f && distanceToHit < closestHitDistance)
-                        {
-                            closestHitDistance = distanceToHit;
-                            hitIdx = j;
-                            hitType = 1;
-                
-                            baryUVCoord.z = 1.f - (baryUVCoord.x + baryUVCoord.y);
-                            float3 normal = barycentricInterpolation(baryUVCoord, tri.p0.normal, tri.p1.normal, tri.p2.normal);
-                            float2 lerpedUV = barycentricInterpolation(baryUVCoord, tri.p0.uv, tri.p1.uv, tri.p2.uv);
-                                
-                            payload.worldNormal = normalize(normal);
-                            meshUVs = lerpedUV;
-                        }
+                        baryUVCoord.z = 1.f - (baryUVCoord.x + baryUVCoord.y);
+                        float3 normal = barycentricInterpolation(baryUVCoord, tri.p0.normal, tri.p1.normal, tri.p2.normal);
+                        float2 lerpedUV = barycentricInterpolation(baryUVCoord, tri.p0.uv, tri.p1.uv, tri.p2.uv);
+                            
+                        payload.worldNormal = normalize(normal);
+                        meshUVs = lerpedUV;
                     }
                 }
-                else
-                {
-                    stack[stackSize++] = node.childIdxs[0];
-                    stack[stackSize++] = node.childIdxs[1];
-                }
+            }
+            else
+            {
+                stack[stackSize++] = node.childIdxs[0];
+                stack[stackSize++] = node.childIdxs[1];
             }
         }
     }
