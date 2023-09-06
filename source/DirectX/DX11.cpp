@@ -3,12 +3,18 @@
 
 #include <d3dcompiler.h>
 
+struct AtomicID3D11DeviceContext
+{
+	std::atomic<ID3D11DeviceContext*> atomicPDevContext = nullptr;
+};
+
 namespace Okay
 {
 	struct DX11
 	{
 		ID3D11Device* pDevice = nullptr;
-		ID3D11DeviceContext* pDeviceContext = nullptr;
+		ID3D11DeviceContext* pDeviceContext;
+		//AtomicID3D11DeviceContext pDeviceContext;
 	};
 
 	static DX11 dx11;
@@ -25,6 +31,11 @@ namespace Okay
 			&featureLevel, 1u, D3D11_SDK_VERSION, &dx11.pDevice, nullptr, &dx11.pDeviceContext);
 
 		OKAY_ASSERT(SUCCEEDED(hr));
+
+		ID3D10Multithread* pMulti = nullptr;
+		dx11.pDevice->QueryInterface(&pMulti);
+		pMulti->SetMultithreadProtected(TRUE);
+		DX11_RELEASE(pMulti);
 	}
 
 	void shutdownDX11()

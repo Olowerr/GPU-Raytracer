@@ -31,13 +31,20 @@ Application::Application()
 	Okay::initiateImGui(m_window.getGLFWWindow());
 	Okay::getDevice()->CreateRenderTargetView(m_window.getBackBuffer(), nullptr, &m_pBackBuffer);
 
-	m_resourceManager.importFile("resources/meshes/sphere.fbx");	
+	m_resourceManager.importFile("resources/meshes/revolver.fbx");	
 
 	m_resourceManager.importFile("resources/textures/rev/rev_albedo.png");
 	m_resourceManager.importFile("resources/textures/rev/rev_metallic.png");
 	m_resourceManager.importFile("resources/textures/rev/rev_roughness.png");
 
 	m_renderer.loadAssetData();
+
+
+	std::atomic<ID3D11DeviceContext*> atomicPDevCon = Okay::getDeviceContext();
+
+
+
+
 }
 
 Application::~Application()
@@ -242,32 +249,41 @@ void Application::run()
 	
 	while (m_window.isOpen())
 	{
+		printf("1\n");
+
 		m_window.processMessages();
-		Okay::newFrameImGui();
+		printf("1.5\n");
+		//Okay::newFrameImGui();
 
-		timer += ImGui::GetIO().DeltaTime;
+		printf("2\n");
+		//timer += ImGui::GetIO().DeltaTime;
 
-#if 0
-		updateImgui();
-		updateCamera();
-		m_renderer.renderOnce();
-#endif
+		//updateImgui();
+		//updateCamera();
+		printf("3\n");
 
-		if (ImGui::Begin("Test"))
-			ImGui::Text("Timer: %.3f", timer);
-		ImGui::End();
+		//if (ImGui::Begin("Test"))
+		//	ImGui::Text("Timer: %.3f", timer);
+		//ImGui::End();
 
+		printf("4\n");
 		if (m_renderer.renderedOnce && timer >= (6.f))
 		{
+			printf("4.5\n");
 			timer = 0.f;
 			m_renderer.stopAsyncRender();
 			Okay::getDeviceContext()->CopyResource(m_window.getBackBuffer(), m_target.getTexture());
 			m_renderer.beginAsyncRender();
 		}
+		printf("5\n");
 
-		Okay::getDeviceContext()->OMSetRenderTargets(1u, &m_pBackBuffer, nullptr);
-		Okay::endFrameImGui();
-		Okay::getDeviceContext()->OMSetRenderTargets(1u, &nullRTV, nullptr);
+		//m_renderer.renderOnce();
+		//Okay::getDeviceContext()->CopyResource(m_window.getBackBuffer(), m_target.getTexture());
+
+		//Okay::getDeviceContext()->OMSetRenderTargets(1u, &m_pBackBuffer, nullptr);
+		//Okay::endFrameImGui();
+		//Okay::getDeviceContext()->OMSetRenderTargets(1u, &nullRTV, nullptr);
+		printf("6\n");
 
 		m_window.present();
 	}

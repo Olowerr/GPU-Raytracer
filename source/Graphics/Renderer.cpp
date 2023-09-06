@@ -146,7 +146,7 @@ void Renderer::renderOnce()
 
 void Renderer::beginAsyncRender()
 {
-	printf("begin called\n");
+	//printf("begin called\n");
 
 	calculateProjectionData();
 	updateBuffers();
@@ -155,10 +155,15 @@ void Renderer::beginAsyncRender()
 	renderedOnce = false;
 	m_renderAsync = true;
 
-	bool flag = false;
 
+	//static void* memory = malloc(sizeof(std::thread));
+	//static char memory[sizeof(std::thread)]{};
+	//memset(memory, 0, sizeof(std::thread));
+
+	//m_pRenderThread = new (memory) std::thread([&]()
 	m_pRenderThread = new std::thread([&]()
 	{
+		bool flag = false;
 		ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
 
 		uint32_t x = m_renderData.textureDims.x / 16u;
@@ -171,16 +176,20 @@ void Renderer::beginAsyncRender()
 
 			flag = true;
 		}
-		printf("while exited\n");
+		//printf("while exited\n");
 	});
 }
 
 void Renderer::stopAsyncRender()
 {
-	printf("stop called\n");
+	//printf("stop called\n");
 	m_renderAsync = false;
 	if (m_pRenderThread)
 		m_pRenderThread->join();
+
+	//m_pRenderThread->~thread();
+	//m_pRenderThread = nullptr;
+
 	OKAY_DELETE(m_pRenderThread);
 }
 
@@ -248,7 +257,7 @@ void Renderer::loadTriangleData()
 	updateGPUStorage(m_triangleData, 0u, [&](char* pMappedBufferData)
 	{
 		Okay::Triangle* pTriWriteLocation = (Okay::Triangle*)pMappedBufferData;
-		BvhBuilder bvhBuilder(80u, 20u);
+		BvhBuilder bvhBuilder(80u, 1u);
 
 		uint32_t numMeshes = (uint32_t)meshes.size();
 

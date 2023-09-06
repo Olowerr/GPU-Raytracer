@@ -44,10 +44,13 @@ inline GLFWwindow* Window::getGLFWWindow()
 
 inline void Window::present()
 {
+	printf("present 0\n");
 	m_pDXSwapChain->Present(0u, 0u);
+	printf("present 1\n");
 }
 
 inline bool Window::isOpen()
 {
+	printf("open 0\n");
 	return !glfwWindowShouldClose(m_pGLWindow);
 }
