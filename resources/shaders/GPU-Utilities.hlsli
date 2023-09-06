@@ -195,18 +195,20 @@ namespace Collision
     // Slab Method (Ty ChatGPT)
     bool RayAndAABB(Ray ray, AABB aabb)
     {
-        float t1 = (aabb.min.x - ray.origin.x) / ray.direction.x;
-        float t2 = (aabb.max.x - ray.origin.x) / ray.direction.x;
+        float3 inverseRayDir = 1.f / ray.direction;
+        
+        float t1 = (aabb.min.x - ray.origin.x) * inverseRayDir.x;
+        float t2 = (aabb.max.x - ray.origin.x) * inverseRayDir.x;
         float tmin = min(t1, t2);
         float tmax = max(t1, t2);
 
-        float t3 = (aabb.min.y - ray.origin.y) / ray.direction.y;
-        float t4 = (aabb.max.y - ray.origin.y) / ray.direction.y;
+        float t3 = (aabb.min.y - ray.origin.y) * inverseRayDir.y;
+        float t4 = (aabb.max.y - ray.origin.y) * inverseRayDir.y;
         tmin = max(tmin, min(t3, t4));
         tmax = min(tmax, max(t3, t4));
 
-        float t5 = (aabb.min.z - ray.origin.z) / ray.direction.z;
-        float t6 = (aabb.max.z - ray.origin.z) / ray.direction.z;
+        float t5 = (aabb.min.z - ray.origin.z) * inverseRayDir.z;
+        float t6 = (aabb.max.z - ray.origin.z) * inverseRayDir.z;
         tmin = max(tmin, min(t5, t6));
         tmax = min(tmax, max(t5, t6));
 
