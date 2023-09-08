@@ -39,7 +39,7 @@ void BvhBuilder::buildTree(const Mesh& mesh)
 	findChildren(0u, startingPlane, 0u);
 #else
 	// Non recursive approach, uses std::stack
-	buildTreeInternal(startingPlane);
+	buildTreeInternal();
 #endif
 }
 
@@ -93,12 +93,11 @@ void BvhBuilder::findChildren(uint32_t parentNodeIdx, const Okay::Plane& splitti
 	findChildren(childNodeIdxs[1], plane1, curDepth + 1u);
 }
 
-float BvhBuilder::EvaluateSAH(BvhNode& node, int axis, float pos)
+float BvhBuilder::evaluateSAH(BvhNode& node, uint32_t axis, float pos)
 {
-	// determine triangle counts and bounds for this split candidate
 	uint32_t triIndex;
 	Okay::AABB leftBox, rightBox;
-	int leftCount = 0, rightCount = 0;
+	uint32_t leftCount = 0, rightCount = 0;
 	uint32_t triCount = (uint32_t)node.triIndicies.size();
 
 	for (uint32_t i = 0; i < triCount; i++)
@@ -124,25 +123,46 @@ float BvhBuilder::EvaluateSAH(BvhNode& node, int axis, float pos)
 		}
 	}
 	float cost = leftCount * leftBox.getArea() + rightCount * rightBox.getArea();
-	return cost > 0 ? cost : FLT_MAX;
+	return cost > 0.f ? cost : FLT_MAX;
 }
 
-void BvhBuilder::buildTreeInternal(const Okay::Plane& startingPlane)
+float BvhBuilder::findBestSplitPlane(BvhNode& node, uint32_t& outAxis, float& outSplitPos)
+{
+	float bestCost = FLT_MAX;
+	for (uint32_t axis = 0; axis < 3; axis++)
+	{
+		float boundsMin = node.boundingBox.min[axis];
+		float boundsMax = node.boundingBox.max[axis];
+		if (boundsMin == boundsMax) 
+			continue;
+
+		float scale = (boundsMax - boundsMin) / 100;
+		for (uint32_t i = 1; i < 100; i++)
+		{
+			float candidatePos = boundsMin + i * scale;
+			float cost = evaluateSAH(node, axis, candidatePos);
+			if (cost < bestCost)
+				outSplitPos = candidatePos, outAxis = axis, bestCost = cost;
+		}
+	}
+	return bestCost;
+}
+
+void BvhBuilder::buildTreeInternal()
 {
 	// A NodeStack contains the data a Node needs while it is being processed in the upcoming 'while' loop.
 	// It is the same data that each function call would contain in the recursive approach
 	struct NodeStack
 	{
 		NodeStack() = default;
-		NodeStack(uint32_t nodeIndex, const Okay::Plane& splittingPlane, uint32_t depth)
-			:nodeIndex(nodeIndex), splittingPlane(splittingPlane), depth(depth) { }
+		NodeStack(uint32_t nodeIndex, uint32_t depth)
+			:nodeIndex(nodeIndex), depth(depth) { }
 
 		uint32_t nodeIndex;
-		Okay::Plane splittingPlane;
 		uint32_t depth;
 	};
 
-	// Pre calculate the middle of all triangles
+	// Precalculate the middle of all triangles
 	uint32_t numMeshTris = (uint32_t)m_pMeshTris->size();
 	m_triMiddles.resize(numMeshTris);
 	for (uint32_t i = 0; i < numMeshTris; i++)
@@ -152,14 +172,15 @@ void BvhBuilder::buildTreeInternal(const Okay::Plane& startingPlane)
 
 	// Root node
 	std::stack<NodeStack> stack;
-	stack.push(NodeStack(0u, startingPlane, 0u));
+	stack.push(NodeStack(0u, 0u));
 
 	// Stack variables
 	NodeStack nodeData;
 	BvhNode* pCurrentNode = nullptr;
 	uint32_t nodeNumTris = 0u;
 	BvhNode* pChildren[2]{};
-	Okay::Plane planes[2]{};
+	uint32_t axis;
+	float splitPos;
 
 	std::vector<uint32_t> leftIndicies;
 	std::vector<uint32_t> rightIndicies;
@@ -176,27 +197,11 @@ void BvhBuilder::buildTreeInternal(const Okay::Plane& startingPlane)
 		if (nodeData.depth >= m_maxDepth - 1u || nodeNumTris <= m_maxLeafTriangles)
 			continue;
 
-		int bestAxis = -1;
-		float bestPos = 0, bestCost = FLT_MAX;
-		for (int axis = 0; axis < 3; axis++)
-		{
-			for (uint32_t i = 0; i < nodeNumTris; i++)
-			{
-				const glm::vec3& middle = m_triMiddles[pCurrentNode->triIndicies[i]];
-				float candidatePos = middle[axis];
-				float cost = EvaluateSAH(*pCurrentNode, axis, candidatePos);
-
-				if (cost < bestCost)
-				{
-					bestPos = candidatePos, bestAxis = axis, bestCost = cost;
-				}
-			}
-		}
-		int axis = bestAxis;
-		float splitPos = bestPos;
 		
+		float splitCost = findBestSplitPlane(*pCurrentNode, axis, splitPos);
+
 		float parentCost = nodeNumTris * pCurrentNode->boundingBox.getArea();
-		if (bestCost >= parentCost)
+		if (splitCost >= parentCost)
 		{
 			continue;
 		}
@@ -250,29 +255,12 @@ void BvhBuilder::buildTreeInternal(const Okay::Plane& startingPlane)
 		memcpy(pChildren[1]->triIndicies.data(), rightIndicies.data(), sizeof(uint32_t) * rightIndicies.size());
 		// --
 
-		for (uint32_t i = 0; i < nodeNumTris; i++)
-		{
-			uint32_t meshTriIndex = pCurrentNode->triIndicies[i];
-			glm::vec3 triToPlane = OkayMath::getMiddle((*m_pMeshTris)[meshTriIndex]) - nodeData.splittingPlane.position;
-
-			uint32_t localChildIdx = glm::dot(triToPlane, nodeData.splittingPlane.normal) > 0.f ? 1u : 0u;
-			
-			pChildren[localChildIdx]->triIndicies.emplace_back(meshTriIndex);
-		}
-
-		// TODO: Check if 0 tris in children // Shouldn't happen if using SAH (?)
 
 		findAABB(*pChildren[0]);
 		findAABB(*pChildren[1]);
 
-		// -- temp for testing before SAH
-		planes[0].position = OkayMath::getMiddle(pChildren[0]->boundingBox);
-		planes[1].position = OkayMath::getMiddle(pChildren[1]->boundingBox);
-		planes[0].normal = planes[1].normal = (nodeData.depth % 2 ? glm::vec3(1.f, 0.f, 0.f) : glm::vec3(0.f, 0.f, 1.f)); // test random vector
-		// --
-
-		stack.push(NodeStack(pCurrentNode->childIdxs[0], planes[0], nodeData.depth + 1u));
-		stack.push(NodeStack(pCurrentNode->childIdxs[1], planes[1], nodeData.depth + 1u));
+		stack.push(NodeStack(pCurrentNode->childIdxs[0], nodeData.depth + 1u));
+		stack.push(NodeStack(pCurrentNode->childIdxs[1], nodeData.depth + 1u));
 	}
 
 	m_triMiddles.resize(0);

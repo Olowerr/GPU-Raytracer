@@ -463,6 +463,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
     }
     #endif
     
+    light = saturate(light);
     if (renderData.accumulationEnabled == 1)
     {
         accumulationBuffer[DTid.xy] += float4(light, 0.f);

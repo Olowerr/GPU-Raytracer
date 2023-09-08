@@ -54,9 +54,10 @@ private:
 	void findChildren(uint32_t parentNodeIdx, const Okay::Plane& splittingPlane, uint32_t curDepth);
 	
 	// std::stack approach for building the node tree
-	void buildTreeInternal(const Okay::Plane& startingPlane);
+	void buildTreeInternal();
 
-	float EvaluateSAH(BvhNode& node, int axis, float pos);
+	float evaluateSAH(BvhNode& node, uint32_t axis, float pos);
+	float findBestSplitPlane(BvhNode& node, uint32_t& axis, float& splitPos);
 };
 
 inline void BvhBuilder::setMaxLeafTriangles(uint32_t minimumTriangles)	{ m_maxLeafTriangles = minimumTriangles; }
