@@ -54,6 +54,8 @@ private:
 	
 	// std::stack approach for building the node tree
 	void buildTreeInternal(const Okay::Plane& startingPlane);
+
+	float EvaluateSAH(BvhNode& node, int axis, float pos);
 };
 
 inline void BvhBuilder::setMaxLeafTriangles(uint32_t minimumTriangles)	{ m_maxLeafTriangles = minimumTriangles; }

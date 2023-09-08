@@ -50,6 +50,18 @@ namespace Okay
 
 		glm::vec3 min = glm::vec3(0.f);
 		glm::vec3 max = glm::vec3(0.f);
+
+		void growTo(const glm::vec3& point)
+		{
+			min = glm::min(point, min);
+			max = glm::max(point, max);
+		}
+
+		float getArea() const
+		{
+			glm::vec3 extents = max - min;
+			return extents.x * extents.y + extents.y * extents.z + extents.z * extents.x;
+		}
 	};
 
 	struct Vertex
