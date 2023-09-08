@@ -45,6 +45,7 @@ private:
 
 	const std::vector<Okay::Triangle>* m_pMeshTris;
 	std::vector<BvhNode> m_nodes;
+	std::vector<glm::vec3> m_triMiddles;
 
 	void findAABB(BvhNode& node);
 	void reset();

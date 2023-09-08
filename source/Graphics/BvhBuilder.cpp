@@ -66,7 +66,8 @@ void BvhBuilder::findChildren(uint32_t parentNodeIdx, const Okay::Plane& splitti
 	for (uint32_t i = 0; i < parentNumTris; i++)
 	{
 		uint32_t meshTriIndex = m_nodes[parentNodeIdx].triIndicies[i];
-		glm::vec3 triToPlane = OkayMath::getMiddle((*m_pMeshTris)[meshTriIndex]) - splittingPlane.position;
+
+		glm::vec3 triToPlane = m_triMiddles[meshTriIndex] - splittingPlane.position;
 
 		uint32_t localChildIdx = glm::dot(triToPlane, splittingPlane.normal) > 0.f ? 1u : 0u;
 		BvhNode& childNode = m_nodes[childNodeIdxs[localChildIdx]];
@@ -95,15 +96,19 @@ void BvhBuilder::findChildren(uint32_t parentNodeIdx, const Okay::Plane& splitti
 float BvhBuilder::EvaluateSAH(BvhNode& node, int axis, float pos)
 {
 	// determine triangle counts and bounds for this split candidate
+	uint32_t triIndex;
 	Okay::AABB leftBox, rightBox;
 	int leftCount = 0, rightCount = 0;
-	uint32_t triCount = node.triIndicies.size();
+	uint32_t triCount = (uint32_t)node.triIndicies.size();
 
 	for (uint32_t i = 0; i < triCount; i++)
 	{
-		const Okay::Triangle& triangle = (*m_pMeshTris)[node.triIndicies[i]];
+		triIndex = node.triIndicies[i];
 
-		if (OkayMath::getMiddle(triangle)[axis] < pos)
+		const glm::vec3& middle = m_triMiddles[triIndex];
+		const Okay::Triangle& triangle = (*m_pMeshTris)[triIndex];
+
+		if (middle[axis] < pos)
 		{
 			leftCount++;
 			leftBox.growTo(triangle.verticies[0].position);
@@ -137,6 +142,14 @@ void BvhBuilder::buildTreeInternal(const Okay::Plane& startingPlane)
 		uint32_t depth;
 	};
 
+	// Pre calculate the middle of all triangles
+	uint32_t numMeshTris = (uint32_t)m_pMeshTris->size();
+	m_triMiddles.resize(numMeshTris);
+	for (uint32_t i = 0; i < numMeshTris; i++)
+	{
+		m_triMiddles[i] = OkayMath::getMiddle((*m_pMeshTris)[i]);
+	}
+
 	// Root node
 	std::stack<NodeStack> stack;
 	stack.push(NodeStack(0u, startingPlane, 0u));
@@ -147,6 +160,9 @@ void BvhBuilder::buildTreeInternal(const Okay::Plane& startingPlane)
 	uint32_t nodeNumTris = 0u;
 	BvhNode* pChildren[2]{};
 	Okay::Plane planes[2]{};
+
+	std::vector<uint32_t> leftIndicies;
+	std::vector<uint32_t> rightIndicies;
 
 	while (!stack.empty())
 	{
@@ -166,12 +182,14 @@ void BvhBuilder::buildTreeInternal(const Okay::Plane& startingPlane)
 		{
 			for (uint32_t i = 0; i < nodeNumTris; i++)
 			{
-				const Okay::Triangle& triangle = (*m_pMeshTris)[pCurrentNode->triIndicies[i]];
-
-				float candidatePos = OkayMath::getMiddle(triangle)[axis];
+				const glm::vec3& middle = m_triMiddles[pCurrentNode->triIndicies[i]];
+				float candidatePos = middle[axis];
 				float cost = EvaluateSAH(*pCurrentNode, axis, candidatePos);
+
 				if (cost < bestCost)
+				{
 					bestPos = candidatePos, bestAxis = axis, bestCost = cost;
+				}
 			}
 		}
 		int axis = bestAxis;
@@ -183,14 +201,19 @@ void BvhBuilder::buildTreeInternal(const Okay::Plane& startingPlane)
 			continue;
 		}
 
-		std::vector<uint32_t> leftIndicies;
-		std::vector<uint32_t> rightIndicies;
+		leftIndicies.clear();
+		rightIndicies.clear();
+
+		uint32_t triIndex;
 
 		for (uint32_t i = 0; i < nodeNumTris; i++)
 		{
-			const Okay::Triangle& triangle = (*m_pMeshTris)[pCurrentNode->triIndicies[i]];
+			triIndex = pCurrentNode->triIndicies[i];
 
-			if (OkayMath::getMiddle(triangle)[axis] < splitPos)
+			const glm::vec3& middle = m_triMiddles[triIndex];
+			const Okay::Triangle& triangle = (*m_pMeshTris)[triIndex];
+
+			if (middle[axis] < splitPos)
 			{
 				leftIndicies.emplace_back(pCurrentNode->triIndicies[i]);
 			}
@@ -251,6 +274,8 @@ void BvhBuilder::buildTreeInternal(const Okay::Plane& startingPlane)
 		stack.push(NodeStack(pCurrentNode->childIdxs[0], planes[0], nodeData.depth + 1u));
 		stack.push(NodeStack(pCurrentNode->childIdxs[1], planes[1], nodeData.depth + 1u));
 	}
+
+	m_triMiddles.resize(0);
 }
 
 void BvhBuilder::findAABB(BvhNode& node)
