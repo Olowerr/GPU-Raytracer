@@ -278,6 +278,7 @@ void Application::updateImGui()
 
 		if (ImGui::Button("Reload Shaders"))
 		{
+			m_renderer.reloadShaders();
 			resetAcu = true;
 		}
 
@@ -355,6 +356,8 @@ void Application::updateImGui()
 
 			ImGui::Text("Entity: %u", entityID);
 			if (ImGui::DragFloat3("Position", &transform.position.x, 0.1f))							resetAcu = true;
+			if (ImGui::DragFloat3("Rotation", &transform.rotation.x, 0.1f))							resetAcu = true;
+			if (ImGui::DragFloat3("Scale", &transform.scale.x, 0.1f))								resetAcu = true;
 			if (ImGui::ColorEdit3("Colour", &mat.albedo.colour.x))									resetAcu = true;
 			if (ImGui::ColorEdit3("Emission Colour", &mat.emissionColour.x))						resetAcu = true;
 			if (ImGui::DragFloat("Emission Power", &mat.emissionPower, 0.01f))						resetAcu = true;

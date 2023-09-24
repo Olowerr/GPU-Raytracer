@@ -65,6 +65,7 @@ struct Triangle
 struct Mesh
 {
     float4x4 transformMatrix;
+    float4x4 inverseTransformMatrix;
     
     uint triangleStartIdx;
     uint triangleEndIdx;

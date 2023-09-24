@@ -64,6 +64,7 @@ struct MeshComponent
 struct GPU_MeshComponent 
 {
 	glm::mat4 transformMatrix;
+	glm::mat4 inverseTransformMatrix;
 
 	uint32_t triStart;
 	uint32_t triEnd;

@@ -209,39 +209,55 @@ Payload findClosestHit(Ray ray)
         stack[0] = currentNodeIdx;
         stackSize = 1;
         
+        float4x4 invTraMatrix = meshData[j].inverseTransformMatrix;
+        
+        Ray localRay;
+        localRay.origin = mul(float4(ray.origin, 1.f), invTraMatrix);
+        localRay.direction = normalize(mul(float4(ray.direction, 0.f), invTraMatrix).xyz);
+        
         while (stackSize > 0)
         {
             currentNodeIdx = stack[--stackSize];
             
             Node node = bvhNodes[currentNodeIdx];
-            if (!Collision::RayAndAABB(ray, node.boundingBox))
+            if (!Collision::RayAndAABB(localRay, node.boundingBox))
                 continue; // Missed AABB
             
             if (node.childIdxs[0] == UINT_MAX) // Is leaf?
             {
                 for (i = node.triStart; i < node.triEnd; i++)
                 {
-                    //float3 translation = meshData[j].transformMatrix[3].xyz;
                     Triangle tri = triangleData[i];
             
-                    float3 pos0 = tri.p0.position/* + translation*/;
-                    float3 pos1 = tri.p1.position/* + translation*/;
-                    float3 pos2 = tri.p2.position/* + translation*/;
+                    float3 pos0 = tri.p0.position;
+                    float3 pos1 = tri.p1.position;
+                    float3 pos2 = tri.p2.position;
             
                     float3 baryUVCoord;
-                    float distanceToHit = Collision::RayAndTriangle(ray, pos0, pos1, pos2, baryUVCoord.xy);
-            
-                    if (distanceToHit > 0.f && distanceToHit < closestHitDistance)
+                    float distanceToHit = Collision::RayAndTriangle(localRay, pos0, pos1, pos2, baryUVCoord.xy);
+                    
+                    if (distanceToHit <= 0.f)
+                    {
+                        continue;
+                    }
+                    
+                    // Convert distanceToHit to worldspace for accurate comparison
+                    float4x4 traMatrix = meshData[j].transformMatrix;
+                    float4 localRayToHit = float4(localRay.direction * distanceToHit, 0.f);
+                    distanceToHit = length(mul(localRayToHit, traMatrix).xyz);
+                    
+                    if (distanceToHit < closestHitDistance)
                     {
                         closestHitDistance = distanceToHit;
                         hitIdx = j;
                         hitType = 1;
             
                         baryUVCoord.z = 1.f - (baryUVCoord.x + baryUVCoord.y);
-                        float3 normal = barycentricInterpolation(baryUVCoord, tri.p0.normal, tri.p1.normal, tri.p2.normal);
+                        float4 normal = float4(barycentricInterpolation(baryUVCoord, tri.p0.normal, tri.p1.normal, tri.p2.normal), 0.f);
                         float2 lerpedUV = barycentricInterpolation(baryUVCoord, tri.p0.uv, tri.p1.uv, tri.p2.uv);
-                            
-                        payload.worldNormal = normalize(normal);
+                        
+                        // Convert normal to worldspace
+                        payload.worldNormal = normalize(mul(normal, traMatrix).xyz);
                         meshUVs = lerpedUV;
                     }
                 }
