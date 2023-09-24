@@ -27,11 +27,10 @@ Application::Application()
 	Okay::initiateImGui(m_window.getGLFWWindow());
 	Okay::getDevice()->CreateRenderTargetView(m_window.getBackBuffer(), nullptr, &m_pBackBuffer);
 
-	m_resourceManager.importFile("resources/meshes/revolver.fbx");	
+	m_resourceManager.importFile("resources/meshes/room.fbx");	
+	m_resourceManager.importFile("resources/textures/RedBlue.png");
 
-	m_resourceManager.importFile("resources/textures/rev/rev_albedo.png");
-	m_resourceManager.importFile("resources/textures/rev/rev_metallic.png");
-	m_resourceManager.importFile("resources/textures/rev/rev_roughness.png");
+	m_resourceManager.importFile("resources/meshes/cube.fbx");	
 
 	m_renderer.loadTextureData();
 	m_renderer.loadTriangleData();
@@ -82,8 +81,6 @@ void Application::run()
 		MeshComponent& meshComp = meshEntity.addComponent<MeshComponent>();
 		meshComp.material = ballSphere.material;
 		meshComp.material.albedo.textureId = 0u;
-		meshComp.material.roughness.textureId = 2u;
-		meshComp.material.metallic.textureId = 1u;
 		meshComp.meshID = 0u;
 		//meshEntity.getComponent<Transform>().position = glm::vec3(5.f * i, 0.f, 0.f);
 	}
@@ -256,6 +253,8 @@ void Application::updateImGui()
 	m_accumulationTime += ImGui::GetIO().DeltaTime;
 	m_accumulationTime *= (float)accumulate;
 
+	bool resetAcu = false;
+
 	if (ImGui::Begin("Rendering"))
 	{
 		ImGui::PushItemWidth(-120.f);
@@ -272,16 +271,14 @@ void Application::updateImGui()
 
 		if (ImGui::Button("Reset Accumulation"))
 		{
-			m_renderer.resetAccumulation();
-			m_accumulationTime = 0.f;
+			resetAcu = true;
 		}
 
 		ImGui::Separator();
 
 		if (ImGui::Button("Reload Shaders"))
 		{
-			m_accumulationTime = 0.f;
-			m_renderer.reloadShaders();
+			resetAcu = true;
 		}
 
 		ImGui::Separator();
@@ -298,6 +295,7 @@ void Application::updateImGui()
 	}
 	ImGui::End();
 
+
 	if (ImGui::Begin("Spheres"))
 	{
 		ImGui::PushItemWidth(-120.f);
@@ -307,7 +305,6 @@ void Application::updateImGui()
 
 		ImGui::Separator();
 
-		bool resetAcu = false;
 		auto sphereView = m_scene.getRegistry().view<Sphere, Transform>();
 		for (entt::entity entity : sphereView)
 		{
@@ -333,14 +330,49 @@ void Application::updateImGui()
 			ImGui::PopID();
 		}
 		ImGui::PopItemWidth();
-
-		if (resetAcu)
-		{
-			m_renderer.resetAccumulation();
-			m_accumulationTime = 0.f;
-		}
 	}
 	ImGui::End();
+
+	if (ImGui::Begin("Meshes"))
+	{
+		ImGui::PushItemWidth(-120.f);
+
+		if (ImGui::Button("Add Mesh entity"))
+			m_scene.createEntity().addComponent<MeshComponent>();
+
+		ImGui::Separator();
+
+		const uint32_t maxMeshId = m_resourceManager.getCount<Mesh>() - 1;
+		auto meshView = m_scene.getRegistry().view<MeshComponent, Transform>();
+		for (entt::entity entity : meshView)
+		{
+			auto [mesh, transform] = meshView.get<MeshComponent, Transform>(entity);
+			Material& mat = mesh.material;
+
+			const uint32_t entityID = (uint32_t)entity;
+
+			ImGui::PushID(entityID);
+
+			ImGui::Text("Entity: %u", entityID);
+			if (ImGui::DragFloat3("Position", &transform.position.x, 0.1f))							resetAcu = true;
+			if (ImGui::ColorEdit3("Colour", &mat.albedo.colour.x))									resetAcu = true;
+			if (ImGui::ColorEdit3("Emission Colour", &mat.emissionColour.x))						resetAcu = true;
+			if (ImGui::DragFloat("Emission Power", &mat.emissionPower, 0.01f))						resetAcu = true;
+			if (ImGui::DragInt("MeshID", (int*)&mesh.meshID, 0.1f, 0, maxMeshId))					resetAcu = true;
+
+			ImGui::Separator();
+
+			ImGui::PopID();
+		}
+		ImGui::PopItemWidth();
+	}
+	ImGui::End();
+
+	if (resetAcu)
+	{
+		m_renderer.resetAccumulation();
+		m_accumulationTime = 0.f;
+	}
 }
 
 void Application::updateCamera()
