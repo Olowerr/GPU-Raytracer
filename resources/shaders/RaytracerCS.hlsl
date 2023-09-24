@@ -212,7 +212,7 @@ Payload findClosestHit(Ray ray)
         float4x4 invTraMatrix = meshData[j].inverseTransformMatrix;
         
         Ray localRay;
-        localRay.origin = mul(float4(ray.origin, 1.f), invTraMatrix);
+        localRay.origin = mul(float4(ray.origin, 1.f), invTraMatrix).xyz;
         localRay.direction = normalize(mul(float4(ray.direction, 0.f), invTraMatrix).xyz);
         
         while (stackSize > 0)

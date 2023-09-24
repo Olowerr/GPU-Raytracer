@@ -238,7 +238,7 @@ namespace Okay
 			mbstowcs_s(nullptr, lpPath, path.size() + 1ull, path.data(), path.size());
 
 			ID3DBlob* shaderData = nullptr;
-			ID3DBlob* compileErrors = nullptr;
+			ID3DBlob* compileOutput = nullptr;
 
 			// If neither are defined a compiler error is produced. Forcing the user to ensure the correct one is used
 #if defined(DIST)
@@ -254,12 +254,17 @@ namespace Okay
 
 
 			IncludeReader includer;
-			HRESULT hr = D3DCompileFromFile(lpPath, nullptr, &includer, "main", shaderTypeTarget, optimizationLevel, 0u, &shaderData, &compileErrors);
+			HRESULT hr = D3DCompileFromFile(lpPath, nullptr, &includer, "main", shaderTypeTarget, optimizationLevel, 0u, &shaderData, &compileOutput);
 			OKAY_DELETE_ARRAY(lpPath);
+
+			if (compileOutput)
+				printf("Shader compilation output: %s\n", (char*)compileOutput->GetBufferPointer());
 
 			if (FAILED(hr))
 			{
-				printf("Shader compilation error: %s\n", compileErrors ? (char*)compileErrors->GetBufferPointer() : "No information, file might not have been found");
+				if (!compileOutput)
+					printf("Shader compilation failed but no errors were produced, file might not have been found.\n");
+
 				return false;
 			}
 
