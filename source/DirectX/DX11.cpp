@@ -258,12 +258,13 @@ namespace Okay
 			OKAY_DELETE_ARRAY(lpPath);
 
 			if (compileOutput)
-			{
 				printf("Shader compilation output: %s\n", (char*)compileOutput->GetBufferPointer());
-			}
 
 			if (FAILED(hr))
 			{
+				if (!compileOutput)
+					printf("Shader compilation failed but no errors were produced, file might not have been found.\n");
+
 				return false;
 			}
 

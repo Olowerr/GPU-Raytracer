@@ -407,16 +407,16 @@ void Renderer::updateBuffers()
 			gpuData = (GPU_MeshComponent*)pMappedBufferData;
 
 			auto [meshComp, transform] = meshView[entity];
-			transformMatrix = transform.calculateMatrix();
+			transformMatrix = glm::transpose(transform.calculateMatrix());
 
 			gpuData->triStart = m_meshDescs[meshComp.meshID].startIdx;
 			gpuData->triEnd = m_meshDescs[meshComp.meshID].endIdx;
 			
 			gpuData->boundingBox = m_pResourceManager->getAsset<Mesh>(meshComp.meshID).getBoundingBox();
-			//puData->boundingBox.min += glm::vec3(transformMatrix[3]);
-			//puData->boundingBox.max += glm::vec3(transformMatrix[3]);
 
-			gpuData->transformMatrix = glm::transpose(transformMatrix);
+			gpuData->transformMatrix = transformMatrix;
+			gpuData->inverseTransformMatrix = glm::inverse(transformMatrix);
+
 			gpuData->material = meshComp.material;
 			gpuData->bvhNodeStartIdx = m_meshDescs[meshComp.meshID].bvhTreeStartIdx;
 			
