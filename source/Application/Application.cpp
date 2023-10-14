@@ -60,7 +60,7 @@ void Application::run()
 	Entity ground = m_scene.createEntity();
 	Sphere& groundSphere = ground.addComponent<Sphere>();
 	Transform& groundTra = ground.getComponent<Transform>();
-	groundTra.position = glm::vec3(0.f, -1468.f, 91.8f);
+	groundTra.position = glm::vec3(0.f, -1468.f, 0.f);
 	groundSphere.material.albedo.colour = glm::vec3(1.f);
 	groundSphere.material.emissionColour = glm::vec3(0.f);
 	groundSphere.material.emissionPower = 0.f;
@@ -70,7 +70,7 @@ void Application::run()
 	Entity ball = m_scene.createEntity();
 	Sphere& ballSphere = ball.addComponent<Sphere>();
 	Transform& ballTra = ball.getComponent<Transform>();
-	ballTra.position = glm::vec3(0.f, -1.4f, 20.f);
+	ballTra.position = glm::vec3(0.f, -1.4f, 0.f);
 	ballSphere.material.albedo.colour = glm::vec3(0.89f, 0.5f, 0.5f);
 	ballSphere.material.emissionColour = glm::vec3(0.f);
 	ballSphere.material.emissionPower = 0.f;
