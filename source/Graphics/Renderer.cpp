@@ -366,15 +366,22 @@ void Renderer::calculateProjectionData()
 	m_renderData.cameraNearZ = camData.nearZ;
 
 
-	// Calculate inverseProjectionMatrix // Only used in Cherno way
+	// Inverse Projection Matrix // Only used in Cherno way
 	m_renderData.cameraInverseProjectionMatrix = glm::transpose(glm::inverse(
 		glm::perspectiveFovLH(glm::radians(camData.fov), windowDimsVec.x, windowDimsVec.y, camData.nearZ, camData.farZ)));
 
 
-	// Calculate inverseViewMatrix, rotationMatrix used to get forward vector of camera
+	// Camera view vectors
 	const glm::mat3 rotationMatrix = glm::toMat3(glm::quat(glm::radians(camTra.rotation)));
+	const glm::vec3& camForward = rotationMatrix[2];
+	const glm::vec3& camRight = rotationMatrix[0];
+	const glm::vec3& camUp = rotationMatrix[1];
+	m_renderData.cameraRightDir = camRight;
+	m_renderData.cameraUpDir = camUp;
+
+	// Inverse View Matrix
 	m_renderData.cameraInverseViewMatrix = glm::transpose(glm::inverse(
-		glm::lookAtLH(camTra.position, camTra.position + rotationMatrix[2], glm::vec3(0.f, 1.f, 0.f))));
+		glm::lookAtLH(camTra.position, camTra.position + camForward, glm::vec3(0.f, 1.f, 0.f))));
 }
 
 void Renderer::updateBuffers()

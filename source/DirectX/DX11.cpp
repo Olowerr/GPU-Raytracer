@@ -258,7 +258,7 @@ namespace Okay
 			OKAY_DELETE_ARRAY(lpPath);
 
 			if (compileOutput)
-				printf("Shader compilation output: %s\n", (char*)compileOutput->GetBufferPointer());
+				printf("Shader compilation output:\n%s\n", (char*)compileOutput->GetBufferPointer());
 
 			if (FAILED(hr))
 			{

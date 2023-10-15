@@ -9,7 +9,7 @@
 class Scene;
 class ResourceManager;
 
-struct RenderData
+struct RenderData // Aligned 16
 {
 	uint32_t accumulationEnabled = 0;
 	uint32_t numAccumulationFrames = 0u;
@@ -24,6 +24,11 @@ struct RenderData
 	glm::mat4 cameraInverseViewMatrix = glm::mat4(1.f);
 	glm::vec3 cameraPosition{};
 	float cameraNearZ = 0.f;
+
+	glm::vec3 cameraUpDir;
+	float dofStrength = 0.f;
+	glm::vec3 cameraRightDir;
+	float dofDistance = 0.f;
 };
 
 class Renderer
@@ -50,6 +55,9 @@ public:
 
 	inline uint32_t& getMaxBvhLeafTriangles();
 	inline uint32_t& getMaxBvhDepth();
+
+	inline float& getDOFStrength();
+	inline float& getDOFDistance();
 
 private: // Scene & Resources
 	Scene* m_pScene;
@@ -157,5 +165,8 @@ void Renderer::updateGPUStorage(GPUStorage& storage, uint32_t resizeCapacity, Fu
 	pDevCon->Unmap(storage.pBuffer, 0u);
 }
 
-inline uint32_t& Renderer::getMaxBvhLeafTriangles()				{ return m_maxBvhLeafTriangles; }
-inline uint32_t& Renderer::getMaxBvhDepth()						{ return m_maxBvhDepth; }
+inline uint32_t& Renderer::getMaxBvhLeafTriangles()	{ return m_maxBvhLeafTriangles; }
+inline uint32_t& Renderer::getMaxBvhDepth()			{ return m_maxBvhDepth; }
+
+inline float& Renderer::getDOFStrength() { return m_renderData.dofStrength; }
+inline float& Renderer::getDOFDistance() { return m_renderData.dofDistance; }

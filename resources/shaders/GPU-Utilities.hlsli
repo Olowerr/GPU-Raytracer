@@ -131,6 +131,14 @@ float3 getRandomVector(inout uint seed)
     return normalize(float3(x, y, z));
 }
 
+float2 randomPointInCircle(inout uint seed)
+{
+    // Ty Sebastian Lague
+    float angle = randomFloat(seed) * 2.f * PI;
+    float2 pointOnCircle = float2(cos(angle), sin(angle));
+    return pointOnCircle * sqrt(randomFloat(seed));
+}
+
 namespace Collision
 {
     // Returns distance to hit. -1 if miss

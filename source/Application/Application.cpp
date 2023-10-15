@@ -277,6 +277,11 @@ void Application::updateImGui()
 
 		ImGui::Separator();
 
+		if (ImGui::DragFloat("DOF Strength", &m_renderer.getDOFStrength(), 0.05f, 0.f, 10.f)) resetAcu = true;
+		if (ImGui::DragFloat("DOF Distance", &m_renderer.getDOFDistance(), 0.05f, 0.f, 1000.f)) resetAcu = true;
+
+		ImGui::Separator();
+
 		if (ImGui::Button("Reload Shaders"))
 		{
 			m_renderer.reloadShaders();

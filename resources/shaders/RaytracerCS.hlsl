@@ -30,6 +30,11 @@ struct RenderData
     float4x4 cameraInverseViewMatrix;
     float3 cameraPosition;
     float cameraNearZ;
+  
+    float3 cameraUpDir;
+    float dofStrength;
+    float3 cameraRightDir;
+    float dofDistance;
 };
 
 struct AtlasTextureDesc
@@ -332,26 +337,6 @@ struct EvaluationPoint
     bool isLast;
 };
 
-//float3 trace(Ray ray, float3 contribution)
-//{
-//    Payload hitData = findClosestHit(ray);
-//    if (!hitData.hit)
-//        return getEnvironmentLight(ray.direction) * contribution;
-//        
-//    float3 hitPoint = hitData.worldPosition + hitData.worldNormal * 0.001f;
-//
-//    float3 diffuseReflection = normalize(hitData.worldNormal + getRandomVector(0));
-//    float3 specularReflection = reflect(ray.direction, hitData.worldNormal);
-//    float3 reflectedDir = normalize(lerp(specularReflection, diffuseReflection, hitData.material.roughness.colour));
-//
-//    Ray reflectedRay;
-//    reflectedRay.origin = hitPoint;
-//    reflectedRay.direction = reflectedDir;
-//    
-//    float3 shading = getShading(ray, reflectedRay, hitData, contribution);
-//    
-//    return trace(reflectedRay, contribution * hitData.material.albedo.colour) + shading;
-//}
 
 // ---- Main part of shader
 [numthreads(16, 9, 1)]
@@ -390,6 +375,14 @@ void main(uint3 DTid : SV_DispatchThreadID)
     ray.origin = renderData.cameraPosition;
     ray.direction = mul(float4(normalize(target.xyz / target.z), 0.f), renderData.cameraInverseViewMatrix).xyz;
 #endif
+    
+    // DOF
+    float2 rayJitter = randomPointInCircle(seed) * renderData.dofStrength;
+    float3 rayOffset = renderData.cameraRightDir * rayJitter.x + renderData.cameraUpDir * rayJitter.y;
+    float3 focusPoint = ray.origin + ray.direction * (renderData.dofDistance + renderData.cameraNearZ); // + nearZ enables dofDistance = 0
+
+    ray.origin += rayOffset;
+    ray.direction = normalize(focusPoint - ray.origin);
 
     Payload hitData;
     
