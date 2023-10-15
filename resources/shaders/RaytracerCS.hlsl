@@ -454,7 +454,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
         
         float G = GGX_PartialGeometryTerm(viewDir, normal, halfwayVec, material.roughness.colour);
         
-        float3 ks = (D * F * G) / (4.0 * max(dot(normal, viewDir), 0.2f) * max(dot(normal, lightDir), 0.2f));
+        float3 ks = (D * F * G) / (4.f * max(dot(normal, viewDir), 0.f) * max(dot(normal, lightDir), 0.f));
         ks = clamp(ks, 0.f, 1.f);
         
         float3 kd = (1.f - ks) * (1.f - material.metallic.colour);
