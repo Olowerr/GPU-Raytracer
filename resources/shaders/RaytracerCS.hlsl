@@ -198,12 +198,12 @@ Payload findClosestHit(Ray ray)
     
     // TODO: Rewrite the upcoming loop to reduce nesting
     
-    static const uint MAX_STACK_SIZE = 300;
+    static const uint MAX_STACK_SIZE = 200;
     half stack[MAX_STACK_SIZE];
     uint stackSize = 0;
     
     uint triHitIdx = UINT_MAX;
-    for (uint j = 0; j < renderData.numMeshes && false; j++)
+    for (uint j = 0; j < renderData.numMeshes; j++)
     {
         uint currentNodeIdx = meshData[j].bvhNodeStartIdx;
         stack[0] = currentNodeIdx;
@@ -462,11 +462,11 @@ void main(uint3 DTid : SV_DispatchThreadID)
         float3 specularLight = light;
         float3 albedo = material.albedo.colour;
         
-        float3 finalLight = kd * albedo + ks * specularLight;
+        float3 shading = kd * albedo + ks * specularLight; // Fix name?
          
         //light += (finalLight + material.emissionColour * material.emissionPower) * albedo;
         //light = light * material.albedo.colour + material.emissionColour * material.emissionPower;
-        light = light * (albedo + finalLight) + material.emissionColour * material.emissionPower;
+        light = (light + shading) * albedo + material.emissionColour * material.emissionPower;
     }
     
     light = saturate(light);

@@ -27,10 +27,12 @@ Application::Application()
 	Okay::initiateImGui(m_window.getGLFWWindow());
 	Okay::getDevice()->CreateRenderTargetView(m_window.getBackBuffer(), nullptr, &m_pBackBuffer);
 
+	m_resourceManager.importFile("resources/meshes/revolver.fbx");
+	m_resourceManager.importFile("resources/textures/rev/rev_albedo.png");
+
 	m_resourceManager.importFile("resources/meshes/room.fbx");	
 	m_resourceManager.importFile("resources/textures/RedBlue.png");
 
-	m_resourceManager.importFile("resources/meshes/cube.fbx");	
 
 	m_renderer.loadTextureData();
 	m_renderer.loadTriangleData();
@@ -56,15 +58,15 @@ void Application::run()
 	m_renderer.setCamera(m_camera);
 
 #if 1
-	Entity ground = m_scene.createEntity();
-	Sphere& groundSphere = ground.addComponent<Sphere>();
-	Transform& groundTra = ground.getComponent<Transform>();
-	groundTra.position = glm::vec3(0.f, -1468.f, 0.f);
-	groundSphere.material.albedo.colour = glm::vec3(1.f);
-	groundSphere.material.emissionColour = glm::vec3(0.f);
-	groundSphere.material.emissionPower = 0.f;
-	groundSphere.material.roughness = 1.f;
-	groundSphere.radius = 1465.f;
+	//Entity ground = m_scene.createEntity();
+	//Sphere& groundSphere = ground.addComponent<Sphere>();
+	//Transform& groundTra = ground.getComponent<Transform>();
+	//groundTra.position = glm::vec3(0.f, -1468.f, 0.f);
+	//groundSphere.material.albedo.colour = glm::vec3(1.f);
+	//groundSphere.material.emissionColour = glm::vec3(0.f);
+	//groundSphere.material.emissionPower = 0.f;
+	//groundSphere.material.roughness = 1.f;
+	//groundSphere.radius = 1465.f;
 
 	Entity ball = m_scene.createEntity();
 	Sphere& ballSphere = ball.addComponent<Sphere>();
@@ -75,14 +77,13 @@ void Application::run()
 	ballSphere.material.emissionPower = 0.f;
 	ballSphere.radius = 7.f;
 
-	for (size_t i = 0; i < 1; i++)
+	for (uint32_t i = 0; i < 2; i++)
 	{
 		Entity meshEntity = m_scene.createEntity();
 		MeshComponent& meshComp = meshEntity.addComponent<MeshComponent>();
 		meshComp.material = ballSphere.material;
-		meshComp.material.albedo.textureId = 0u;
-		meshComp.meshID = 0u;
-		//meshEntity.getComponent<Transform>().position = glm::vec3(5.f * i, 0.f, 0.f);
+		meshComp.material.albedo.textureId = i;
+		meshComp.meshID = i;
 	}
 
 	m_camera.getComponent<Transform>().position.x = 60.f;
