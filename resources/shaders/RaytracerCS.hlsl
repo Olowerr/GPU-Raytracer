@@ -92,14 +92,19 @@ float3 getEnvironmentLight(float3 direction)
     return lerp(GROUND_COLOUR, colour, transitionDotty);
 }
 
-float3 getNightLight(float3 direction)
+float3 findReflectDirection(float3 direction, float3 normal, float roughness, inout uint seed)
 {
-    //uint asd = pcg_hash2(abs(direction.x) * UINT_MAX) + pcg_hash2(abs(direction.y) * UINT_MAX) + pcg_hash2(abs(direction.z) * UINT_MAX);
-    //return pcg_hash2(asd) % 100 < 5 ? float3(1.f, 1.f, 1.f) : float3(0.f, 0.f, 0.f);
-    
-    float aqwe = pseudorandomNumber(direction);
-    return float3(aqwe, aqwe, aqwe);
+    float3 diffuseReflection = normalize(normal + getRandomVector(seed));
+    float3 specularReflection = reflect(direction, normal);
+    return normalize(lerp(specularReflection, diffuseReflection, roughness));
+}
 
+float3 findTransparencyBounce(float3 direction, float3 normal, float refractionIdx, float roughness, inout uint seed)
+{
+    bool hitFrontFace = dot(direction, normal) < 0.f;
+    float refractionRatio = hitFrontFace ? AIR_REFRACTION_INDEX / refractionIdx : refractionIdx;
+    
+    return refract(direction, normal, refractionRatio);
 }
 
 float3 barycentricInterpolation(float3 uvw, float3 value0, float3 value1, float3 value2)
@@ -399,20 +404,24 @@ void main(uint3 DTid : SV_DispatchThreadID)
 
         pathLength++;
         
-        float3 hitPoint = hitData.worldPosition + hitData.worldNormal * 0.001f;
-
-        float3 diffuseReflection = normalize(hitData.worldNormal + getRandomVector(seed));
-        float3 specularReflection = reflect(ray.direction, hitData.worldNormal);
-        float3 reflectedDir = normalize(lerp(specularReflection, diffuseReflection, hitData.material.roughness.colour));
+        float roughness = hitData.material.roughness.colour;
+        float3 reflectDir = findReflectDirection(ray.direction, hitData.worldNormal, roughness, seed);
+        float3 refractDir = findTransparencyBounce(ray.direction, hitData.worldNormal, hitData.material.indexOfRefraction, roughness, seed);
+        
+        float transparencyFactor = hitData.material.transparency >= randomFloat(seed);
+        float3 bounceDir = normalize(lerp(reflectDir, refractDir, transparencyFactor));
+        //bounceDir = normalize(reflectDir);
+        
+        float3 hitPoint = hitData.worldPosition + bounceDir * 0.001f;
         
         hits[i].material = hitData.material;
-        hits[i].lightDir = reflectedDir;
+        hits[i].lightDir = bounceDir;
         hits[i].viewDir = -ray.direction;
         hits[i].normal = hitData.worldNormal;
         hits[i].isLast = i == NUM_BOUNCES;
         
         ray.origin = hitPoint;
-        ray.direction = reflectedDir;
+        ray.direction = bounceDir;
     }
     
     /*
@@ -426,7 +435,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
     float3 light = float3(0.f, 0.f, 0.f);
     float3 contribution = float3(1.f, 1.f, 1.f);
     if (pathLength != NUM_BOUNCES + 1)
-        light += getEnvironmentLight(ray.direction);
+        light += getEnvironmentLight(ray.direction); // Sky too strong contribution ?
         
     Material material;
     
@@ -456,7 +465,8 @@ void main(uint3 DTid : SV_DispatchThreadID)
         float3 albedo = material.albedo.colour;
         
         float3 shading = kd * albedo + ks * specularLight; // Fix name?
-         
+        shading *= 1.f - material.transparency;
+        
         //light += (finalLight + material.emissionColour * material.emissionPower) * albedo;
         //light = light * material.albedo.colour + material.emissionColour * material.emissionPower;
         light = (light + shading) * albedo + material.emissionColour * material.emissionPower;

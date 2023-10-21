@@ -2,6 +2,7 @@
 #define UINT_MAX (~0u)
 #define FLT_MAX (3.402823466e+38F)
 #define PI (3.14159265f)
+#define AIR_REFRACTION_INDEX (1.f) // Approx
 
 struct MaterialColour3
 {
@@ -25,6 +26,9 @@ struct Material
     
     float3 emissionColour;
     float emissionPower;
+    
+    float transparency;
+    float indexOfRefraction;
 };
 
 struct AABB
@@ -139,6 +143,13 @@ float2 randomPointInCircle(inout uint seed)
     return pointOnCircle * sqrt(randomFloat(seed));
 }
 
+float3 refract(float3 direction, float3 normal, float refractionRatio)
+{
+    float eta = 2.0f - refractionRatio;
+    float cosi = dot(normal, direction);
+    return direction * eta - normal * (-cosi + eta * cosi);
+}
+
 namespace Collision
 {
     // Returns distance to hit. -1 if miss
@@ -156,8 +167,8 @@ namespace Collision
         if (sideA > sphereRadiusSqrd)
             return -1.f;
     
-        float sideB = sphereRadiusSqrd - sideA;
-        return distToClosestPoint - sqrt(sideB);
+        float sideB = sqrt(sphereRadiusSqrd - sideA);
+        return rayToSphereMagSqrd > sphereRadiusSqrd ? distToClosestPoint - sideB : distToClosestPoint + sideB;
     }
     
     // Returns distance to hit. -1 if miss
@@ -173,7 +184,7 @@ namespace Collision
         float determinant = dot(E1, cross1);
 
 	    // ray parallel with triangle
-        if (determinant < EPSILON)
+        if (determinant < EPSILON && determinant > -EPSILON)
             return false;
 
         float inverseDet = 1.f / determinant;

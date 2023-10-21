@@ -27,12 +27,15 @@ Application::Application()
 	Okay::initiateImGui(m_window.getGLFWWindow());
 	Okay::getDevice()->CreateRenderTargetView(m_window.getBackBuffer(), nullptr, &m_pBackBuffer);
 
-	m_resourceManager.importFile("resources/meshes/revolver.fbx");
-	m_resourceManager.importFile("resources/textures/rev/rev_albedo.png");
+	//m_resourceManager.importFile("resources/meshes/revolver.fbx");
+	//m_resourceManager.importFile("resources/textures/rev/rev_albedo.png");
+	//
+	//m_resourceManager.importFile("resources/meshes/room.fbx");	
+	//m_resourceManager.importFile("resources/textures/RedBlue.png");
 
-	m_resourceManager.importFile("resources/meshes/room.fbx");	
-	m_resourceManager.importFile("resources/textures/RedBlue.png");
+	m_resourceManager.importFile("resources/meshes/Glass.fbx");	
 
+	//m_resourceManager.importFile("resources/meshes/bend.fbx");
 
 	m_renderer.loadTextureData();
 	m_renderer.loadTriangleData();
@@ -77,12 +80,12 @@ void Application::run()
 	ballSphere.material.emissionPower = 0.f;
 	ballSphere.radius = 7.f;
 
-	for (uint32_t i = 0; i < 2; i++)
+	for (uint32_t i = 0; i < 0; i++)
 	{
 		Entity meshEntity = m_scene.createEntity();
 		MeshComponent& meshComp = meshEntity.addComponent<MeshComponent>();
 		meshComp.material = ballSphere.material;
-		meshComp.material.albedo.textureId = i;
+		//meshComp.material.albedo.textureId = i == 0 ? 0 : Okay::INVALID_UINT;
 		meshComp.meshID = i;
 	}
 
@@ -331,6 +334,8 @@ void Application::updateImGui()
 			if (ImGui::DragFloat("Roughness", &mat.roughness.colour, 0.01f, 0.f, 1.f))				resetAcu = true;
 			if (ImGui::DragFloat("Metallic", &mat.metallic.colour, 0.01f, 0.f, 1.f))				resetAcu = true;
 			if (ImGui::ColorEdit3("Specular Colour", &mat.specularColour.x))						resetAcu = true;
+			if (ImGui::DragFloat("Transparency", &mat.transparency, 0.01f, 0.f, 1.f))				resetAcu = true;
+			if (ImGui::DragFloat("Refraction Idx", &mat.indexOfRefraction, 0.01f, 1.f, 5.f))		resetAcu = true;
 
 			ImGui::Separator();
 
@@ -367,6 +372,8 @@ void Application::updateImGui()
 			if (ImGui::ColorEdit3("Colour", &mat.albedo.colour.x))									resetAcu = true;
 			if (ImGui::ColorEdit3("Emission Colour", &mat.emissionColour.x))						resetAcu = true;
 			if (ImGui::DragFloat("Emission Power", &mat.emissionPower, 0.01f))						resetAcu = true;
+			if (ImGui::DragFloat("Transparency", &mat.transparency, 0.01f, 0.f, 1.f))				resetAcu = true;
+			if (ImGui::DragFloat("Refraction Idx", &mat.indexOfRefraction, 0.01f, 1.f, 5.f))		resetAcu = true;
 			if (ImGui::DragInt("MeshID", (int*)&mesh.meshID, 0.1f, 0, maxMeshId))					resetAcu = true;
 
 			ImGui::Separator();
