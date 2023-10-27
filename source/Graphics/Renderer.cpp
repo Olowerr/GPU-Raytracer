@@ -167,6 +167,11 @@ void Renderer::reloadShaders()
 	resetAccumulation();
 }
 
+inline uint32_t tryOffsetIdx(uint32_t idx, uint32_t offset)
+{
+	return idx == Okay::INVALID_UINT ? idx : idx + offset;
+}
+
 void Renderer::loadTriangleData()
 {
 	struct GPUNode
@@ -184,68 +189,69 @@ void Renderer::loadTriangleData()
 
 	uint32_t numTotalTriangles = 0u;
 	for (uint32_t i = 0; i < numMeshes; i++)
+	{
 		numTotalTriangles += (uint32_t)meshes[i].getTriangles().size();
-
-	createGPUStorage(m_triangleData, sizeof(Okay::Triangle), numTotalTriangles);
-
+	}
+	
 	uint32_t triBufferCurStartIdx = 0;
 	std::vector<GPUNode> gpuNodes;
+	std::vector<Okay::Triangle> gpuTriangles;
+	gpuTriangles.reserve(numTotalTriangles);
 
+	BvhBuilder bvhBuilder(m_maxBvhLeafTriangles, m_maxBvhDepth);
+
+	for (uint32_t i = 0; i < numMeshes; i++)
+	{
+		const Mesh& mesh = meshes[i];
+		const std::vector<Okay::Triangle>& meshTris = mesh.getTriangles();
+
+		bvhBuilder.buildTree(mesh);
+		const std::vector<BvhNode>& nodes = bvhBuilder.getTree();
+
+		const uint32_t numNodes = (uint32_t)nodes.size();
+		const uint32_t gpuNodesPrevSize = (uint32_t)gpuNodes.size();
+
+		gpuNodes.resize(gpuNodesPrevSize + numNodes);
+
+		uint32_t localTriStart = 0u;
+		for (uint32_t k = 0; k < numNodes; k++)
+		{
+			GPUNode& gpuNode = gpuNodes[gpuNodesPrevSize + k];
+			const BvhNode& bvhNode = nodes[k];
+
+			const uint32_t numTriIndicies = (uint32_t)bvhNode.triIndicies.size();
+
+			gpuNode.boundingBox = bvhNode.boundingBox;
+
+			gpuNode.childIdxs[0] = tryOffsetIdx(bvhNode.childIdxs[0], gpuNodesPrevSize);
+			gpuNode.childIdxs[1] = tryOffsetIdx(bvhNode.childIdxs[1], gpuNodesPrevSize);
+			gpuNode.parentIdx = tryOffsetIdx(bvhNode.parentIdx, gpuNodesPrevSize);
+
+			if (!bvhNode.isLeaf())
+				continue;
+
+			gpuNode.triStart = triBufferCurStartIdx + localTriStart;
+			gpuNode.triEnd = gpuNode.triStart + numTriIndicies;
+
+			localTriStart += numTriIndicies;
+
+			for (uint32_t j = 0; j < numTriIndicies; j++)
+			{
+				gpuTriangles.emplace_back(meshTris[bvhNode.triIndicies[j]]);
+			}
+		}
+
+		m_meshDescs[i].bvhTreeStartIdx = gpuNodesPrevSize;
+		m_meshDescs[i].startIdx = triBufferCurStartIdx;
+		m_meshDescs[i].endIdx = triBufferCurStartIdx + (uint32_t)meshTris.size();
+
+		triBufferCurStartIdx += (uint32_t)meshTris.size();
+	}
+
+	createGPUStorage(m_triangleData, sizeof(Okay::Triangle), numTotalTriangles);
 	updateGPUStorage(m_triangleData, 0u, [&](char* pMappedBufferData)
 	{
-		Okay::Triangle* pTriWriteLocation = (Okay::Triangle*)pMappedBufferData;
-		BvhBuilder bvhBuilder(m_maxBvhLeafTriangles, m_maxBvhDepth);
-
-		uint32_t numMeshes = (uint32_t)meshes.size();
-
-		for (uint32_t i = 0; i < numMeshes; i++)
-		{
-			const Mesh& mesh = meshes[i];
-			const std::vector<Okay::Triangle>& meshTris = mesh.getTriangles();
-
-			bvhBuilder.buildTree(mesh);
-			const std::vector<BvhNode>& nodes = bvhBuilder.getTree();
-
-			uint32_t numNodes = (uint32_t)nodes.size();
-			uint32_t gpuPrevSize = (uint32_t)gpuNodes.size();
-
-			gpuNodes.resize(gpuPrevSize + numNodes);
-
-			uint32_t localTriStart = 0u;
-			for (uint32_t k = 0; k < numNodes; k++)
-			{
-				GPUNode& gpuNode = gpuNodes[gpuPrevSize + k];
-				const BvhNode& bvhNode = nodes[k];
-				
-				uint32_t numTriIndicies = (uint32_t)bvhNode.triIndicies.size();
-
-				gpuNode.boundingBox = bvhNode.boundingBox;
-
-				gpuNode.childIdxs[0] = bvhNode.childIdxs[0];
-				gpuNode.childIdxs[1] = bvhNode.childIdxs[1];
-				gpuNode.parentIdx = bvhNode.parentIdx;
-
-				if (!bvhNode.isLeaf())
-					continue;
-
-				gpuNode.triStart = triBufferCurStartIdx + localTriStart;
-				gpuNode.triEnd = gpuNode.triStart + numTriIndicies;
-
-				localTriStart += numTriIndicies;
-
-				for (uint32_t j = 0; j < numTriIndicies; j++)
-				{
-					pTriWriteLocation[j] = meshTris[bvhNode.triIndicies[j]];
-				}
-				pTriWriteLocation += numTriIndicies;
-			}
-
-			m_meshDescs[i].bvhTreeStartIdx = gpuPrevSize;
-			m_meshDescs[i].startIdx = triBufferCurStartIdx;
-			m_meshDescs[i].endIdx = triBufferCurStartIdx + (uint32_t)meshTris.size();
-
-			triBufferCurStartIdx += (uint32_t)meshTris.size();
-		}
+		memcpy(pMappedBufferData, gpuTriangles.data(), sizeof(Okay::Triangle) * numTotalTriangles);
 	});
 
 	createGPUStorage(m_bvhTree, sizeof(GPUNode), (uint32_t)gpuNodes.size());

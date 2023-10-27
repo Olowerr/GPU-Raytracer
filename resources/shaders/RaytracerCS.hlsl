@@ -410,7 +410,6 @@ void main(uint3 DTid : SV_DispatchThreadID)
         
         float transparencyFactor = hitData.material.transparency >= randomFloat(seed);
         float3 bounceDir = normalize(lerp(reflectDir, refractDir, transparencyFactor));
-        //bounceDir = normalize(reflectDir);
         
         float3 hitPoint = hitData.worldPosition + bounceDir * 0.001f;
         

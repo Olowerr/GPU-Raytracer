@@ -27,11 +27,11 @@ Application::Application()
 	Okay::initiateImGui(m_window.getGLFWWindow());
 	Okay::getDevice()->CreateRenderTargetView(m_window.getBackBuffer(), nullptr, &m_pBackBuffer);
 
-	//m_resourceManager.importFile("resources/meshes/revolver.fbx");
-	//m_resourceManager.importFile("resources/textures/rev/rev_albedo.png");
-	//
-	//m_resourceManager.importFile("resources/meshes/room.fbx");	
-	//m_resourceManager.importFile("resources/textures/RedBlue.png");
+	m_resourceManager.importFile("resources/meshes/room.fbx");	
+	m_resourceManager.importFile("resources/textures/RedBlue.png");
+
+	m_resourceManager.importFile("resources/meshes/revolver.fbx");
+	m_resourceManager.importFile("resources/textures/rev/rev_albedo.png");
 
 	m_resourceManager.importFile("resources/meshes/Glass.fbx");	
 
@@ -80,7 +80,7 @@ void Application::run()
 	ballSphere.material.emissionPower = 0.f;
 	ballSphere.radius = 7.f;
 
-	for (uint32_t i = 0; i < 0; i++)
+	for (uint32_t i = 0; i < 2; i++)
 	{
 		Entity meshEntity = m_scene.createEntity();
 		MeshComponent& meshComp = meshEntity.addComponent<MeshComponent>();
@@ -374,7 +374,8 @@ void Application::updateImGui()
 			if (ImGui::DragFloat("Emission Power", &mat.emissionPower, 0.01f))						resetAcu = true;
 			if (ImGui::DragFloat("Transparency", &mat.transparency, 0.01f, 0.f, 1.f))				resetAcu = true;
 			if (ImGui::DragFloat("Refraction Idx", &mat.indexOfRefraction, 0.01f, 1.f, 5.f))		resetAcu = true;
-			if (ImGui::DragInt("MeshID", (int*)&mesh.meshID, 0.1f, 0, maxMeshId))					resetAcu = true;
+			if (ImGui::DragInt("MeshID", (int*)&mesh.meshID, 0.1f, 0, maxMeshId))					
+				resetAcu = true;
 
 			ImGui::Separator();
 

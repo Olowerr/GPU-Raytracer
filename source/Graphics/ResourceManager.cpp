@@ -8,12 +8,12 @@ AssetID ResourceManager::importFile(std::string_view filePath)
 {
 	AssetID id;
 
-	// Assimp throws "Deadly import error" on fail, doesn't seem to affect anything tho lol
-	// Assimp just returns nullptr, maybe there's is way to surpress?
-	if (id = loadMesh(filePath))
+	if (id = loadTexture(filePath))
 		return id;
 
-	if (id = loadTexture(filePath))
+	// Assimp throws "Deadly import error" if fail and returns nullptr
+	// Call loadMesh after texture, simple hack to avoid the "error"
+	if (id = loadMesh(filePath))
 		return id;
 
 	return id;

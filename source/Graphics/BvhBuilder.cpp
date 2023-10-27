@@ -283,6 +283,7 @@ void BvhBuilder::findAABB(BvhNode& node)
 
 void BvhBuilder::reset()
 {
+	m_triMiddles.clear();
 	m_nodes.clear();
 	m_pMeshTris = nullptr;
 }
