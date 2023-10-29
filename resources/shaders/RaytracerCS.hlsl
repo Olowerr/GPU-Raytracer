@@ -92,6 +92,13 @@ float3 getEnvironmentLight(float3 direction)
     return lerp(GROUND_COLOUR, colour, transitionDotty);
 }
 
+float reflectance(float cosine, float reflectionIdx)
+{
+    float r0 = (1.f - reflectionIdx) / (1.f + reflectionIdx);
+    r0 *= r0;
+    return r0 + (1.f + r0) * pow(1.f - cosine, 5.f);
+}
+
 float3 findReflectDirection(float3 direction, float3 normal, float roughness, inout uint seed)
 {
     float3 diffuseReflection = normalize(normal + getRandomVector(seed));
@@ -103,6 +110,17 @@ float3 findTransparencyBounce(float3 direction, float3 normal, float refractionI
 {
     bool hitFrontFace = dot(direction, normal) < 0.f;
     float refractionRatio = hitFrontFace ? AIR_REFRACTION_INDEX / refractionIdx : refractionIdx;
+    
+    if (!hitFrontFace)
+        normal *= -1.f;
+    
+    float cos_theta = dot(-direction, normal);
+    float sin_theta = sqrt(1.f - cos_theta * cos_theta);
+    
+    bool cannot_refract = refractionRatio * sin_theta > 1.f;
+
+    if (cannot_refract || reflectance(cos_theta, refractionRatio) > randomFloat(seed))
+        direction = findReflectDirection(direction, normal, roughness, seed); //reflect(direction, normal);
     
     return refract(direction, normal, refractionRatio);
 }
@@ -339,7 +357,6 @@ struct EvaluationPoint
     float3 viewDir;
     float3 lightDir;
     float3 normal;
-    bool isLast;
 };
 
 
@@ -411,13 +428,12 @@ void main(uint3 DTid : SV_DispatchThreadID)
         float transparencyFactor = hitData.material.transparency >= randomFloat(seed);
         float3 bounceDir = normalize(lerp(reflectDir, refractDir, transparencyFactor));
         
-        float3 hitPoint = hitData.worldPosition + bounceDir * 0.001f;
+        float3 hitPoint = hitData.worldPosition + bounceDir * 0.01f;
         
         hits[i].material = hitData.material;
         hits[i].lightDir = bounceDir;
         hits[i].viewDir = -ray.direction;
         hits[i].normal = hitData.worldNormal;
-        hits[i].isLast = i == NUM_BOUNCES;
         
         ray.origin = hitPoint;
         ray.direction = bounceDir;

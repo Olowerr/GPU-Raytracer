@@ -13,8 +13,6 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb/stb_image_write.h"
 
-#include <execution>
-
 Renderer::Renderer()
 	:m_pTargetUAV(nullptr), m_pMainRaytracingCS(nullptr), m_pScene(nullptr), m_renderData(),
 	m_pAccumulationUAV(nullptr), m_pRenderDataBuffer(nullptr), m_pResourceManager(nullptr),

@@ -145,9 +145,12 @@ float2 randomPointInCircle(inout uint seed)
 
 float3 refract(float3 direction, float3 normal, float refractionRatio)
 {
-    float eta = 2.0f - refractionRatio;
-    float cosi = dot(normal, direction);
-    return direction * eta - normal * (-cosi + eta * cosi);
+    float cosTheta = min(dot(-direction, normal), 1.f);
+    float3 rayOutPerpendicular = refractionRatio * (direction + cosTheta * normal);
+    float ropLengthSqrd = dot(rayOutPerpendicular, rayOutPerpendicular);
+    
+    float3 rayOutParallel = -sqrt(abs(1.f - ropLengthSqrd)) * normal;
+    return rayOutPerpendicular + rayOutParallel;
 }
 
 namespace Collision

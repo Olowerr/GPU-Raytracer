@@ -35,8 +35,6 @@ Application::Application()
 
 	m_resourceManager.importFile("resources/meshes/Glass.fbx");	
 
-	//m_resourceManager.importFile("resources/meshes/bend.fbx");
-
 	m_renderer.loadTextureData();
 	m_renderer.loadTriangleData();
 }
@@ -138,12 +136,13 @@ void Application::run()
 #else
 
 	typedef glm::vec3 Color;
-	auto getMat = [&](Color col, float smoothness = 0.f, float specProb = 0.f) 
+	auto getMat = [&](Color col, float smoothness = 0.f, float specProb = 0.f, float transp = 0.f) 
 	{
 		Material mat;
-		mat.albedoColour = col;
-		mat.specularProbability = specProb;
-		mat.smoothness = smoothness;
+		mat.albedo.colour = col;
+		mat.metallic.colour = specProb;
+		mat.roughness = 1.f - smoothness;
+		mat.transparency = transp;
 		return mat;
 	};
 	
@@ -209,21 +208,24 @@ void Application::run()
 					sphere_material = getMat(albedo, fuzz, fuzz);
 					entityWithMat(sphere_material, center, 0.2f);
 				}
-				//else 
-				//{
-				//	// glass
-				//	sphere_material = make_shared<dielectric>(1.5);
-				//	world.add(make_shared<sphere>(center, 0.2, sphere_material));
-				//}
+				else 
+				{
+					// glass
+					auto albedo = Color(1.f);
+					sphere_material = getMat(albedo, 0.f, 0.f, 0.9f);
+					sphere_material.indexOfRefraction = 1.5f;
+					entityWithMat(sphere_material, center, 0.2f);
+				}
 			}
 		}
 	}
 
-	auto material1 = getMat(Color(1.f), 1.f, 0.5f);
-	entityWithMat(material1, glm::vec3(0, 1, 0), 1.0);
+	auto material1 = getMat(Color(1.f), 1.f, 0.f);
+	entityWithMat(material1, glm::vec3(-4, 1, 0), 1.0);
 
-	auto material2 = getMat(Color(0.4, 0.2, 0.1));
-	entityWithMat(material2, glm::vec3(-4, 1, 0), 1.0);
+	auto material2 = getMat(Color(1.f), 0.f, 0.f, 1.f);
+	material2.indexOfRefraction = 1.5f;
+	entityWithMat(material2, glm::vec3(0, 1, 0), 1.0);
 
 	auto material3 = getMat(Color(0.7, 0.6, 0.5), 1.f, 1.f);
 	entityWithMat(material3, glm::vec3(4, 1, 0), 1.0);
