@@ -374,10 +374,12 @@ void Application::updateImGui()
 			if (ImGui::ColorEdit3("Colour", &mat.albedo.colour.x))									resetAcu = true;
 			if (ImGui::ColorEdit3("Emission Colour", &mat.emissionColour.x))						resetAcu = true;
 			if (ImGui::DragFloat("Emission Power", &mat.emissionPower, 0.01f))						resetAcu = true;
+			if (ImGui::DragFloat("Roughness", &mat.roughness.colour, 0.01f, 0.f, 1.f))				resetAcu = true;
+			if (ImGui::DragFloat("Metallic", &mat.metallic.colour, 0.01f, 0.f, 1.f))				resetAcu = true;
+			if (ImGui::ColorEdit3("Specular Colour", &mat.specularColour.x))						resetAcu = true;
 			if (ImGui::DragFloat("Transparency", &mat.transparency, 0.01f, 0.f, 1.f))				resetAcu = true;
 			if (ImGui::DragFloat("Refraction Idx", &mat.indexOfRefraction, 0.01f, 1.f, 5.f))		resetAcu = true;
-			if (ImGui::DragInt("MeshID", (int*)&mesh.meshID, 0.1f, 0, maxMeshId))					
-				resetAcu = true;
+			if (ImGui::DragInt("MeshID", (int*)&mesh.meshID, 0.1f, 0, maxMeshId))					resetAcu = true;
 
 			ImGui::Separator();
 

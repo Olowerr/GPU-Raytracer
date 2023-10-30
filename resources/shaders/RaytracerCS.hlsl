@@ -3,7 +3,7 @@
 #include "ShaderResourceRegisters.h"
 
 // ---- Defines and constants
-#define NUM_BOUNCES (5)
+#define NUM_BOUNCES (20)
 
 
 // ---- Structs
@@ -99,14 +99,14 @@ float reflectance(float cosine, float reflectionIdx)
     return r0 + (1.f + r0) * pow(1.f - cosine, 5.f);
 }
 
-float3 findReflectDirection(float3 direction, float3 normal, float roughness, inout uint seed)
+float3 findReflectDirection(float3 direction, float3 normal, float roughness, float specularFactor, inout uint seed)
 {
     float3 diffuseReflection = normalize(normal + getRandomVector(seed));
     float3 specularReflection = reflect(direction, normal);
-    return normalize(lerp(specularReflection, diffuseReflection, roughness));
+    return normalize(lerp(specularReflection, diffuseReflection, roughness * specularFactor));
 }
 
-float3 findTransparencyBounce(float3 direction, float3 normal, float refractionIdx, float roughness, inout uint seed)
+float3 findTransparencyBounce(float3 direction, float3 normal, float refractionIdx, inout uint seed)
 {
     bool hitFrontFace = dot(direction, normal) < 0.f;
     float refractionRatio = hitFrontFace ? AIR_REFRACTION_INDEX / refractionIdx : refractionIdx;
@@ -120,7 +120,7 @@ float3 findTransparencyBounce(float3 direction, float3 normal, float refractionI
     bool cannot_refract = refractionRatio * sin_theta > 1.f;
 
     if (cannot_refract || reflectance(cos_theta, refractionRatio) > randomFloat(seed))
-        direction = findReflectDirection(direction, normal, roughness, seed); //reflect(direction, normal);
+        direction = reflect(direction, normal);
     
     return refract(direction, normal, refractionRatio);
 }
@@ -406,86 +406,41 @@ void main(uint3 DTid : SV_DispatchThreadID)
     ray.origin += rayOffset;
     ray.direction = normalize(focusPoint - ray.origin);
 
-    Payload hitData;
+    float3 light = float3(0.f, 0.f, 0.f);
+    float3 contribution = float3(1.f, 1.f, 1.f);
     
-    EvaluationPoint hits[NUM_BOUNCES + 1];
-    int pathLength = 0;
-   
-    for (int i = 0; i <= NUM_BOUNCES; i++)
+    Payload hitData;
+    Material material;
+    
+    for (uint i = 0; i <= NUM_BOUNCES; i++)
     {
         hitData = findClosestHit(ray);
         if (!hitData.hit)
         {
+            //light += getEnvironmentLight(ray.direction) * contribution;
+            //light += getNightLight(ray.direction) * contribution;
             break;
         }
-
-        pathLength++;
+        
+        material = hitData.material;
         
         float roughness = hitData.material.roughness.colour;
-        float3 reflectDir = findReflectDirection(ray.direction, hitData.worldNormal, roughness, seed);
-        float3 refractDir = findTransparencyBounce(ray.direction, hitData.worldNormal, hitData.material.indexOfRefraction, roughness, seed);
-        
+        float specularFactor = float(material.metallic.colour >= randomFloat(seed));
+        float3 reflectDir = findReflectDirection(ray.direction, hitData.worldNormal, roughness, 1.f - specularFactor, seed);
+        float3 refractDir = findTransparencyBounce(ray.direction, hitData.worldNormal, hitData.material.indexOfRefraction, seed);
+
         float transparencyFactor = hitData.material.transparency >= randomFloat(seed);
         float3 bounceDir = normalize(lerp(reflectDir, refractDir, transparencyFactor));
         
-        float3 hitPoint = hitData.worldPosition + bounceDir * 0.01f;
-        
-        hits[i].material = hitData.material;
-        hits[i].lightDir = bounceDir;
-        hits[i].viewDir = -ray.direction;
-        hits[i].normal = hitData.worldNormal;
+        float3 hitPoint = hitData.worldPosition + bounceDir * 0.001f;
         
         ray.origin = hitPoint;
         ray.direction = bounceDir;
+        
+        contribution *= lerp(material.albedo.colour, material.specularColour, specularFactor);
+        light += material.emissionColour * material.emissionPower * contribution * (1.f - transparencyFactor);
     }
     
-    /*
-    bounces | maxPathLength
-    0 | 1
-    1 | 2
-    2 | 3
-    3 | 4
-    */
-    
-    float3 light = float3(0.f, 0.f, 0.f);
-    float3 contribution = float3(1.f, 1.f, 1.f);
-    if (pathLength != NUM_BOUNCES + 1)
-        light += getEnvironmentLight(ray.direction); // Sky too strong contribution ?
-        
-    Material material;
-    
-    for (i = pathLength - 1; i >= 0 && pathLength != 0; i--)
-    {
-        material = hits[i].material;
-
-        float3 viewDir = hits[i].viewDir;
-        float3 lightDir = hits[i].lightDir;
-        float3 normal = hits[i].normal;
-        
-        float3 halfwayVec = normalize(lightDir + viewDir);
-        
-        float D = GGX_Distribution(normal, halfwayVec, material.roughness.colour);
-        
-        float3 F0 = lerp(float3(0.04f, 0.04f, 0.04f), material.specularColour, material.metallic.colour);
-        float3 F = FresnelSchlick(F0, dot(halfwayVec, viewDir));
-        
-        float G = GGX_PartialGeometryTerm(viewDir, normal, halfwayVec, material.roughness.colour);
-        
-        float3 ks = (D * F * G) / (4.f * max(dot(normal, viewDir), 0.f) * max(dot(normal, lightDir), 0.f));
-        ks = clamp(ks, 0.f, 1.f);
-        
-        float3 kd = (1.f - ks) * (1.f - material.metallic.colour);
-        
-        float3 specularLight = light;
-        float3 albedo = material.albedo.colour;
-        
-        float3 shading = kd * albedo + ks * specularLight; // Fix name?
-        shading *= 1.f - material.transparency;
-        
-        //light += (finalLight + material.emissionColour * material.emissionPower) * albedo;
-        //light = light * material.albedo.colour + material.emissionColour * material.emissionPower;
-        light = (light + shading) * albedo + material.emissionColour * material.emissionPower;
-    }
     
     light = saturate(light);
     
