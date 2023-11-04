@@ -1,4 +1,4 @@
-#include "Renderer.h"
+#include "RayTracer.h"
 #include "Scene/Scene.h"
 #include "Scene/Components.h"
 #include "shaders/ShaderResourceRegisters.h"
@@ -13,24 +13,24 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb/stb_image_write.h"
 
-Renderer::Renderer()
+RayTracer::RayTracer()
 	:m_pTargetUAV(nullptr), m_pMainRaytracingCS(nullptr), m_pScene(nullptr), m_renderData(),
 	m_pAccumulationUAV(nullptr), m_pRenderDataBuffer(nullptr), m_pResourceManager(nullptr),
 	m_pTextureAtlasSRV(nullptr), m_maxBvhLeafTriangles(100u), m_maxBvhDepth(100u), m_pEnvironmentMapSRV(nullptr)
 {
 }
 
-Renderer::Renderer(ID3D11Texture2D* pTarget, Scene* pScene, ResourceManager* pResourceManager)
+RayTracer::RayTracer(ID3D11Texture2D* pTarget, Scene* pScene, ResourceManager* pResourceManager)
 {
 	initiate(pTarget, pScene, pResourceManager);
 }
 
-Renderer::~Renderer()
+RayTracer::~RayTracer()
 {
 	shutdown();
 }
 
-void Renderer::shutdown()
+void RayTracer::shutdown()
 {
 	m_pScene = nullptr;
 	DX11_RELEASE(m_pTargetUAV);
@@ -47,7 +47,7 @@ void Renderer::shutdown()
 	shutdownGPUStorage(m_bvhTree);
 }
 
-void Renderer::initiate(ID3D11Texture2D* pTarget, Scene* pScene, ResourceManager* pResourceManager)
+void RayTracer::initiate(ID3D11Texture2D* pTarget, Scene* pScene, ResourceManager* pResourceManager)
 {
 	OKAY_ASSERT(pTarget);
 	OKAY_ASSERT(pScene);
@@ -97,9 +97,9 @@ void Renderer::initiate(ID3D11Texture2D* pTarget, Scene* pScene, ResourceManager
 	const uint32_t SRV_START_SIZE = 10u;
 	createGPUStorage(m_spheres, sizeof(glm::vec3) + sizeof(Sphere), SRV_START_SIZE);
 	createGPUStorage(m_meshData, sizeof(GPU_MeshComponent), SRV_START_SIZE);
-	// m_triangleData created in Renderer::loadTriangleData().
-	// m_bvhTree created in Renderer::loadTriangleData().
-	// m_textureAtlasData created in Renderer::createTextureAtlas().
+	// m_triangleData created in RayTracer::loadTriangleData().
+	// m_bvhTree created in RayTracer::loadTriangleData().
+	// m_textureAtlasData created in RayTracer::createTextureAtlas().
 
 
 
@@ -122,7 +122,7 @@ void Renderer::initiate(ID3D11Texture2D* pTarget, Scene* pScene, ResourceManager
 	}
 }
 
-void Renderer::render()
+void RayTracer::render()
 {
 	calculateProjectionData();
 	updateBuffers();
@@ -155,7 +155,7 @@ void Renderer::render()
 	pDevCon->CSSetUnorderedAccessViews(0u, 1u, &nullUAV, nullptr);
 }
 
-void Renderer::reloadShaders()
+void RayTracer::reloadShaders()
 {
 	ID3D11ComputeShader* pNewShader = nullptr;
 	if (!Okay::createShader(SHADER_PATH "RayTracerCS.hlsl", &pNewShader))
@@ -172,7 +172,7 @@ inline uint32_t tryOffsetIdx(uint32_t idx, uint32_t offset)
 	return idx == Okay::INVALID_UINT ? idx : idx + offset;
 }
 
-void Renderer::loadTriangleData()
+void RayTracer::loadTriangleData()
 {
 	struct GPUNode
 	{
@@ -261,7 +261,7 @@ void Renderer::loadTriangleData()
 	});
 }
 
-void Renderer::loadTextureData()
+void RayTracer::loadTextureData()
 {
 	static const uint32_t CHANNELS = STBI_rgb_alpha;
 	static const uint32_t SPACING = 0u;
@@ -346,7 +346,7 @@ void Renderer::loadTextureData()
 	});
 }
 
-void Renderer::setEnvironmentMap(std::string_view path)
+void RayTracer::setEnvironmentMap(std::string_view path)
 {
 	int imgWidth, imgHeight, channels = STBI_rgb_alpha;
 	uint32_t* pImageData = (uint32_t*)stbi_load(path.data(), &imgWidth, &imgHeight, nullptr, channels);
@@ -436,7 +436,7 @@ void Renderer::setEnvironmentMap(std::string_view path)
 	OKAY_ASSERT(success);
 }
 
-void Renderer::calculateProjectionData()
+void RayTracer::calculateProjectionData()
 {
 	const glm::vec2 windowDimsVec((float)m_renderData.textureDims.x, (float)m_renderData.textureDims.y);
 	const float aspectRatio = windowDimsVec.x / windowDimsVec.y;
@@ -480,7 +480,7 @@ void Renderer::calculateProjectionData()
 		glm::lookAtLH(camTra.position, camTra.position + camForward, glm::vec3(0.f, 1.f, 0.f))));
 }
 
-void Renderer::updateBuffers()
+void RayTracer::updateBuffers()
 {
 	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
 	entt::registry& reg = m_pScene->getRegistry();
@@ -536,7 +536,7 @@ void Renderer::updateBuffers()
 	Okay::updateBuffer(m_pRenderDataBuffer, &m_renderData, sizeof(RenderData));
 }
 
-void Renderer::createGPUStorage(GPUStorage& storage, uint32_t elementSize, uint32_t capacity)
+void RayTracer::createGPUStorage(GPUStorage& storage, uint32_t elementSize, uint32_t capacity)
 {
 	shutdownGPUStorage(storage);
 
@@ -546,7 +546,7 @@ void Renderer::createGPUStorage(GPUStorage& storage, uint32_t elementSize, uint3
 	OKAY_ASSERT(success);
 }
 
-void Renderer::shutdownGPUStorage(GPUStorage& storage)
+void RayTracer::shutdownGPUStorage(GPUStorage& storage)
 {
 	DX11_RELEASE(storage.pBuffer);
 	DX11_RELEASE(storage.pSRV);

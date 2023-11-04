@@ -27,7 +27,7 @@
     <ClCompile Include="source\Application\Application.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="source\Graphics\Renderer.cpp">
+    <ClCompile Include="source\Graphics\RayTracer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="source\DirectX\DX11.cpp">
@@ -80,7 +80,7 @@
     <ClInclude Include="source\DirectX\DX11.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="source\Graphics\Renderer.h">
+    <ClInclude Include="source\Graphics\RayTracer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="source\Scene\Entity.h">

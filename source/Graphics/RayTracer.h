@@ -31,12 +31,12 @@ struct RenderData // Aligned 16
 	float dofDistance = 0.f;
 };
 
-class Renderer
+class RayTracer
 {
 public:
-	Renderer();
-	Renderer(ID3D11Texture2D* pTarget, Scene* pScene, ResourceManager* pResourceManager);
-	~Renderer();
+	RayTracer();
+	RayTracer(ID3D11Texture2D* pTarget, Scene* pScene, ResourceManager* pResourceManager);
+	~RayTracer();
 
 	void shutdown();
 	void initiate(ID3D11Texture2D* pTarget, Scene* pScene, ResourceManager* pResourceManager);
@@ -120,26 +120,26 @@ private: // Scene GPU Data
 	std::vector<MeshDesc> m_meshDescs;
 };
 
-inline void Renderer::setScene(Scene* pScene)
+inline void RayTracer::setScene(Scene* pScene)
 {
 	OKAY_ASSERT(pScene);
 	m_pScene = pScene;
 }
 
-inline void Renderer::setCamera(Entity camera)
+inline void RayTracer::setCamera(Entity camera)
 {
 	OKAY_ASSERT(camera.isValid());
 	OKAY_ASSERT(camera.hasComponents<Camera>());
 	m_camera = camera;
 }
 
-inline void Renderer::toggleAccumulation(bool enable)
+inline void RayTracer::toggleAccumulation(bool enable)
 {
 	m_renderData.accumulationEnabled = (int)enable;
 	resetAccumulation();
 }
 
-inline void Renderer::resetAccumulation()
+inline void RayTracer::resetAccumulation()
 {
 	m_renderData.numAccumulationFrames = 0u;
 
@@ -147,13 +147,13 @@ inline void Renderer::resetAccumulation()
 	Okay::getDeviceContext()->ClearUnorderedAccessViewFloat(m_pAccumulationUAV, CLEAR_COLOUR);
 }
 
-inline uint32_t Renderer::getNumAccumulationFrames() const
+inline uint32_t RayTracer::getNumAccumulationFrames() const
 {
 	return m_renderData.numAccumulationFrames;
 }
 
 template<typename Func>
-void Renderer::updateGPUStorage(GPUStorage& storage, uint32_t resizeCapacity, Func function)
+void RayTracer::updateGPUStorage(GPUStorage& storage, uint32_t resizeCapacity, Func function)
 {
 	if (storage.capacity < resizeCapacity)
 		createGPUStorage(storage, storage.gpuElementByteSize, resizeCapacity + 10u);
@@ -168,8 +168,8 @@ void Renderer::updateGPUStorage(GPUStorage& storage, uint32_t resizeCapacity, Fu
 	pDevCon->Unmap(storage.pBuffer, 0u);
 }
 
-inline uint32_t& Renderer::getMaxBvhLeafTriangles()	{ return m_maxBvhLeafTriangles; }
-inline uint32_t& Renderer::getMaxBvhDepth()			{ return m_maxBvhDepth; }
+inline uint32_t& RayTracer::getMaxBvhLeafTriangles()	{ return m_maxBvhLeafTriangles; }
+inline uint32_t& RayTracer::getMaxBvhDepth()			{ return m_maxBvhDepth; }
 
-inline float& Renderer::getDOFStrength() { return m_renderData.dofStrength; }
-inline float& Renderer::getDOFDistance() { return m_renderData.dofDistance; }
+inline float& RayTracer::getDOFStrength() { return m_renderData.dofStrength; }
+inline float& RayTracer::getDOFDistance() { return m_renderData.dofDistance; }

@@ -21,13 +21,13 @@ Application::Application()
 
 	Okay::initiateDX11();
 	m_window.initiate(1600u, 900u, "GPU Raytracer");
-	m_renderer.initiate(m_window.getBackBuffer(), &m_scene, &m_resourceManager);
-	m_renderer.toggleAccumulation(true);
+	m_rayTracer.initiate(m_window.getBackBuffer(), &m_scene, &m_resourceManager);
+	m_rayTracer.toggleAccumulation(true);
 
 	Okay::initiateImGui(m_window.getGLFWWindow());
 	Okay::getDevice()->CreateRenderTargetView(m_window.getBackBuffer(), nullptr, &m_pBackBuffer);
 
-	m_renderer.setEnvironmentMap("resources/environmentMaps/Skybox2.jpg");
+	m_rayTracer.setEnvironmentMap("resources/environmentMaps/Skybox2.jpg");
 
 	m_resourceManager.importFile("resources/meshes/room.fbx");	
 	m_resourceManager.importFile("resources/textures/RedBlue.png");
@@ -37,14 +37,14 @@ Application::Application()
 
 	m_resourceManager.importFile("resources/meshes/Glass.fbx");	
 
-	m_renderer.loadTextureData();
-	m_renderer.loadTriangleData();
+	m_rayTracer.loadTextureData();
+	m_rayTracer.loadTriangleData();
 }
 
 Application::~Application()
 {
 	m_window.shutdown();
-	m_renderer.shutdown();
+	m_rayTracer.shutdown();
 	DX11_RELEASE(m_pBackBuffer);
 
 	glfwTerminate();
@@ -58,7 +58,7 @@ void Application::run()
 
 	m_camera = m_scene.createEntity();
 	m_camera.addComponent<Camera>(90.f, 0.1f);
-	m_renderer.setCamera(m_camera);
+	m_rayTracer.setCamera(m_camera);
 
 #if 1
 	//Entity ground = m_scene.createEntity();
@@ -245,7 +245,7 @@ void Application::run()
 		updateImGui();
 		updateCamera();
 
-		m_renderer.render();
+		m_rayTracer.render();
 
 		Okay::getDeviceContext()->OMSetRenderTargets(1u, &m_pBackBuffer, nullptr);
 		Okay::endFrameImGui();
@@ -272,10 +272,10 @@ void Application::updateImGui()
 
 		ImGui::Separator();
 
-		ImGui::Text("Accumulation Frames: %u", m_renderer.getNumAccumulationFrames());
+		ImGui::Text("Accumulation Frames: %u", m_rayTracer.getNumAccumulationFrames());
 		ImGui::Text("Accumulation Time:	%.2f", m_accumulationTime);
 		if (ImGui::Checkbox("Accumulate", &accumulate))
-			m_renderer.toggleAccumulation(accumulate);
+			m_rayTracer.toggleAccumulation(accumulate);
 
 		if (ImGui::Button("Reset Accumulation"))
 		{
@@ -284,25 +284,25 @@ void Application::updateImGui()
 
 		ImGui::Separator();
 
-		if (ImGui::DragFloat("DOF Strength", &m_renderer.getDOFStrength(), 0.05f, 0.f, 10.f)) resetAcu = true;
-		if (ImGui::DragFloat("DOF Distance", &m_renderer.getDOFDistance(), 0.05f, 0.f, 1000.f)) resetAcu = true;
+		if (ImGui::DragFloat("DOF Strength", &m_rayTracer.getDOFStrength(), 0.05f, 0.f, 10.f)) resetAcu = true;
+		if (ImGui::DragFloat("DOF Distance", &m_rayTracer.getDOFDistance(), 0.05f, 0.f, 1000.f)) resetAcu = true;
 
 		ImGui::Separator();
 
 		if (ImGui::Button("Reload Shaders"))
 		{
-			m_renderer.reloadShaders();
+			m_rayTracer.reloadShaders();
 			resetAcu = true;
 		}
 
 		ImGui::Separator();
 
-		ImGui::DragInt("BVH Max triangles", (int*)&m_renderer.getMaxBvhLeafTriangles(), 1, 0, Okay::INVALID_UINT / 2);
-		ImGui::DragInt("BVH Max depth", (int*)&m_renderer.getMaxBvhDepth(), 1, 0, Okay::INVALID_UINT / 2);
+		ImGui::DragInt("BVH Max triangles", (int*)&m_rayTracer.getMaxBvhLeafTriangles(), 1, 0, Okay::INVALID_UINT / 2);
+		ImGui::DragInt("BVH Max depth", (int*)&m_rayTracer.getMaxBvhDepth(), 1, 0, Okay::INVALID_UINT / 2);
 
 		if (ImGui::Button("Rebuild BVH tree"))
 		{
-			m_renderer.loadTriangleData();
+			m_rayTracer.loadTriangleData();
 		}
 
 		ImGui::PopItemWidth();
@@ -393,7 +393,7 @@ void Application::updateImGui()
 
 	if (resetAcu)
 	{
-		m_renderer.resetAccumulation();
+		m_rayTracer.resetAccumulation();
 		m_accumulationTime = 0.f;
 	}
 }
@@ -454,7 +454,7 @@ void Application::updateCamera()
 
 	if (xInput || yInput || zInput || mouseDelta.x || mouseDelta.y)
 	{
-		m_renderer.resetAccumulation();
+		m_rayTracer.resetAccumulation();
 		m_accumulationTime = 0.f;
 	}
 }
