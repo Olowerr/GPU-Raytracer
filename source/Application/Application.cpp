@@ -27,6 +27,8 @@ Application::Application()
 	Okay::initiateImGui(m_window.getGLFWWindow());
 	Okay::getDevice()->CreateRenderTargetView(m_window.getBackBuffer(), nullptr, &m_pBackBuffer);
 
+	m_renderer.setEnvironmentMap("resources/environmentMaps/Skybox2.jpg");
+
 	m_resourceManager.importFile("resources/meshes/room.fbx");	
 	m_resourceManager.importFile("resources/textures/RedBlue.png");
 
@@ -83,7 +85,7 @@ void Application::run()
 		Entity meshEntity = m_scene.createEntity();
 		MeshComponent& meshComp = meshEntity.addComponent<MeshComponent>();
 		meshComp.material = ballSphere.material;
-		//meshComp.material.albedo.textureId = i == 0 ? 0 : Okay::INVALID_UINT;
+		meshComp.material.albedo.textureId = i;
 		meshComp.meshID = i;
 	}
 

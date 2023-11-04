@@ -67,6 +67,7 @@ StructuredBuffer<Sphere> sphereData : register(SPHERE_DATA_GPU_REG);
 StructuredBuffer<Mesh> meshData : register(MESH_DATA_GPU_REG);
 StructuredBuffer<Triangle> triangleData : register(TRIANGLE_DATA_GPU_REG);
 StructuredBuffer<Node> bvhNodes : register(BVH_TREE_GPU_REG);
+TextureCube environmentMap : register(ENVIRONMENT_MAP_GPU_REG);
 
 StructuredBuffer<AtlasTextureDesc> textureDescs : register(TEXTURE_ATLAS_DESC_GPU_REG);
 Texture2D<unorm float4> textureAtlas : register(TEXTURE_ATLAS_GPU_REG);
@@ -82,6 +83,8 @@ Texture2D<unorm float4> textureAtlas : register(TEXTURE_ATLAS_GPU_REG);
 // ---- Functions
 float3 getEnvironmentLight(float3 direction)
 {
+    return environmentMap.SampleLevel(simp, direction, 0.f).rgb;
+    
     const static float3 SKY_COLOUR = float3(102.f, 204.f, 255.f) / 255.f;
     const static float3 GROUND_COLOUR = float3(164.f, 177.f, 178.f) / 255.f;
     
@@ -417,13 +420,13 @@ void main(uint3 DTid : SV_DispatchThreadID)
         hitData = findClosestHit(ray);
         if (!hitData.hit)
         {
-            //light += getEnvironmentLight(ray.direction) * contribution;
+            light += getEnvironmentLight(ray.direction) * contribution;
             //light += getNightLight(ray.direction) * contribution;
             break;
         }
         
         material = hitData.material;
-        
+
         float roughness = hitData.material.roughness.colour;
         float specularFactor = float(material.metallic.colour >= randomFloat(seed));
         float3 reflectDir = findReflectDirection(ray.direction, hitData.worldNormal, roughness, 1.f - specularFactor, seed);

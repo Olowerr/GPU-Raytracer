@@ -59,6 +59,8 @@ public:
 	inline float& getDOFStrength();
 	inline float& getDOFDistance();
 
+	void setEnvironmentMap(std::string_view path);
+
 private: // Scene & Resources
 	Scene* m_pScene;
 	ResourceManager* m_pResourceManager;
@@ -104,6 +106,7 @@ private: // Scene GPU Data
 	ID3D11ShaderResourceView* m_pTextureAtlasSRV;
 	GPUStorage m_textureAtlasDesc;
 
+	ID3D11ShaderResourceView* m_pEnvironmentMapSRV;
 
 	// The order of m_meshDescs & m_textureAtlasData matches the respective std::vector in ResourceManager.
 	

@@ -16,7 +16,7 @@
 Renderer::Renderer()
 	:m_pTargetUAV(nullptr), m_pMainRaytracingCS(nullptr), m_pScene(nullptr), m_renderData(),
 	m_pAccumulationUAV(nullptr), m_pRenderDataBuffer(nullptr), m_pResourceManager(nullptr),
-	m_pTextureAtlasSRV(nullptr), m_maxBvhLeafTriangles(100u), m_maxBvhDepth(100u)
+	m_pTextureAtlasSRV(nullptr), m_maxBvhLeafTriangles(100u), m_maxBvhDepth(100u), m_pEnvironmentMapSRV(nullptr)
 {
 }
 
@@ -38,6 +38,7 @@ void Renderer::shutdown()
 	DX11_RELEASE(m_pRenderDataBuffer);
 	DX11_RELEASE(m_pMainRaytracingCS);
 	DX11_RELEASE(m_pTextureAtlasSRV);
+	DX11_RELEASE(m_pEnvironmentMapSRV);
 	
 	shutdownGPUStorage(m_meshData);
 	shutdownGPUStorage(m_spheres);
@@ -145,6 +146,7 @@ void Renderer::render()
 	pDevCon->CSSetShaderResources(TEXTURE_ATLAS_DESC_CPU_SLOT, 1u, &m_textureAtlasDesc.pSRV);
 	pDevCon->CSSetShaderResources(TEXTURE_ATLAS_CPU_SLOT, 1u, &m_pTextureAtlasSRV);
 	pDevCon->CSSetShaderResources(BVH_TREE_CPU_SLOT, 1u, &m_bvhTree.pSRV);
+	pDevCon->CSSetShaderResources(ENVIRONMENT_MAP_CPU_SLOT, 1u, &m_pEnvironmentMapSRV);
 
 	// Dispatch and unbind
 	pDevCon->Dispatch(m_renderData.textureDims.x / 16u, m_renderData.textureDims.y / 9u, 1u);
@@ -342,6 +344,96 @@ void Renderer::loadTextureData()
 			pointer += 1u;
 		}
 	});
+}
+
+void Renderer::setEnvironmentMap(std::string_view path)
+{
+	int imgWidth, imgHeight, channels = STBI_rgb_alpha;
+	uint32_t* pImageData = (uint32_t*)stbi_load(path.data(), &imgWidth, &imgHeight, nullptr, channels);
+
+	if (!pImageData)
+		return;
+
+	uint32_t width = imgWidth / 4u;
+	uint32_t height = imgHeight / 3u;
+	uint32_t byteWidth = width * height * channels;
+
+	D3D11_SUBRESOURCE_DATA data[6]{};
+	for (uint32_t i = 0; i < 6u; i++)
+	{
+		data[i].pSysMem = new char[byteWidth]{};
+		data[i].SysMemPitch = width * channels;
+		data[i].SysMemSlicePitch = 0u;
+	}
+
+	// The coursor points to the location of each side
+	uint32_t* coursor = nullptr;
+
+	auto copyImgSection = [&](uint32_t* pTarget)
+	{
+		for (uint32_t i = 0; i < height; i++)
+		{
+			memcpy(pTarget, coursor, (size_t)width * channels);
+			pTarget += width;
+			coursor += imgWidth;
+		}
+	};
+
+	// Positive X
+	coursor = pImageData + imgWidth * height + width * 2u;
+	copyImgSection((uint32_t*)data[0].pSysMem);
+
+	// Negative X
+	coursor = pImageData + imgWidth * height;
+	copyImgSection((uint32_t*)data[1].pSysMem);
+
+	// Positive Y
+	coursor = pImageData + width;
+	copyImgSection((uint32_t*)data[2].pSysMem);
+
+	// Negative Y
+	coursor = pImageData + imgWidth * height * 2u + width;
+	copyImgSection((uint32_t*)data[3].pSysMem);
+
+	// Positive Z
+	coursor = pImageData + imgWidth * height + width;
+	copyImgSection((uint32_t*)data[4].pSysMem);
+
+	// Negative Z
+	coursor = pImageData + imgWidth * height + width * 3u;
+	copyImgSection((uint32_t*)data[5].pSysMem);
+
+	stbi_image_free(pImageData);
+
+	D3D11_TEXTURE2D_DESC texDesc{};
+	texDesc.ArraySize = 6u;
+	texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	texDesc.CPUAccessFlags = 0u;
+	texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	texDesc.Height = height;
+	texDesc.Width = width;
+	texDesc.MipLevels = 1u;
+	texDesc.SampleDesc.Count = 1u;
+	texDesc.SampleDesc.Quality = 0u;
+	texDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE;
+
+	ID3D11Device* pDevice = Okay::getDevice();
+	ID3D11DeviceContext* pDeviceContext = Okay::getDeviceContext();
+	bool success = false;
+
+	ID3D11Texture2D* pTextureCube = nullptr;
+	success = SUCCEEDED(pDevice->CreateTexture2D(&texDesc, data, &pTextureCube));
+
+	for (uint32_t i = 0; i < 6; i++)
+	{
+		delete[] data[i].pSysMem;
+	}
+
+	OKAY_ASSERT(success);
+
+	success = SUCCEEDED(pDevice->CreateShaderResourceView(pTextureCube, nullptr, &m_pEnvironmentMapSRV));
+	DX11_RELEASE(pTextureCube);
+	OKAY_ASSERT(success);
 }
 
 void Renderer::calculateProjectionData()
