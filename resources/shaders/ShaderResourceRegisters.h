@@ -1,4 +1,8 @@
 
+#define NUM_U_REGISTERS 2u
+#define NUM_B_REGISTERS 1u
+#define NUM_T_REGISTERS 7u
+
 #define RESULT_BUFFER_GPU_REG u0
 #define RESULT_BUFFER_CPU_SLOT 0
 

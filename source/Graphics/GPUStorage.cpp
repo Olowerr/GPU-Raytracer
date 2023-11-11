@@ -44,7 +44,7 @@ void GPUStorage::update(uint32_t newCapacity, void* pData)
 	OKAY_ASSERT(pData);
 	OKAY_ASSERT(newCapacity);
 
-	if (m_capacity != newCapacity)
+	if (m_capacity != newCapacity && newCapacity)
 		initiate(m_elementByteWidth, newCapacity, pData);
 
 	Okay::updateBuffer(m_pBuffer, pData, (size_t)m_elementByteWidth * newCapacity);

@@ -31,15 +31,15 @@ inline ID3D11ShaderResourceView* GPUStorage::getSRV() const { return m_pSRV; }
 template<typename UpdateFunction>
 inline void GPUStorage::update(uint32_t newCapacity, UpdateFunction function)
 {
-	if (m_capacity != newCapacity)
+	if (m_capacity != newCapacity && newCapacity)
 		initiate(m_elementByteWidth, newCapacity, nullptr);
 
 	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
 	D3D11_MAPPED_SUBRESOURCE sub{};
-	if (FAILED(pDevCon->Map(storage.pBuffer, 0u, D3D11_MAP_WRITE_DISCARD, 0u, &sub)))
+	if (FAILED(pDevCon->Map(m_pBuffer, 0u, D3D11_MAP_WRITE_DISCARD, 0u, &sub)))
 		return;
 
 	function((char*)sub.pData);
 
-	pDevCon->Unmap(storage.pBuffer, 0u);
+	pDevCon->Unmap(m_pBuffer, 0u);
 }

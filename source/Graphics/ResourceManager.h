@@ -74,7 +74,7 @@ inline const Asset& ResourceManager::getAsset(AssetID id) const
 	// Same definition as getAsset(), but just returning getAsset() looks recursive and thats spooky :eyes:
 
 	STATIC_ASSERT_ASSET_TYPE();
-	const std::vector<Asset>& assets = getAssets<Asset>();
+	const std::vector<Asset>& assets = getAssetsConst<Asset>();
 
 	OKAY_ASSERT((uint32_t)id < (uint32_t)assets.size());
 	return assets[id];
