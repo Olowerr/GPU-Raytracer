@@ -3,15 +3,17 @@
 #include "Utilities.h"
 #include "Scene/Entity.h"
 #include "Scene/Components.h"
+#include "GPUStorage.h"
 
 #include "glm/glm.hpp"
 
 class Scene;
+class GPUResourceManager;
 class ResourceManager;
 
 struct RenderData // Aligned 16
 {
-	uint32_t accumulationEnabled = 0;
+	uint32_t accumulationEnabled = 1u;
 	uint32_t numAccumulationFrames = 0u;
 
 	uint32_t numSpheres = 0u;
@@ -35,14 +37,13 @@ class RayTracer
 {
 public:
 	RayTracer();
-	RayTracer(ID3D11Texture2D* pTarget, Scene* pScene, ResourceManager* pResourceManager);
+	RayTracer(ID3D11Texture2D* pTarget, const GPUResourceManager& pGpuResourceManager);
 	~RayTracer();
 
 	void shutdown();
-	void initiate(ID3D11Texture2D* pTarget, Scene* pScene, ResourceManager* pResourceManager);
+	void initiate(ID3D11Texture2D* pTarget, const GPUResourceManager& pGpuResourceManager);
 
-	inline void setScene(Scene* pScene);
-	inline void setCamera(Entity camera);
+	inline void setScene(const Scene& pScene);
 	void render();
 
 	inline void toggleAccumulation(bool enable);
@@ -50,26 +51,16 @@ public:
 	inline uint32_t getNumAccumulationFrames() const;
 
 	void reloadShaders();
-	void loadTriangleData();
-	void loadTextureData();
-
-	inline uint32_t& getMaxBvhLeafTriangles();
-	inline uint32_t& getMaxBvhDepth();
 
 	inline float& getDOFStrength();
 	inline float& getDOFDistance();
 
-	void setEnvironmentMap(std::string_view path);
-
 private: // Scene & Resources
-	Scene* m_pScene;
-	ResourceManager* m_pResourceManager;
+	const Scene* m_pScene;
+	const GPUResourceManager* m_pGpuResourceManager;
+	const ResourceManager* m_pResourceManager;
 
-	Entity m_camera;
 	void calculateProjectionData();
-
-	uint32_t m_maxBvhLeafTriangles;
-	uint32_t m_maxBvhDepth;
 
 private: // DX11
 	void updateBuffers();
@@ -83,59 +74,15 @@ private: // DX11
 	ID3D11ComputeShader* m_pMainRaytracingCS;
 
 private: // Scene GPU Data
-	struct GPUStorage
-	{
-		ID3D11Buffer* pBuffer = nullptr;
-		ID3D11ShaderResourceView* pSRV = nullptr;
-		uint32_t capacity = 0u;
-		uint32_t gpuElementByteSize = 0u;
-	};
-
-	void createGPUStorage(GPUStorage& storage, uint32_t elementSize, uint32_t capacity);
-	void shutdownGPUStorage(GPUStorage& storage);
-
-	template<typename Func>
-	void updateGPUStorage(GPUStorage& storage, uint32_t resizeCapacity, Func function);
-
-
-	GPUStorage m_triangleData;
 	GPUStorage m_meshData;
 	GPUStorage m_spheres;
-	GPUStorage m_bvhTree;
-
-	ID3D11ShaderResourceView* m_pTextureAtlasSRV;
-	GPUStorage m_textureAtlasDesc;
-
-	ID3D11ShaderResourceView* m_pEnvironmentMapSRV;
-
-	// The order of m_meshDescs & m_textureAtlasData matches the respective std::vector in ResourceManager.
-	
-	// Defines the start & end vertex index for a mesh in the vertex buffer, as well as the index of the root node in m_bvhTree
-	struct MeshDesc
-	{
-		uint32_t startIdx;
-		uint32_t endIdx;
-		uint32_t bvhTreeStartIdx;
-	};
-	std::vector<MeshDesc> m_meshDescs;
 };
 
-inline void RayTracer::setScene(Scene* pScene)
-{
-	OKAY_ASSERT(pScene);
-	m_pScene = pScene;
-}
-
-inline void RayTracer::setCamera(Entity camera)
-{
-	OKAY_ASSERT(camera.isValid());
-	OKAY_ASSERT(camera.hasComponents<Camera>());
-	m_camera = camera;
-}
+inline void RayTracer::setScene(const Scene& scene) { m_pScene = &scene; }
 
 inline void RayTracer::toggleAccumulation(bool enable)
 {
-	m_renderData.accumulationEnabled = (int)enable;
+	m_renderData.accumulationEnabled = (uint32_t)enable;
 	resetAccumulation();
 }
 
@@ -147,29 +94,7 @@ inline void RayTracer::resetAccumulation()
 	Okay::getDeviceContext()->ClearUnorderedAccessViewFloat(m_pAccumulationUAV, CLEAR_COLOUR);
 }
 
-inline uint32_t RayTracer::getNumAccumulationFrames() const
-{
-	return m_renderData.numAccumulationFrames;
-}
-
-template<typename Func>
-void RayTracer::updateGPUStorage(GPUStorage& storage, uint32_t resizeCapacity, Func function)
-{
-	if (storage.capacity < resizeCapacity)
-		createGPUStorage(storage, storage.gpuElementByteSize, resizeCapacity + 10u);
-	
-	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
-	D3D11_MAPPED_SUBRESOURCE sub{};
-	if (FAILED(pDevCon->Map(storage.pBuffer, 0u, D3D11_MAP_WRITE_DISCARD, 0u, &sub)))
-		return;
-
-	function((char*)sub.pData);
-
-	pDevCon->Unmap(storage.pBuffer, 0u);
-}
-
-inline uint32_t& RayTracer::getMaxBvhLeafTriangles()	{ return m_maxBvhLeafTriangles; }
-inline uint32_t& RayTracer::getMaxBvhDepth()			{ return m_maxBvhDepth; }
+inline uint32_t RayTracer::getNumAccumulationFrames() const { return m_renderData.numAccumulationFrames; }
 
 inline float& RayTracer::getDOFStrength() { return m_renderData.dofStrength; }
 inline float& RayTracer::getDOFDistance() { return m_renderData.dofDistance; }

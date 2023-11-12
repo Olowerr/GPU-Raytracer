@@ -9,6 +9,7 @@
 
 #include "glm/gtx/quaternion.hpp"
 #include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtc/type_ptr.hpp"
 
 
 Application::Application()
@@ -21,13 +22,14 @@ Application::Application()
 
 	Okay::initiateDX11();
 	m_window.initiate(1600u, 900u, "GPU Raytracer");
-	m_rayTracer.initiate(m_window.getBackBuffer(), &m_scene, &m_resourceManager);
-	m_rayTracer.toggleAccumulation(true);
+
+	m_gpuResourceManager.initiate(m_resourceManager);
+
+	m_rayTracer.initiate(m_window.getBackBuffer(), m_gpuResourceManager);
+	m_rayTracer.setScene(m_scene);
 
 	Okay::initiateImGui(m_window.getGLFWWindow());
 	Okay::getDevice()->CreateRenderTargetView(m_window.getBackBuffer(), nullptr, &m_pBackBuffer);
-
-	m_rayTracer.setEnvironmentMap("resources/environmentMaps/Skybox2.jpg");
 
 	m_resourceManager.importFile("resources/meshes/room.fbx");	
 	m_resourceManager.importFile("resources/textures/RedBlue.png");
@@ -37,8 +39,7 @@ Application::Application()
 
 	m_resourceManager.importFile("resources/meshes/Glass.fbx");	
 
-	m_rayTracer.loadTextureData();
-	m_rayTracer.loadTriangleData();
+	m_gpuResourceManager.loadResources("resources/environmentMaps/Skybox2.jpg");
 }
 
 Application::~Application()
@@ -56,9 +57,8 @@ void Application::run()
 {
 	static ID3D11RenderTargetView* nullRTV = nullptr;
 
-	m_camera = m_scene.createEntity();
-	m_camera.addComponent<Camera>(90.f, 0.1f);
-	m_rayTracer.setCamera(m_camera);
+	Entity camera = m_scene.createEntity();
+	camera.addComponent<Camera>(90.f, 0.1f);
 
 #if 1
 	//Entity ground = m_scene.createEntity();
@@ -89,8 +89,8 @@ void Application::run()
 		meshComp.meshID = i;
 	}
 
-	m_camera.getComponent<Transform>().position.x = 60.f;
-	m_camera.getComponent<Transform>().rotation.y = -90.f;
+	camera.getComponent<Transform>().position.x = 60.f;
+	camera.getComponent<Transform>().rotation.y = -90.f;
 
 #elif 0
 	glm::vec3 colours[3] = 
@@ -297,12 +297,12 @@ void Application::updateImGui()
 
 		ImGui::Separator();
 
-		ImGui::DragInt("BVH Max triangles", (int*)&m_rayTracer.getMaxBvhLeafTriangles(), 1, 0, Okay::INVALID_UINT / 2);
-		ImGui::DragInt("BVH Max depth", (int*)&m_rayTracer.getMaxBvhDepth(), 1, 0, Okay::INVALID_UINT / 2);
+		ImGui::DragInt("BVH Max triangles", (int*)&m_gpuResourceManager.getMaxBvhLeafTriangles(), 1, 0, Okay::INVALID_UINT / 2);
+		ImGui::DragInt("BVH Max depth", (int*)&m_gpuResourceManager.getMaxBvhDepth(), 1, 0, Okay::INVALID_UINT / 2);
 
 		if (ImGui::Button("Rebuild BVH tree"))
 		{
-			m_rayTracer.loadTriangleData();
+			m_gpuResourceManager.loadMeshAndBvhData();
 		}
 
 		ImGui::PopItemWidth();
@@ -329,6 +329,7 @@ void Application::updateImGui()
 
 			ImGui::PushID(entityID);
 
+			// TODO: Switch to glm::value_ptr
 			ImGui::Text("Sphere: %u", entityID);
 			if (ImGui::DragFloat3("Position", &transform.position.x, 0.1f))							resetAcu = true;
 			if (ImGui::ColorEdit3("Colour", &mat.albedo.colour.x))									resetAcu = true;
@@ -369,6 +370,7 @@ void Application::updateImGui()
 
 			ImGui::PushID(entityID);
 
+			// TODO: Switch to glm::value_ptr
 			ImGui::Text("Entity: %u", entityID);
 			if (ImGui::DragFloat3("Position", &transform.position.x, 0.1f))							resetAcu = true;
 			if (ImGui::DragFloat3("Rotation", &transform.rotation.x, 0.1f))							resetAcu = true;
@@ -402,21 +404,32 @@ void Application::updateCamera()
 {
 	static float rotationSpeed = 0.1f;
 	static float moveSpeed = 20.f;
-	Transform& camTra = m_camera.getComponent<Transform>();
+	Entity camera = m_scene.getFirstCamera();
+	OKAY_ASSERT(camera.isValid());
+
+	Transform& camTra = camera.getComponent<Transform>();
 
 	if (ImGui::Begin("Camera"))
 	{
+		bool resetAcu = false;
+
 		ImGui::PushItemWidth(-120.f);
 
-		ImGui::Text("Pos: (%.3f, %.3f, %.3f)", camTra.position.x, camTra.position.y, camTra.position.z);
-		ImGui::Text("Rot: (%.3f, %.3f, %.3f)", camTra.rotation.x, camTra.rotation.y, camTra.rotation.z);
+		if (ImGui::DragFloat3("Camera Pos", glm::value_ptr(camTra.position), 0.01f))	resetAcu = true;
+		if (ImGui::DragFloat3("Camera Rot", glm::value_ptr(camTra.rotation), 0.1f))		resetAcu = true;
 
 		ImGui::Separator();
 
-		ImGui::DragFloat("Rotation Speed", &rotationSpeed, 0.02f);
-		ImGui::DragFloat("Move Speed", &moveSpeed, 0.2f);
+		if (ImGui::DragFloat("Rotation Speed", &rotationSpeed, 0.02f))			resetAcu = true;
+		if (ImGui::DragFloat("Move Speed", &moveSpeed, 0.2f))					resetAcu = true;
 
 		ImGui::PopItemWidth();
+
+		if (resetAcu)
+		{
+			m_rayTracer.resetAccumulation();
+			m_accumulationTime = 0.f;
+		}
 	}
 	ImGui::End();
 
@@ -443,8 +456,8 @@ void Application::updateCamera()
 
 	const glm::mat3 rotationMatrix = glm::toMat3(glm::quat(glm::radians(camTra.rotation)));
 
-	const glm::vec3 fwd = rotationMatrix[2];
-	const glm::vec3 right = rotationMatrix[0];
+	const glm::vec3& fwd = rotationMatrix[2];
+	const glm::vec3& right = rotationMatrix[0];
 
 	const float frameSpeed = ImGui::GetIO().DeltaTime * moveSpeed * (Input::isKeyDown(Key::LeftShift) ? 3.f : 1.f);
 

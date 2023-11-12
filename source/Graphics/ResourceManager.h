@@ -71,8 +71,6 @@ inline Asset& ResourceManager::getAsset(AssetID id)
 template<typename Asset>
 inline const Asset& ResourceManager::getAsset(AssetID id) const
 {
-	// Same definition as getAsset(), but just returning getAsset() looks recursive and thats spooky :eyes:
-
 	STATIC_ASSERT_ASSET_TYPE();
 	const std::vector<Asset>& assets = getAssetsConst<Asset>();
 

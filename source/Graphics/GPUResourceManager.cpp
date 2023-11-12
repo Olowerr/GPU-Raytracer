@@ -32,9 +32,7 @@ void GPUResourceManager::shutdown()
 	m_pResourceManager = nullptr;
 
 	m_triangleData.shutdown();
-	m_meshData.shutdown();
 	m_bvhTree.shutdown();
-	m_spheres.shutdown();
 
 	DX11_RELEASE(m_pTextureAtlasSRV);
 	m_textureAtlasDesc.shutdown();
@@ -51,60 +49,23 @@ void GPUResourceManager::initiate(const ResourceManager& resourceManager)
 	m_maxBvhLeafTriangles = 100u;
 	m_maxBvhDepth = 100u;
 
-	const uint32_t SRV_START_SIZE = 10u;
-	m_spheres.initiate(sizeof(glm::vec3) + sizeof(Sphere), SRV_START_SIZE, nullptr);
-	m_meshData.initiate(sizeof(GPU_MeshComponent), SRV_START_SIZE, nullptr);
-	// m_triangleData created in GPUResourceManager::loadTriangleData().
-	// m_bvhTree created in GPUResourceManager::loadTriangleData().
-	// m_textureAtlasData created in GPUResourceManager::createTextureAtlas().
-}
-
-void GPUResourceManager::loadSceneData(const Scene& scene)
-{
-	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
-	const entt::registry& reg = scene.getRegistry();
-
-	auto sphereView = reg.view<Sphere, Transform>();
-	m_spheres.update((uint32_t)sphereView.size_hint(), [&](char* pMappedBufferData)
-	{
-		for (entt::entity entity : sphereView)
-		{
-			auto [sphere, transform] = sphereView[entity];
-
-			memcpy(pMappedBufferData, &transform.position, sizeof(glm::vec3));
-			pMappedBufferData += sizeof(glm::vec3);
-
-			memcpy(pMappedBufferData, &sphere, sizeof(Sphere));
-			pMappedBufferData += sizeof(Sphere);
-		}
-	});
-
-	auto meshView = reg.view<MeshComponent, Transform>();
-	m_meshData.update((uint32_t)meshView.size_hint(), [&](char* pMappedBufferData)
-	{
-		glm::mat4 transformMatrix{};
-		GPU_MeshComponent* gpuData;
-		for (entt::entity entity : meshView)
-		{
-			gpuData = (GPU_MeshComponent*)pMappedBufferData;
-
-			auto [meshComp, transform] = meshView[entity];
-			transformMatrix = glm::transpose(transform.calculateMatrix());
-
-			gpuData->triStart = m_meshDescs[meshComp.meshID].startIdx;
-			gpuData->triEnd = m_meshDescs[meshComp.meshID].endIdx;
-
-			gpuData->boundingBox = m_pResourceManager->getAsset<Mesh>(meshComp.meshID).getBoundingBox();
-
-			gpuData->transformMatrix = transformMatrix;
-			gpuData->inverseTransformMatrix = glm::inverse(transformMatrix);
-
-			gpuData->material = meshComp.material;
-			gpuData->bvhNodeStartIdx = m_meshDescs[meshComp.meshID].bvhTreeStartIdx;
-
-			pMappedBufferData += sizeof(GPU_MeshComponent);
-		}
-	});
+	{ // Basic Sampler
+		D3D11_SAMPLER_DESC simpDesc{};
+		simpDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+		simpDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+		simpDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+		simpDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+		simpDesc.MinLOD = -FLT_MAX;
+		simpDesc.MaxLOD = FLT_MAX;
+		simpDesc.MipLODBias = 0.f;
+		simpDesc.MaxAnisotropy = 1u;
+		simpDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+		ID3D11SamplerState* pSimp = nullptr;
+		bool success = SUCCEEDED(Okay::getDevice()->CreateSamplerState(&simpDesc, &pSimp));
+		OKAY_ASSERT(success);
+		Okay::getDeviceContext()->CSSetSamplers(0u, 1u, &pSimp);
+		DX11_RELEASE(pSimp);
+	}
 }
 
 void GPUResourceManager::bindResources()
@@ -112,8 +73,8 @@ void GPUResourceManager::bindResources()
 	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
 
 	ID3D11ShaderResourceView* srvs[NUM_T_REGISTERS]{};
-	srvs[SPHERE_DATA_CPU_SLOT]			= m_spheres.getSRV();
-	srvs[MESH_DATA_CPU_SLOT]			= m_meshData.getSRV();
+	srvs[SPHERE_DATA_CPU_SLOT]			= nullptr; // Temp
+	srvs[MESH_DATA_CPU_SLOT]			= nullptr; // Temp
 	srvs[TRIANGLE_DATA_CPU_SLOT]		= m_triangleData.getSRV();
 	srvs[TEXTURE_ATLAS_DESC_CPU_SLOT]	= m_textureAtlasDesc.getSRV();
 	srvs[TEXTURE_ATLAS_CPU_SLOT]		= m_pTextureAtlasSRV;
@@ -130,6 +91,7 @@ void GPUResourceManager::loadResources(std::string_view environmentMapPath)
 	loadMeshAndBvhData();
 	loadTextureData();
 	loadEnvironmentMap(environmentMapPath);
+	bindResources();
 }
 
 inline uint32_t tryOffsetIdx(uint32_t idx, uint32_t offset)

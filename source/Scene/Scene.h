@@ -17,6 +17,9 @@ public:
 	inline entt::registry& getRegistry();
 	inline const entt::registry& getRegistry() const;
 
+	const Entity getFirstCamera() const;
+	Entity getFirstCamera();
+
 private:
 	entt::registry registry;
 
