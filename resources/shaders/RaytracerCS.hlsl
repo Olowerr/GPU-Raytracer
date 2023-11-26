@@ -54,23 +54,26 @@ struct Node
 
 
 // ---- Resources
-RWTexture2D<unorm float4> resultBuffer : register(RESULT_BUFFER_GPU_REG);
-RWTexture2D<float4> accumulationBuffer : register(ACCUMULATION_BUFFER_GPU_REG);
-cbuffer RenderDataBuffer : register(RENDER_DATA_GPU_REG)
+
+// From GPUResourceManager
+StructuredBuffer<Triangle> triangleData : register(RM_TRIANGLE_DATA_GPU_REG);
+StructuredBuffer<Node> bvhNodes : register(RM_BVH_TREE_GPU_REG);
+StructuredBuffer<AtlasTextureDesc> textureDescs : register(RM_TEXTURE_ATLAS_DESC_GPU_REG);
+Texture2D<unorm float4> textureAtlas : register(RM_TEXTURE_ATLAS_GPU_REG);
+TextureCube environmentMap : register(RM_ENVIRONMENT_MAP_GPU_REG);
+
+SamplerState simp : register(s0);
+
+// From RayTracer
+RWTexture2D<unorm float4> resultBuffer : register(RT_RESULT_BUFFER_GPU_REG);
+RWTexture2D<float4> accumulationBuffer : register(RT_ACCUMULATION_BUFFER_GPU_REG);
+StructuredBuffer<Sphere> sphereData : register(RT_SPHERE_DATA_GPU_REG);
+StructuredBuffer<Mesh> meshData : register(RT_MESH_ENTITY_DATA_GPU_REG);
+cbuffer RenderDataBuffer : register(RT_RENDER_DATA_GPU_REG)
 {
     RenderData renderData;
 }
-SamplerState simp : register(s0);
 
-// Scene data
-StructuredBuffer<Sphere> sphereData : register(SPHERE_DATA_GPU_REG);
-StructuredBuffer<Mesh> meshData : register(MESH_DATA_GPU_REG);
-StructuredBuffer<Triangle> triangleData : register(TRIANGLE_DATA_GPU_REG);
-StructuredBuffer<Node> bvhNodes : register(BVH_TREE_GPU_REG);
-TextureCube environmentMap : register(ENVIRONMENT_MAP_GPU_REG);
-
-StructuredBuffer<AtlasTextureDesc> textureDescs : register(TEXTURE_ATLAS_DESC_GPU_REG);
-Texture2D<unorm float4> textureAtlas : register(TEXTURE_ATLAS_GPU_REG);
 
 /*
     TODO: Check if seperating triangles into 3 buffers: positions, normals and uv, can be faster than current.

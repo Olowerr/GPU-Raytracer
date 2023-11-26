@@ -72,18 +72,16 @@ void GPUResourceManager::bindResources()
 {
 	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
 
-	ID3D11ShaderResourceView* srvs[NUM_T_REGISTERS]{};
-	srvs[SPHERE_DATA_CPU_SLOT]			= nullptr; // Temp
-	srvs[MESH_DATA_CPU_SLOT]			= nullptr; // Temp
-	srvs[TRIANGLE_DATA_CPU_SLOT]		= m_triangleData.getSRV();
-	srvs[TEXTURE_ATLAS_DESC_CPU_SLOT]	= m_textureAtlasDesc.getSRV();
-	srvs[TEXTURE_ATLAS_CPU_SLOT]		= m_pTextureAtlasSRV;
-	srvs[BVH_TREE_CPU_SLOT]				= m_bvhTree.getSRV();
-	srvs[ENVIRONMENT_MAP_CPU_SLOT]		= m_pEnvironmentMapSRV;
+	ID3D11ShaderResourceView* srvs[5u]{};
+	srvs[RM_TRIANGLE_DATA_SLOT]			= m_triangleData.getSRV();
+	srvs[RM_TEXTURE_ATLAS_DESC_SLOT]	= m_textureAtlasDesc.getSRV();
+	srvs[RM_TEXTURE_ATLAS_SLOT]			= m_pTextureAtlasSRV;
+	srvs[RM_BVH_TREE_SLOT]				= m_bvhTree.getSRV();
+	srvs[RM_ENVIRONMENT_MAP_SLOT]		= m_pEnvironmentMapSRV;
 
-	pDevCon->VSSetShaderResources(0u, NUM_T_REGISTERS, srvs);
-	pDevCon->PSSetShaderResources(0u, NUM_T_REGISTERS, srvs);
-	pDevCon->CSSetShaderResources(0u, NUM_T_REGISTERS, srvs);
+	pDevCon->VSSetShaderResources(RM_TRIANGLE_DATA_SLOT, 5u, srvs);
+	pDevCon->PSSetShaderResources(RM_TRIANGLE_DATA_SLOT, 5u, srvs);
+	pDevCon->CSSetShaderResources(RM_TRIANGLE_DATA_SLOT, 5u, srvs);
 }
 
 void GPUResourceManager::loadResources(std::string_view environmentMapPath)

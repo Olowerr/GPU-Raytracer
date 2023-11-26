@@ -102,16 +102,16 @@ void RayTracer::render()
 	// TODO: Bind only at start
 
 	ID3D11ShaderResourceView* srvs[2u]{};
-	srvs[SPHERE_DATA_CPU_SLOT] = m_spheres.getSRV();
-	srvs[MESH_DATA_CPU_SLOT] = m_meshData.getSRV();
-	pDevCon->CSSetShaderResources(0u, 2u, srvs);
+	srvs[0] = m_spheres.getSRV();
+	srvs[1] = m_meshData.getSRV();
+	pDevCon->CSSetShaderResources(RT_SPHERE_DATA_SLOT, 2u, srvs);
 
 
 	// Bind standard resources
 	pDevCon->CSSetShader(m_pMainRaytracingCS, nullptr, 0u);
-	pDevCon->CSSetUnorderedAccessViews(RESULT_BUFFER_CPU_SLOT, 1u, &m_pTargetUAV, nullptr);
-	pDevCon->CSSetUnorderedAccessViews(ACCUMULATION_BUFFER_CPU_SLOT, 1u, &m_pAccumulationUAV, nullptr);
-	pDevCon->CSSetConstantBuffers(RENDER_DATA_CPU_SLOT, 1u, &m_pRenderDataBuffer);
+	pDevCon->CSSetUnorderedAccessViews(RT_RESULT_BUFFER_SLOT, 1u, &m_pTargetUAV, nullptr);
+	pDevCon->CSSetUnorderedAccessViews(RT_ACCUMULATION_BUFFER_SLOT, 1u, &m_pAccumulationUAV, nullptr);
+	pDevCon->CSSetConstantBuffers(RT_RENDER_DATA_SLOT, 1u, &m_pRenderDataBuffer);
 
 	// Dispatch and unbind
 	pDevCon->Dispatch(m_renderData.textureDims.x / 16u, m_renderData.textureDims.y / 9u, 1u);
@@ -130,11 +130,6 @@ void RayTracer::reloadShaders()
 	m_pMainRaytracingCS = pNewShader;
 
 	resetAccumulation();
-}
-
-inline uint32_t tryOffsetIdx(uint32_t idx, uint32_t offset)
-{
-	return idx == Okay::INVALID_UINT ? idx : idx + offset;
 }
 
 void RayTracer::calculateProjectionData()
