@@ -29,6 +29,9 @@ RayTracer::~RayTracer()
 void RayTracer::shutdown()
 {
 	m_pScene = nullptr;
+	m_pGpuResourceManager = nullptr;
+	m_pResourceManager = nullptr;
+
 	DX11_RELEASE(m_pTargetUAV);
 	DX11_RELEASE(m_pAccumulationUAV);
 	DX11_RELEASE(m_pRenderDataBuffer);

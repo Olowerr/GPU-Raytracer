@@ -263,9 +263,14 @@ Payload findClosestHit(Ray ray)
                 {
                     Triangle tri = triangleData[i];
             
-                    float3 pos0 = tri.p0.position;
-                    float3 pos1 = tri.p1.position;
-                    float3 pos2 = tri.p2.position;
+                    Vertex p0, p1, p2;
+                    p0 = tri.verticies[0];
+                    p1 = tri.verticies[1];
+                    p2 = tri.verticies[2];
+                    
+                    float3 pos0 = p0.position;
+                    float3 pos1 = p1.position;
+                    float3 pos2 = p2.position;
             
                     float3 baryUVCoord;
                     float distanceToHit = Collision::RayAndTriangle(localRay, pos0, pos1, pos2, baryUVCoord.xy);
@@ -287,8 +292,8 @@ Payload findClosestHit(Ray ray)
                         hitType = 1;
             
                         baryUVCoord.z = 1.f - (baryUVCoord.x + baryUVCoord.y);
-                        float4 normal = float4(barycentricInterpolation(baryUVCoord, tri.p0.normal, tri.p1.normal, tri.p2.normal), 0.f);
-                        float2 lerpedUV = barycentricInterpolation(baryUVCoord, tri.p0.uv, tri.p1.uv, tri.p2.uv);
+                        float4 normal = float4(barycentricInterpolation(baryUVCoord, p0.normal, p1.normal, p2.normal), 0.f);
+                        float2 lerpedUV = barycentricInterpolation(baryUVCoord, p0.uv, p1.uv, p2.uv);
                         
                         // Convert normal to worldspace
                         payload.worldNormal = normalize(mul(normal, traMatrix).xyz);

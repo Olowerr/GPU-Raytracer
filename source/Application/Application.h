@@ -1,6 +1,7 @@
 #pragma once
 #include "Window.h"
 #include "Graphics/RayTracer.h"
+#include "Graphics/DebugRenderer.h"
 #include "Graphics/ResourceManager.h"
 #include "Graphics/GPUResourceManager.h"
 #include "Scene/Scene.h"
@@ -20,6 +21,8 @@ private:
 	ResourceManager m_resourceManager;
 	GPUResourceManager m_gpuResourceManager;
 	ID3D11RenderTargetView* m_pBackBuffer; //Only used for ImGui
+
+	DebugRenderer m_debugRenderer;
 
 	void updateImGui();
 

@@ -47,7 +47,7 @@ void GPUResourceManager::initiate(const ResourceManager& resourceManager)
 	m_pResourceManager = &resourceManager;
 
 	m_maxBvhLeafTriangles = 100u;
-	m_maxBvhDepth = 100u;
+	m_maxBvhDepth = 1u;
 
 	{ // Basic Sampler
 		D3D11_SAMPLER_DESC simpDesc{};
@@ -63,6 +63,8 @@ void GPUResourceManager::initiate(const ResourceManager& resourceManager)
 		ID3D11SamplerState* pSimp = nullptr;
 		bool success = SUCCEEDED(Okay::getDevice()->CreateSamplerState(&simpDesc, &pSimp));
 		OKAY_ASSERT(success);
+		Okay::getDeviceContext()->VSSetSamplers(0u, 1u, &pSimp);
+		Okay::getDeviceContext()->PSSetSamplers(0u, 1u, &pSimp);
 		Okay::getDeviceContext()->CSSetSamplers(0u, 1u, &pSimp);
 		DX11_RELEASE(pSimp);
 	}

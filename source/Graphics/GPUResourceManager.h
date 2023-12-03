@@ -54,7 +54,6 @@ private:
 	std::vector<MeshDesc> m_meshDescs;
 
 private:
-	void loadCameraData(const Entity camEntity);
 	void loadTextureData();
 	void loadEnvironmentMap(std::string_view path);
 	void bindResources();

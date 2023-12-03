@@ -61,9 +61,7 @@ struct Vertex
 
 struct Triangle
 {
-    Vertex p0;
-    Vertex p1;
-    Vertex p2;
+    Vertex verticies[3];
 };
 
 struct Mesh
@@ -80,6 +78,13 @@ struct Mesh
     uint bvhNodeStartIdx;
 };
 
+struct PS_Input
+{
+    float4 svPos : SV_Position;
+    float3 position : POSITION;
+    float3 normal : NORMAL;
+    float2 uv : TEXTURE_COORDS;
+};
 
 uint pcg_hash(inout uint seed)
 {

@@ -11,28 +11,6 @@ class Scene;
 class GPUResourceManager;
 class ResourceManager;
 
-struct RenderData // Aligned 16
-{
-	uint32_t accumulationEnabled = 1u;
-	uint32_t numAccumulationFrames = 0u;
-
-	uint32_t numSpheres = 0u;
-	uint32_t numMeshes = 0u;
-	
-	glm::uvec2 textureDims{};
-	glm::vec2 viewPlaneDims{};
-
-	glm::mat4 cameraInverseProjectionMatrix = glm::mat4(1.f);
-	glm::mat4 cameraInverseViewMatrix = glm::mat4(1.f);
-	glm::vec3 cameraPosition{};
-	float cameraNearZ = 0.f;
-
-	glm::vec3 cameraUpDir;
-	float dofStrength = 0.f;
-	glm::vec3 cameraRightDir;
-	float dofDistance = 0.f;
-};
-
 class RayTracer
 {
 public:
@@ -63,6 +41,28 @@ private: // Scene & Resources
 	void calculateProjectionData();
 
 private: // DX11
+	struct RenderData // Aligned 16
+	{
+		uint32_t accumulationEnabled = 1u;
+		uint32_t numAccumulationFrames = 0u;
+
+		uint32_t numSpheres = 0u;
+		uint32_t numMeshes = 0u;
+
+		glm::uvec2 textureDims{};
+		glm::vec2 viewPlaneDims{};
+
+		glm::mat4 cameraInverseProjectionMatrix = glm::mat4(1.f);
+		glm::mat4 cameraInverseViewMatrix = glm::mat4(1.f);
+		glm::vec3 cameraPosition{};
+		float cameraNearZ = 0.f;
+
+		glm::vec3 cameraUpDir;
+		float dofStrength = 0.f;
+		glm::vec3 cameraRightDir;
+		float dofDistance = 0.f;
+	};
+
 	void updateBuffers();
 
 	ID3D11UnorderedAccessView* m_pTargetUAV;

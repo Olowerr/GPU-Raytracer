@@ -28,6 +28,9 @@ Application::Application()
 	m_rayTracer.initiate(m_window.getBackBuffer(), m_gpuResourceManager);
 	m_rayTracer.setScene(m_scene);
 
+	m_debugRenderer.initiate(m_window.getBackBuffer(), m_gpuResourceManager);
+	m_debugRenderer.setScene(m_scene);
+
 	Okay::initiateImGui(m_window.getGLFWWindow());
 	Okay::getDevice()->CreateRenderTargetView(m_window.getBackBuffer(), nullptr, &m_pBackBuffer);
 
@@ -245,7 +248,7 @@ void Application::run()
 		updateImGui();
 		updateCamera();
 
-		m_rayTracer.render();
+		m_debugRenderer.render();
 
 		Okay::getDeviceContext()->OMSetRenderTargets(1u, &m_pBackBuffer, nullptr);
 		Okay::endFrameImGui();

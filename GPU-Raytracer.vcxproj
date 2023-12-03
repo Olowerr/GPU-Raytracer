@@ -126,7 +126,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions);GLM_FORCE_DEPTH_ZERO_TO_ONE;</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalIncludeDirectories>$(SolutionDir)deps\include\;$(SolutionDir)source\;$(SolutionDir)resources\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -149,7 +149,7 @@ SET ERRORLEVEL=0</Command>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions);GLM_FORCE_DEPTH_ZERO_TO_ONE;</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalIncludeDirectories>$(SolutionDir)deps\include\;$(SolutionDir)source\;$(SolutionDir)resources\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -174,7 +174,7 @@ SET ERRORLEVEL=0</Command>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>DIST;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>DIST;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions);GLM_FORCE_DEPTH_ZERO_TO_ONE;</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalIncludeDirectories>$(SolutionDir)deps\include\;$(SolutionDir)source\;$(SolutionDir)resources\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -279,6 +279,7 @@ SET ERRORLEVEL=0</Command>
     <ClCompile Include="source\Graphics\GPUResourceManager.cpp" />
     <ClCompile Include="source\Graphics\GPUStorage.cpp" />
     <ClCompile Include="source\Graphics\Importer.cpp" />
+    <ClCompile Include="source\Graphics\DebugRenderer.cpp" />
     <ClCompile Include="source\Graphics\ResourceManager.cpp" />
     <ClCompile Include="source\Scene\Scene.cpp" />
     <ClCompile Include="source\DirectX\DX11.cpp" />
@@ -304,6 +305,7 @@ SET ERRORLEVEL=0</Command>
     <ClInclude Include="source\Graphics\GPUStorage.h" />
     <ClInclude Include="source\Graphics\Importer.h" />
     <ClInclude Include="source\Graphics\Mesh.h" />
+    <ClInclude Include="source\Graphics\DebugRenderer.h" />
     <ClInclude Include="source\Graphics\ResourceManager.h" />
     <ClInclude Include="source\Graphics\Texture.h" />
     <ClInclude Include="source\Scene\Camera.h" />
@@ -324,6 +326,26 @@ SET ERRORLEVEL=0</Command>
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\shaders\ShaderResourceRegisters.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="resources\shaders\DebugPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Distribution|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Distribution|Win32'">Pixel</ShaderType>
+      <FileType>Document</FileType>
+    </None>
+    <None Include="resources\shaders\DebugVS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Distribution|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Distribution|Win32'">Vertex</ShaderType>
+      <FileType>Document</FileType>
+    </None>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

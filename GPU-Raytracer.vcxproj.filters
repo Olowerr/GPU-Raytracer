@@ -72,6 +72,9 @@
     <ClCompile Include="source\Graphics\GPUResourceManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="source\Graphics\DebugRenderer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\Application\Window.h">
@@ -158,10 +161,15 @@
     <ClInclude Include="source\Graphics\GPUStorage.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="source\Graphics\DebugRenderer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\shaders\ShaderResourceRegisters.h" />
     <None Include="resources\shaders\RaytracerCS.hlsl" />
     <None Include="resources\shaders\GPU-Utilities.hlsli" />
+    <None Include="resources\shaders\DebugVS.hlsl" />
+    <None Include="resources\shaders\DebugPS.hlsl" />
   </ItemGroup>
 </Project>

@@ -17,6 +17,7 @@
 
 // b register
 #define RT_RENDER_DATA_SLOT 0
+#define RZ_RENDER_DATA_SLOT 1
 
 // u register
 #define RT_RESULT_BUFFER_SLOT 0
@@ -36,6 +37,7 @@
 
 // b register
 #define RT_RENDER_DATA_GPU_REG b0
+#define RZ_RENDER_DATA_GPU_REG b1
 
 // u register
 #define RT_RESULT_BUFFER_GPU_REG u0

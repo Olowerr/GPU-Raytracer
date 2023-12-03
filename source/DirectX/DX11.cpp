@@ -207,6 +207,8 @@ namespace Okay
 	};
 
 	template bool createShader(std::string_view path, ID3D11ComputeShader** ppShader, std::string* pOutShaderData);
+	template bool createShader(std::string_view path, ID3D11VertexShader** ppShader, std::string* pOutShaderData);
+	template bool createShader(std::string_view path, ID3D11PixelShader** ppShader, std::string* pOutShaderData);
 
 	template<typename ShaderType>
 	bool createShader(std::string_view path, ShaderType** ppShader, std::string* pOutShaderData)
@@ -216,20 +218,23 @@ namespace Okay
 
 		std::string_view fileEnding = Okay::getFileEnding(path);
 
+		std::string shaderData;
+		if (!pOutShaderData)
+			pOutShaderData = &shaderData;
+
 		if (fileEnding == ".cso" || fileEnding == ".CSO")
 		{
-			std::string shaderData;
-
-			// if pOutShaderData is nullptr, it is simply used to point to the actual buffer
-			// Allowing faster and (imo) a bit cleaner code 
-			if (!pOutShaderData)
-				pOutShaderData = &shaderData;
 
 			if (!Okay::readBinary(path, *pOutShaderData))
 				return false;
 
 			if constexpr (std::is_same<ShaderType, ID3D11ComputeShader>())
 				return SUCCEEDED(dx11.pDevice->CreateComputeShader(pOutShaderData->c_str(), pOutShaderData->length(), nullptr, ppShader));
+			if constexpr (std::is_same<ShaderType, ID3D11VertexShader>())
+				return SUCCEEDED(dx11.pDevice->CreateVertexShader(pOutShaderData->c_str(), pOutShaderData->length(), nullptr, ppShader));
+			if constexpr (std::is_same<ShaderType, ID3D11PixelShader>())
+				return SUCCEEDED(dx11.pDevice->CreatePixelShader(pOutShaderData->c_str(), pOutShaderData->length(), nullptr, ppShader));
+
 		}
 		else
 		{
@@ -251,6 +256,8 @@ namespace Okay
 
 			const char* shaderTypeTarget = nullptr;
 			if constexpr (std::is_same<ShaderType, ID3D11ComputeShader>())	shaderTypeTarget = "cs_5_0";
+			if constexpr (std::is_same<ShaderType, ID3D11VertexShader>())	shaderTypeTarget = "vs_5_0";
+			if constexpr (std::is_same<ShaderType, ID3D11PixelShader>())	shaderTypeTarget = "ps_5_0";
 
 
 			IncludeReader includer;
@@ -268,11 +275,15 @@ namespace Okay
 				return false;
 			}
 
-			if (pOutShaderData)
-				pOutShaderData->assign((char*)shaderData->GetBufferPointer(), shaderData->GetBufferSize());
+			pOutShaderData->assign((char*)shaderData->GetBufferPointer(), shaderData->GetBufferSize());
 
 			if constexpr (std::is_same<ShaderType, ID3D11ComputeShader>())
-				return SUCCEEDED(dx11.pDevice->CreateComputeShader(shaderData->GetBufferPointer(), shaderData->GetBufferSize(), nullptr, ppShader));
+				return SUCCEEDED(dx11.pDevice->CreateComputeShader(pOutShaderData->c_str(), pOutShaderData->length(), nullptr, ppShader));
+			if constexpr (std::is_same<ShaderType, ID3D11VertexShader>())
+				return SUCCEEDED(dx11.pDevice->CreateVertexShader(pOutShaderData->c_str(), pOutShaderData->length(), nullptr, ppShader));
+			if constexpr (std::is_same<ShaderType, ID3D11PixelShader>())
+				return SUCCEEDED(dx11.pDevice->CreatePixelShader(pOutShaderData->c_str(), pOutShaderData->length(), nullptr, ppShader));
+
 		}
 
 		return false;
