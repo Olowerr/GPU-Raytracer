@@ -39,7 +39,7 @@ void GPUStorage::initiate(uint32_t elementByteWidth, uint32_t capacity, void* pD
 	OKAY_ASSERT(success);
 }
 
-void GPUStorage::update(uint32_t newCapacity, void* pData)
+void GPUStorage::updateRaw(uint32_t newCapacity, void* pData)
 {
 	OKAY_ASSERT(pData);
 	OKAY_ASSERT(newCapacity);

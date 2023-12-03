@@ -93,6 +93,8 @@ void RayTracer::initiate(ID3D11Texture2D* pTarget, const GPUResourceManager& gpu
 
 void RayTracer::render()
 {
+	m_pGpuResourceManager->bindResources();
+
 	calculateProjectionData();
 	updateBuffers();
 
@@ -101,8 +103,6 @@ void RayTracer::render()
 	// Clear
 	static const float CLEAR_COLOUR[4]{ 0.2f, 0.4f, 0.6f, 1.f };
 	pDevCon->ClearUnorderedAccessViewFloat(m_pTargetUAV, CLEAR_COLOUR);
-
-	// TODO: Bind only at start
 
 	ID3D11ShaderResourceView* srvs[2u]{};
 	srvs[0] = m_spheres.getSRV();

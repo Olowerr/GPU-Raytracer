@@ -8,7 +8,8 @@ cbuffer RenderDataBuffer : register(RZ_RENDER_DATA_GPU_REG)
     float4x4 camViewProjMatrix;
     float4x4 objectWorldMatrix;
     uint vertStartIdx;
-    float3 pad0;
+    uint bvhNodeIdx;
+    float2 pad0;
     MaterialColour3 albedo;
 }
 

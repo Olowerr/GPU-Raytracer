@@ -23,14 +23,6 @@ Application::Application()
 	Okay::initiateDX11();
 	m_window.initiate(1600u, 900u, "GPU Raytracer");
 
-	m_gpuResourceManager.initiate(m_resourceManager);
-
-	m_rayTracer.initiate(m_window.getBackBuffer(), m_gpuResourceManager);
-	m_rayTracer.setScene(m_scene);
-
-	m_debugRenderer.initiate(m_window.getBackBuffer(), m_gpuResourceManager);
-	m_debugRenderer.setScene(m_scene);
-
 	Okay::initiateImGui(m_window.getGLFWWindow());
 	Okay::getDevice()->CreateRenderTargetView(m_window.getBackBuffer(), nullptr, &m_pBackBuffer);
 
@@ -42,7 +34,14 @@ Application::Application()
 
 	m_resourceManager.importFile("resources/meshes/Glass.fbx");	
 
+	m_gpuResourceManager.initiate(m_resourceManager);
 	m_gpuResourceManager.loadResources("resources/environmentMaps/Skybox2.jpg");
+
+	m_rayTracer.initiate(m_window.getBackBuffer(), m_gpuResourceManager);
+	m_rayTracer.setScene(m_scene);
+
+	m_debugRenderer.initiate(m_window.getBackBuffer(), m_gpuResourceManager);
+	m_debugRenderer.setScene(m_scene);
 }
 
 Application::~Application()
@@ -248,7 +247,10 @@ void Application::run()
 		updateImGui();
 		updateCamera();
 
-		m_debugRenderer.render();
+		if (m_useDebugRenderer)
+			m_debugRenderer.render();
+		else
+			m_rayTracer.render();
 
 		Okay::getDeviceContext()->OMSetRenderTargets(1u, &m_pBackBuffer, nullptr);
 		Okay::endFrameImGui();
@@ -262,7 +264,7 @@ void Application::updateImGui()
 {
 	static bool accumulate = true;
 	m_accumulationTime += ImGui::GetIO().DeltaTime;
-	m_accumulationTime *= (float)accumulate;
+	m_accumulationTime *= (float)accumulate * (float)!m_useDebugRenderer;
 
 	bool resetAcu = false;
 
@@ -273,39 +275,56 @@ void Application::updateImGui()
 		ImGui::Text("FPS: %.3f", 1.f / ImGui::GetIO().DeltaTime);
 		ImGui::Text("MS: %.3f", ImGui::GetIO().DeltaTime * 1000.f);
 
-		ImGui::Separator();
-
-		ImGui::Text("Accumulation Frames: %u", m_rayTracer.getNumAccumulationFrames());
-		ImGui::Text("Accumulation Time:	%.2f", m_accumulationTime);
-		if (ImGui::Checkbox("Accumulate", &accumulate))
-			m_rayTracer.toggleAccumulation(accumulate);
-
-		if (ImGui::Button("Reset Accumulation"))
+		if (ImGui::Checkbox("Debug", &m_useDebugRenderer))
 		{
 			resetAcu = true;
 		}
-
-		ImGui::Separator();
-
-		if (ImGui::DragFloat("DOF Strength", &m_rayTracer.getDOFStrength(), 0.05f, 0.f, 10.f)) resetAcu = true;
-		if (ImGui::DragFloat("DOF Distance", &m_rayTracer.getDOFDistance(), 0.05f, 0.f, 1000.f)) resetAcu = true;
 
 		ImGui::Separator();
 
 		if (ImGui::Button("Reload Shaders"))
 		{
 			m_rayTracer.reloadShaders();
+			m_debugRenderer.reloadShaders();
 			resetAcu = true;
 		}
 
 		ImGui::Separator();
 
-		ImGui::DragInt("BVH Max triangles", (int*)&m_gpuResourceManager.getMaxBvhLeafTriangles(), 1, 0, Okay::INVALID_UINT / 2);
-		ImGui::DragInt("BVH Max depth", (int*)&m_gpuResourceManager.getMaxBvhDepth(), 1, 0, Okay::INVALID_UINT / 2);
+		ImGui::DragInt("BVH Max triangles", (int*)&m_gpuResourceManager.getMaxBvhLeafTriangles(), 1, 1, Okay::INVALID_UINT / 2);
+		ImGui::DragInt("BVH Max depth", (int*)&m_gpuResourceManager.getMaxBvhDepth(), 0.3f, 1, Okay::INVALID_UINT / 2);
 
 		if (ImGui::Button("Rebuild BVH tree"))
 		{
 			m_gpuResourceManager.loadMeshAndBvhData();
+		}
+
+		ImGui::Separator();
+
+		if (m_useDebugRenderer)
+		{
+			// TODO: Fill with GUI elements for toggling bvhTree rendering and other cool visualizers
+			static bool drawBvhTree = false;
+			if (ImGui::Checkbox("Draw Bvh Trees", &drawBvhTree))
+				m_debugRenderer.toggleBvhTreeRendering(drawBvhTree);
+		}
+		else
+		{
+			ImGui::Text("Accumulation Frames: %u", m_rayTracer.getNumAccumulationFrames());
+			ImGui::Text("Accumulation Time: %.2f", m_accumulationTime);
+			if (ImGui::Checkbox("Accumulate", &accumulate))
+			{
+				m_rayTracer.toggleAccumulation(accumulate);
+			}
+
+			if (ImGui::Button("Reset Accumulation")) resetAcu = true;
+
+			ImGui::Separator();
+
+			if (ImGui::DragFloat("DOF Strength", &m_rayTracer.getDOFStrength(), 0.05f, 0.f, 10.f)) resetAcu = true;
+			if (ImGui::DragFloat("DOF Distance", &m_rayTracer.getDOFDistance(), 0.05f, 0.f, 1000.f)) resetAcu = true;
+
+			ImGui::Separator();
 		}
 
 		ImGui::PopItemWidth();

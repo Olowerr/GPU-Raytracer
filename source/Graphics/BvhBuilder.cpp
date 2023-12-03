@@ -18,7 +18,6 @@ void BvhBuilder::buildTree(const Mesh& mesh)
 	// Assert numTotalTriangles?
 
 	// TODO: Calculate rough number of nodes based on numTriangles to reserve memory before starting
-	// TODO: Precompute triangle middles (maybe only if high num tris?)
 
 	BvhNode& root = m_nodes.emplace_back();
 	root.boundingBox = mesh.getBoundingBox();

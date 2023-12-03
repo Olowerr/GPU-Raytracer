@@ -171,5 +171,7 @@
     <None Include="resources\shaders\GPU-Utilities.hlsli" />
     <None Include="resources\shaders\DebugVS.hlsl" />
     <None Include="resources\shaders\DebugPS.hlsl" />
+    <None Include="resources\shaders\DebugNodeVS.hlsl" />
+    <None Include="resources\shaders\DebugNodePS.hlsl" />
   </ItemGroup>
 </Project>

@@ -3,14 +3,16 @@
 #include "GPUResourceManager.h"
 #include "ResourceManager.h"
 #include "shaders/ShaderResourceRegisters.h"
-
 #include "Importer.h"
+
+#include <stack>
+#include <DirectXCollision.h>
 
 DebugRenderer::DebugRenderer()
 	:m_pScene(nullptr), m_pGpuResourceManager(nullptr), m_pResourceManager(nullptr),
 	m_pVS(nullptr), m_pPS(nullptr), m_pDSV(nullptr), m_pRTV(nullptr), m_viewport(), m_pRenderDataBuffer(nullptr),
-	m_pShereTriBuffer(nullptr), m_sphereNumVerticies(0u)
-
+	m_pShereTriBuffer(nullptr), m_sphereNumVerticies(0u), m_pBvhNodeBuffer(nullptr), m_BvhNodeNumVerticies(0u),
+	m_renderBvhTree(false), m_pLineVS(nullptr), m_pLinePS(nullptr)
 {
 }
 
@@ -36,6 +38,9 @@ void DebugRenderer::shutdown()
 	DX11_RELEASE(m_pDSV);
 	DX11_RELEASE(m_pRTV);
 	DX11_RELEASE(m_pShereTriBuffer);
+	DX11_RELEASE(m_pBvhNodeBuffer);
+	DX11_RELEASE(m_pLineVS);
+	DX11_RELEASE(m_pLinePS);
 }
 
 void DebugRenderer::initiate(ID3D11Texture2D* pTarget, const GPUResourceManager& pGpuResourceManager)
@@ -48,6 +53,7 @@ void DebugRenderer::initiate(ID3D11Texture2D* pTarget, const GPUResourceManager&
 	bool success = false;
 	ID3D11Device* pDevice = Okay::getDevice();
 
+	// General Pipeline
 	success = Okay::createShader(SHADER_PATH "DebugVS.hlsl", &m_pVS);
 	OKAY_ASSERT(success);
 	
@@ -73,7 +79,6 @@ void DebugRenderer::initiate(ID3D11Texture2D* pTarget, const GPUResourceManager&
 	success = Okay::createConstantBuffer(&m_pRenderDataBuffer, nullptr, sizeof(RenderData));
 	OKAY_ASSERT(success);
 
-
 	glm::vec4 clearColor = glm::vec4(0.f, 0.f, 0.f, 0.f);
 	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
 	pDevCon->ClearRenderTargetView(m_pRTV, &clearColor.x);
@@ -86,6 +91,7 @@ void DebugRenderer::initiate(ID3D11Texture2D* pTarget, const GPUResourceManager&
 	m_viewport.TopLeftX = 0.f;
 	m_viewport.TopLeftY = 0.f;
 
+	// Sphere Mesh
 	MeshData sphereData;
 	success = Importer::loadMesh("resources/meshes/sphere.fbx", sphereData);
 	OKAY_ASSERT(success);
@@ -98,6 +104,49 @@ void DebugRenderer::initiate(ID3D11Texture2D* pTarget, const GPUResourceManager&
 	success = Okay::createStructuredBuffer(&pSphereBuffer, &m_pShereTriBuffer, spehreTris.data(), sizeof(Okay::Triangle), (uint32_t)spehreTris.size());
 	DX11_RELEASE(pSphereBuffer);
 	OKAY_ASSERT(success);
+
+	// BVH Tree Rendering
+	success = Okay::createShader(SHADER_PATH "DebugNodeVS.hlsl", &m_pLineVS);
+	OKAY_ASSERT(success);
+
+	success = Okay::createShader(SHADER_PATH "DebugNodePS.hlsl", &m_pLinePS);
+	OKAY_ASSERT(success);
+
+	DirectX::BoundingBox box;
+	box.Center = DirectX::XMFLOAT3(0.f, 0.f, 0.f);
+	box.Extents = DirectX::XMFLOAT3(1.f, 1.f, 1.f);
+	
+	// Corners format: 0-3 one side, 4-7 other side, both clockwise order when looking from +Z direction
+	DirectX::XMFLOAT3 corners[8]{};
+	box.GetCorners(corners); 
+
+	DirectX::XMFLOAT3 lines[24] = // 12 lines, two points per line
+	{
+		// First side
+		corners[0], corners[1],
+		corners[1], corners[2],
+		corners[2], corners[3],
+		corners[3], corners[0],
+
+		// Other side
+		corners[4], corners[5],
+		corners[5], corners[6],
+		corners[6], corners[7],
+		corners[7], corners[4],
+
+		// Connecting
+		corners[0], corners[4],
+		corners[1], corners[5],
+		corners[2], corners[6],
+		corners[3], corners[7],
+	};
+
+	ID3D11Buffer* pBvhNodeVertBuffer = nullptr;
+	success = Okay::createStructuredBuffer(&pBvhNodeVertBuffer, &m_pBvhNodeBuffer, lines, (uint32_t)sizeof(DirectX::XMFLOAT3), 24u);
+	DX11_RELEASE(pBvhNodeVertBuffer);
+	OKAY_ASSERT(success);
+
+	m_BvhNodeNumVerticies = 24u;
 }
 
 template<typename ShaderType>
@@ -115,10 +164,13 @@ void DebugRenderer::reloadShaders()
 {
 	reloadShader(SHADER_PATH "DebugVS.hlsl", &m_pVS);
 	reloadShader(SHADER_PATH "DebugPS.hlsl", &m_pPS);
+	reloadShader(SHADER_PATH "DebugLineVS.hlsl", &m_pLineVS);
+	reloadShader(SHADER_PATH "DebugLinePS.hlsl", &m_pLinePS);
 }
 
 void DebugRenderer::render()
 {
+	m_pGpuResourceManager->bindResources();
 	bindPipeline();
 
 	// Camera data
@@ -176,6 +228,54 @@ void DebugRenderer::render()
 
 		pDevCon->Draw(m_sphereNumVerticies, 0u);
 	}
+
+	if (m_renderBvhTree)
+	{
+		pDevCon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+
+		pDevCon->VSSetShader(m_pLineVS, nullptr, 0u);
+		pDevCon->VSSetShaderResources(RM_TRIANGLE_DATA_SLOT, 1u, &m_pBvhNodeBuffer);
+		pDevCon->PSSetShader(m_pLinePS, nullptr, 0u);
+
+		MaterialColour3 color;
+		color.colour = glm::vec3(0.9f, 0.7f, 0.5f);
+
+		const std::vector<GPUNode>& gpuNodes = m_pGpuResourceManager->getBvhTreeNodes();
+
+
+		for (entt::entity entity : meshView)
+		{
+			auto [meshComp, transform] = meshView[entity];
+
+			const MeshDesc& desc = meshDescs[meshComp.meshID];
+
+			m_renderData.objectWorldMatrix = glm::transpose(transform.calculateMatrix());
+			m_renderData.vertStartIdx = 0u;
+			m_renderData.albedo = color;
+
+			std::stack<uint32_t> asd;
+			asd.push(desc.bvhTreeStartIdx);
+
+			while (!asd.empty())
+			{
+				uint32_t currentIdx = asd.top();
+				const GPUNode& currentNode = gpuNodes[currentIdx];
+				asd.pop();
+
+				if (currentNode.childIdxs[0] != Okay::INVALID_UINT)
+				{
+					asd.push(currentNode.childIdxs[0]);
+					asd.push(currentNode.childIdxs[1]);
+				}
+
+				m_renderData.bvhNodeIdx = currentIdx;
+				Okay::updateBuffer(m_pRenderDataBuffer, &m_renderData, sizeof(RenderData));
+
+				pDevCon->Draw(m_BvhNodeNumVerticies, 0u);
+			}
+		}
+	}
+
 
 	pDevCon->VSSetShaderResources(RM_TRIANGLE_DATA_SLOT, 1u, &pOrigTriangleBuffer);
 	DX11_RELEASE(pOrigTriangleBuffer);

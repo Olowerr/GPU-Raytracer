@@ -26,6 +26,8 @@ public:
 
 	void reloadShaders();
 
+	inline void toggleBvhTreeRendering(bool enabled);
+
 private: // Scene & Resources
 	const Scene* m_pScene;
 	const GPUResourceManager* m_pGpuResourceManager;
@@ -38,15 +40,18 @@ private: // Pipeline
 		glm::mat4 cameraViewProjectMatrix = glm::mat4(1.f);
 		glm::mat4 objectWorldMatrix = glm::mat4(1.f);
 		uint32_t vertStartIdx = 0u;
-		glm::vec3 pad0 = glm::vec3(0.f);
+		uint32_t bvhNodeIdx = 0u;
+		glm::vec2 pad0 = glm::vec2(0.f);
 		MaterialColour3 albedo;
 	};
 
 	void bindPipeline();
 
+	// General
 	RenderData m_renderData;
 	ID3D11Buffer* m_pRenderDataBuffer;
 
+	// Mesh pipelime
 	ID3D11VertexShader* m_pVS;
 	D3D11_VIEWPORT m_viewport;
 	ID3D11PixelShader* m_pPS;
@@ -56,6 +61,16 @@ private: // Pipeline
 
 	ID3D11ShaderResourceView* m_pShereTriBuffer;
 	uint32_t m_sphereNumVerticies;
+
+	// Bvh pipeline
+	bool m_renderBvhTree;
+	ID3D11ShaderResourceView* m_pBvhNodeBuffer;
+	uint32_t m_BvhNodeNumVerticies;
+
+	ID3D11VertexShader* m_pLineVS;
+	ID3D11PixelShader* m_pLinePS;
 };
 
 inline void DebugRenderer::setScene(const Scene& pScene) { m_pScene = &pScene; }
+
+inline void DebugRenderer::toggleBvhTreeRendering(bool enabled) { m_renderBvhTree = enabled; }

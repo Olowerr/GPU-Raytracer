@@ -14,7 +14,7 @@ public:
 
 	template<typename UpdateFunction>
 	void update(uint32_t newCapacity, UpdateFunction function);
-	void update(uint32_t newCapacity, void* pData);
+	void updateRaw(uint32_t newCapacity, void* pData);
 
 	inline ID3D11ShaderResourceView* getSRV() const;
 

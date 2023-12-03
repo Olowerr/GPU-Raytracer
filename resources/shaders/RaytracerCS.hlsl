@@ -263,17 +263,12 @@ Payload findClosestHit(Ray ray)
                 {
                     Triangle tri = triangleData[i];
             
-                    Vertex p0, p1, p2;
-                    p0 = tri.verticies[0];
-                    p1 = tri.verticies[1];
-                    p2 = tri.verticies[2];
-                    
-                    float3 pos0 = p0.position;
-                    float3 pos1 = p1.position;
-                    float3 pos2 = p2.position;
+                    Vertex p0 = tri.verticies[0];
+                    Vertex p1 = tri.verticies[1];
+                    Vertex p2 = tri.verticies[2];
             
                     float3 baryUVCoord;
-                    float distanceToHit = Collision::RayAndTriangle(localRay, pos0, pos1, pos2, baryUVCoord.xy);
+                    float distanceToHit = Collision::RayAndTriangle(localRay, p0.position, p1.position, p2.position, baryUVCoord.xy);
                     
                     if (distanceToHit <= 0.f)
                     {

@@ -47,7 +47,7 @@ void GPUResourceManager::initiate(const ResourceManager& resourceManager)
 	m_pResourceManager = &resourceManager;
 
 	m_maxBvhLeafTriangles = 100u;
-	m_maxBvhDepth = 1u;
+	m_maxBvhDepth = 2u;
 
 	{ // Basic Sampler
 		D3D11_SAMPLER_DESC simpDesc{};
@@ -70,7 +70,7 @@ void GPUResourceManager::initiate(const ResourceManager& resourceManager)
 	}
 }
 
-void GPUResourceManager::bindResources()
+void GPUResourceManager::bindResources() const
 {
 	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
 
@@ -88,9 +88,9 @@ void GPUResourceManager::bindResources()
 
 void GPUResourceManager::loadResources(std::string_view environmentMapPath)
 {
-	loadMeshAndBvhData();
 	loadTextureData();
 	loadEnvironmentMap(environmentMapPath);
+	loadMeshAndBvhData();
 	bindResources();
 }
 
@@ -101,14 +101,6 @@ inline uint32_t tryOffsetIdx(uint32_t idx, uint32_t offset)
 
 void GPUResourceManager::loadMeshAndBvhData()
 {
-	struct GPUNode // Move this
-	{
-		Okay::AABB boundingBox;
-		uint32_t triStart = Okay::INVALID_UINT, triEnd = Okay::INVALID_UINT;
-		uint32_t childIdxs[2]{ Okay::INVALID_UINT, Okay::INVALID_UINT };
-		uint32_t parentIdx = Okay::INVALID_UINT;
-	};
-
 	const std::vector<Mesh>& meshes = m_pResourceManager->getAll<Mesh>();
 	const uint32_t numMeshes = (uint32_t)meshes.size();
 
@@ -121,10 +113,11 @@ void GPUResourceManager::loadMeshAndBvhData()
 	}
 
 	uint32_t triBufferCurStartIdx = 0;
-	std::vector<GPUNode> gpuNodes;
 	std::vector<Okay::Triangle> gpuTriangles;
 	gpuTriangles.reserve(numTotalTriangles);
 
+	m_bvhTreeNodes.clear();
+	m_bvhTreeNodes.shrink_to_fit();
 	BvhBuilder bvhBuilder(m_maxBvhLeafTriangles, m_maxBvhDepth);
 
 	for (uint32_t i = 0; i < numMeshes; i++)
@@ -136,14 +129,14 @@ void GPUResourceManager::loadMeshAndBvhData()
 		const std::vector<BvhNode>& nodes = bvhBuilder.getTree();
 
 		const uint32_t numNodes = (uint32_t)nodes.size();
-		const uint32_t gpuNodesPrevSize = (uint32_t)gpuNodes.size();
+		const uint32_t gpuNodesPrevSize = (uint32_t)m_bvhTreeNodes.size();
 
-		gpuNodes.resize(gpuNodesPrevSize + numNodes);
+		m_bvhTreeNodes.resize(gpuNodesPrevSize + numNodes);
 
 		uint32_t localTriStart = 0u;
 		for (uint32_t k = 0; k < numNodes; k++)
 		{
-			GPUNode& gpuNode = gpuNodes[gpuNodesPrevSize + k];
+			GPUNode& gpuNode = m_bvhTreeNodes[gpuNodesPrevSize + k];
 			const BvhNode& bvhNode = nodes[k];
 
 			const uint32_t numTriIndicies = (uint32_t)bvhNode.triIndicies.size();
@@ -176,7 +169,7 @@ void GPUResourceManager::loadMeshAndBvhData()
 	}
 
 	m_triangleData.initiate(sizeof(Okay::Triangle), numTotalTriangles, gpuTriangles.data());
-	m_bvhTree.initiate(sizeof(GPUNode), (uint32_t)gpuNodes.size(), gpuNodes.data());
+	m_bvhTree.initiate(sizeof(GPUNode), (uint32_t)m_bvhTreeNodes.size(), m_bvhTreeNodes.data());
 }
 
 void GPUResourceManager::loadTextureData()

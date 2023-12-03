@@ -20,9 +20,10 @@ private:
 	Scene m_scene;
 	ResourceManager m_resourceManager;
 	GPUResourceManager m_gpuResourceManager;
-	ID3D11RenderTargetView* m_pBackBuffer; //Only used for ImGui
+	ID3D11RenderTargetView* m_pBackBuffer; //Only used for ImGui // TODO: Move this RTV into ImGuiHelper
 
 	DebugRenderer m_debugRenderer;
+	bool m_useDebugRenderer = false;
 
 	void updateImGui();
 

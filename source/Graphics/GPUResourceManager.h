@@ -1,5 +1,5 @@
 #pragma once
-
+#include "Utilities.h"
 #include "GPUStorage.h"
 
 #include "glm/glm.hpp"
@@ -9,12 +9,20 @@
 class Entity;
 class ResourceManager;
 
-// Defines the start & end vertex index for a mesh in the vertex buffer, as well as the index of the root node in m_bvhTree
+// Defines the start & end triangle index for a mesh in the vertex buffer, as well as the index of the root node in m_bvhTree
 struct MeshDesc
 {
 	uint32_t startIdx;
 	uint32_t endIdx;
 	uint32_t bvhTreeStartIdx;
+};
+
+struct GPUNode
+{
+	Okay::AABB boundingBox;
+	uint32_t triStart = Okay::INVALID_UINT, triEnd = Okay::INVALID_UINT;
+	uint32_t childIdxs[2]{ Okay::INVALID_UINT, Okay::INVALID_UINT };
+	uint32_t parentIdx = Okay::INVALID_UINT;
 };
 
 class GPUResourceManager
@@ -36,6 +44,10 @@ public:
 	inline const ResourceManager& getResourceManager() const;
 	inline const std::vector<MeshDesc>& getMeshDescriptors() const;
 
+	inline const std::vector<GPUNode>& getBvhTreeNodes() const;
+
+	void bindResources() const;
+
 private:
 	const ResourceManager* m_pResourceManager;
 
@@ -44,6 +56,7 @@ private:
 	GPUStorage m_bvhTree;
 	uint32_t m_maxBvhLeafTriangles;
 	uint32_t m_maxBvhDepth;
+	std::vector<GPUNode> m_bvhTreeNodes;
 
 	// The order of m_textureAtlasData & m_meshDescs matches the respective std::vector in ResourceManager.
 	ID3D11ShaderResourceView* m_pTextureAtlasSRV;
@@ -56,7 +69,6 @@ private:
 private:
 	void loadTextureData();
 	void loadEnvironmentMap(std::string_view path);
-	void bindResources();
 };
 
 inline uint32_t& GPUResourceManager::getMaxBvhLeafTriangles()	{ return m_maxBvhLeafTriangles; }
@@ -64,3 +76,4 @@ inline uint32_t& GPUResourceManager::getMaxBvhDepth()			{ return m_maxBvhDepth; 
 
 inline const ResourceManager& GPUResourceManager::getResourceManager() const		{ return *m_pResourceManager; }
 inline const std::vector<MeshDesc>& GPUResourceManager::getMeshDescriptors() const	{ return m_meshDescs; }
+inline const std::vector<GPUNode>& GPUResourceManager::getBvhTreeNodes() const		{ return m_bvhTreeNodes; }
