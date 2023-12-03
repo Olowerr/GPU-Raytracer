@@ -1,4 +1,4 @@
-#include "GPU-Utilities.hlsli"
+#include "GPU-Utilities.hlsli"  
 #include "ShaderResourceRegisters.h"
 
 StructuredBuffer<Triangle> triangleData : register(RM_TRIANGLE_DATA_GPU_REG);

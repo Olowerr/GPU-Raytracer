@@ -53,6 +53,9 @@ private: // Pipeline
 
 	ID3D11DepthStencilView* m_pDSV;
 	ID3D11RenderTargetView* m_pRTV;
+
+	ID3D11ShaderResourceView* m_pShereTriBuffer;
+	uint32_t m_sphereNumVerticies;
 };
 
 inline void DebugRenderer::setScene(const Scene& pScene) { m_pScene = &pScene; }

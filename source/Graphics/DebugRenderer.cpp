@@ -4,9 +4,12 @@
 #include "ResourceManager.h"
 #include "shaders/ShaderResourceRegisters.h"
 
+#include "Importer.h"
+
 DebugRenderer::DebugRenderer()
 	:m_pScene(nullptr), m_pGpuResourceManager(nullptr), m_pResourceManager(nullptr),
-	m_pVS(nullptr), m_pPS(nullptr), m_pDSV(nullptr), m_pRTV(nullptr), m_viewport(), m_pRenderDataBuffer(nullptr)
+	m_pVS(nullptr), m_pPS(nullptr), m_pDSV(nullptr), m_pRTV(nullptr), m_viewport(), m_pRenderDataBuffer(nullptr),
+	m_pShereTriBuffer(nullptr), m_sphereNumVerticies(0u)
 
 {
 }
@@ -32,6 +35,7 @@ void DebugRenderer::shutdown()
 	DX11_RELEASE(m_pPS);
 	DX11_RELEASE(m_pDSV);
 	DX11_RELEASE(m_pRTV);
+	DX11_RELEASE(m_pShereTriBuffer);
 }
 
 void DebugRenderer::initiate(ID3D11Texture2D* pTarget, const GPUResourceManager& pGpuResourceManager)
@@ -81,6 +85,19 @@ void DebugRenderer::initiate(ID3D11Texture2D* pTarget, const GPUResourceManager&
 	m_viewport.MaxDepth = 1.f;
 	m_viewport.TopLeftX = 0.f;
 	m_viewport.TopLeftY = 0.f;
+
+	MeshData sphereData;
+	success = Importer::loadMesh("resources/meshes/sphere.fbx", sphereData);
+	OKAY_ASSERT(success);
+
+	Mesh sphereMesh(sphereData, "");
+	const std::vector<Okay::Triangle>& spehreTris = sphereMesh.getTriangles();
+	m_sphereNumVerticies = (uint32_t)sphereData.positions.size();
+
+	ID3D11Buffer* pSphereBuffer = nullptr;
+	success = Okay::createStructuredBuffer(&pSphereBuffer, &m_pShereTriBuffer, spehreTris.data(), sizeof(Okay::Triangle), (uint32_t)spehreTris.size());
+	DX11_RELEASE(pSphereBuffer);
+	OKAY_ASSERT(success);
 }
 
 template<typename ShaderType>
@@ -102,13 +119,6 @@ void DebugRenderer::reloadShaders()
 
 void DebugRenderer::render()
 {
-	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
-
-	const entt::registry& reg = m_pScene->getRegistry();
-	auto meshView = reg.view<MeshComponent, Transform>();
-
-	const std::vector<MeshDesc>& meshDescs = m_pGpuResourceManager->getMeshDescriptors();
-
 	bindPipeline();
 
 	// Camera data
@@ -125,6 +135,12 @@ void DebugRenderer::render()
 				glm::lookAtLH(camTra.position, camTra.position + camForward, glm::vec3(0.f, 1.f, 0.f)));
 	}
 
+	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
+
+	const entt::registry& reg = m_pScene->getRegistry();
+	const std::vector<MeshDesc>& meshDescs = m_pGpuResourceManager->getMeshDescriptors();
+
+	auto meshView = reg.view<MeshComponent, Transform>();
 	for (entt::entity entity : meshView)
 	{
 		auto [meshComp, transform] = meshView[entity];
@@ -139,6 +155,30 @@ void DebugRenderer::render()
 
 		pDevCon->Draw((desc.endIdx - desc.startIdx) * 3u, 0u);
 	}
+
+	ID3D11ShaderResourceView* pOrigTriangleBuffer = nullptr;
+	pDevCon->VSGetShaderResources(RM_TRIANGLE_DATA_SLOT, 1u, &pOrigTriangleBuffer);
+	pDevCon->VSSetShaderResources(RM_TRIANGLE_DATA_SLOT, 1u, &m_pShereTriBuffer);
+
+	auto sphereView = reg.view<Sphere, Transform>();
+	for (entt::entity entity : sphereView)
+	{
+		auto [sphere, transform] = sphereView[entity];
+
+		Transform traCopy = transform;
+		traCopy.scale = glm::vec3(sphere.radius);
+
+		m_renderData.objectWorldMatrix = glm::transpose(traCopy.calculateMatrix());
+		m_renderData.vertStartIdx = 0u;
+		m_renderData.albedo = sphere.material.albedo;
+
+		Okay::updateBuffer(m_pRenderDataBuffer, &m_renderData, sizeof(RenderData));
+
+		pDevCon->Draw(m_sphereNumVerticies, 0u);
+	}
+
+	pDevCon->VSSetShaderResources(RM_TRIANGLE_DATA_SLOT, 1u, &pOrigTriangleBuffer);
+	DX11_RELEASE(pOrigTriangleBuffer);
 }
 
 void DebugRenderer::bindPipeline()
