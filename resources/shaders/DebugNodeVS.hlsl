@@ -21,6 +21,8 @@ cbuffer RenderDataBuffer : register(RZ_RENDER_DATA_GPU_REG)
     uint bvhNodeIdx;
     float2 pad0;
     MaterialColour3 albedo;
+    float3 cameraDir;
+    float pad1;
 }
 
 float4 main(uint localVertidx : SV_VertexID) : SV_Position

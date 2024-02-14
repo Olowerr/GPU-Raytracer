@@ -1,0 +1,11 @@
+
+[ ] better colours for nodeTrees
+	like selectedNode colour should be 100% regardless of idx
+	decendant colours are then scaled proportionally
+	min colour value? so last not always completely black?
+[ ] NodeSelector should be disabled instead of disappearing
+[ ] DebugRenderer should be able to render skybox with all entity present
+	skyBox toggleable, gray if off
+[ ] Fix Metal property
+[ ] ? try old shading code again
+[ ] Node bounding boxes select render as lines or semi transparent box

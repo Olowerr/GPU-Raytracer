@@ -23,10 +23,15 @@ private:
 	ID3D11RenderTargetView* m_pBackBuffer; //Only used for ImGui // TODO: Move this RTV into ImGuiHelper
 
 	DebugRenderer m_debugRenderer;
-	bool m_useDebugRenderer = false;
+	bool m_useRasterizer = false;
+	bool m_rasterizerDrawObjects = true;
+	bool m_drawNodeBBs = true;
+	bool m_drawNodeGeometry = true;
+
+	Entity m_selectedEntity;
+	uint32_t m_selectedNodeIdx;
 
 	void updateImGui();
-
 	void updateCamera();
 
 	float m_accumulationTime;

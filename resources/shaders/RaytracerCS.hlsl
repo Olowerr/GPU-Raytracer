@@ -447,16 +447,13 @@ void main(uint3 DTid : SV_DispatchThreadID)
         light += material.emissionColour * material.emissionPower * contribution * (1.f - transparencyFactor);
     }
     
-    
-    light = saturate(light);
-    
     if (renderData.accumulationEnabled == 1)
     {
         accumulationBuffer[DTid.xy] += float4(light, 0.f);
-        resultBuffer[DTid.xy] = accumulationBuffer[DTid.xy] / (float) renderData.numAccumulationFrames;
+        resultBuffer[DTid.xy] = saturate(accumulationBuffer[DTid.xy] / (float) renderData.numAccumulationFrames);
     }
     else
     {
-        resultBuffer[DTid.xy] = float4(light, 1.f);
+        resultBuffer[DTid.xy] = float4(saturate(light), 1.f);
     }
 }

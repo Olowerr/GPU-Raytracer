@@ -20,6 +20,8 @@ cbuffer RenderDataBuffer : register(RZ_RENDER_DATA_GPU_REG)
     uint bvhNodeIdx;
     float2 pad0;
     MaterialColour3 albedo;
+    float3 cameraDir;
+    float pad1;
 }
 
 float3 sampleTexture(uint textureIdx, float2 meshUVs)
@@ -39,7 +41,10 @@ float4 main(PS_Input inputData) : SV_TARGET
     else
         finalColour.rgb = albedo.colour;
     
+    inputData.normal = normalize(inputData.normal);
+    
     finalColour.a = 0.f;
+    finalColour *= max(dot(-cameraDir, inputData.normal), 0.2);
     
     return finalColour;
 }

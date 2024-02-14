@@ -265,12 +265,12 @@ namespace Okay
 			OKAY_DELETE_ARRAY(lpPath);
 
 			if (compileOutput)
-				printf("Shader compilation output:\n%s\n", (char*)compileOutput->GetBufferPointer());
+				printf("'%s' - Shader compilation output:\n%s\n", path.data(), (char*)compileOutput->GetBufferPointer());
 
 			if (FAILED(hr))
 			{
 				if (!compileOutput)
-					printf("Shader compilation failed but no errors were produced, file might not have been found.\n");
+					printf("'%s' - Shader compilation failed but no errors were produced, file might not have been found\n", path.data());
 
 				return false;
 			}

@@ -8,6 +8,7 @@
 
 class Entity;
 class ResourceManager;
+struct MeshComponent;
 
 // Defines the start & end triangle index for a mesh in the vertex buffer, as well as the index of the root node in m_bvhTree
 struct MeshDesc
@@ -15,6 +16,7 @@ struct MeshDesc
 	uint32_t startIdx;
 	uint32_t endIdx;
 	uint32_t bvhTreeStartIdx;
+	uint32_t numBvhNodes;
 };
 
 struct GPUNode
@@ -48,6 +50,10 @@ public:
 
 	void bindResources() const;
 
+	inline const GPUStorage& getTriangleData() const;
+
+	uint32_t getGlobalNodeIdx(const MeshComponent& meshComp, uint32_t localNodeIdx) const;
+
 private:
 	const ResourceManager* m_pResourceManager;
 
@@ -77,3 +83,5 @@ inline uint32_t& GPUResourceManager::getMaxBvhDepth()			{ return m_maxBvhDepth; 
 inline const ResourceManager& GPUResourceManager::getResourceManager() const		{ return *m_pResourceManager; }
 inline const std::vector<MeshDesc>& GPUResourceManager::getMeshDescriptors() const	{ return m_meshDescs; }
 inline const std::vector<GPUNode>& GPUResourceManager::getBvhTreeNodes() const		{ return m_bvhTreeNodes; }
+
+inline const GPUStorage& GPUResourceManager::getTriangleData() const { return m_triangleData; }

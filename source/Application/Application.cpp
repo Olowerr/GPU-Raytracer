@@ -2,6 +2,7 @@
 #include "DirectX/DX11.h"
 #include "Utilities.h"
 #include "Scene/Components.h"
+#include "Scene/Entity.h"
 
 #include "ImGuiHelper.h"
 
@@ -87,7 +88,7 @@ void Application::run()
 		Entity meshEntity = m_scene.createEntity();
 		MeshComponent& meshComp = meshEntity.addComponent<MeshComponent>();
 		meshComp.material = ballSphere.material;
-		meshComp.material.albedo.textureId = i;
+		//meshComp.material.albedo.textureId = i;
 		meshComp.meshID = i;
 	}
 
@@ -204,21 +205,21 @@ void Application::run()
 					sphere_material = getMat(albedo, smoothness, specProb);
 					entityWithMat(sphere_material, center, 0.2f);
 				}
-				else if (choose_mat < 0.95) 
+				else if (choose_mat < 0.95)
 				{
-					// metal
-					auto albedo = randomColour2(0.5, 1);
-					auto fuzz = randomFloat2(0.5f, 1.f);
-					sphere_material = getMat(albedo, fuzz, fuzz);
-					entityWithMat(sphere_material, center, 0.2f);
+				// metal
+				auto albedo = randomColour2(0.5, 1);
+				auto fuzz = randomFloat2(0.5f, 1.f);
+				sphere_material = getMat(albedo, fuzz, fuzz);
+				entityWithMat(sphere_material, center, 0.2f);
 				}
-				else 
+				else
 				{
-					// glass
-					auto albedo = Color(1.f);
-					sphere_material = getMat(albedo, 0.f, 0.f, 0.9f);
-					sphere_material.indexOfRefraction = 1.5f;
-					entityWithMat(sphere_material, center, 0.2f);
+				// glass
+				auto albedo = Color(1.f);
+				sphere_material = getMat(albedo, 0.f, 0.f, 0.9f);
+				sphere_material.indexOfRefraction = 1.5f;
+				entityWithMat(sphere_material, center, 0.2f);
 				}
 			}
 		}
@@ -247,10 +248,15 @@ void Application::run()
 		updateImGui();
 		updateCamera();
 
-		if (m_useDebugRenderer)
-			m_debugRenderer.render();
+		if (m_useRasterizer)
+			m_debugRenderer.render(m_rasterizerDrawObjects);
 		else
 			m_rayTracer.render();
+
+		if (m_drawNodeGeometry)
+			m_debugRenderer.renderNodeGeometry(m_selectedEntity, m_selectedNodeIdx);
+		if (m_drawNodeBBs)
+			m_debugRenderer.renderNodeBBs(m_selectedEntity, m_selectedNodeIdx);
 
 		Okay::getDeviceContext()->OMSetRenderTargets(1u, &m_pBackBuffer, nullptr);
 		Okay::endFrameImGui();
@@ -264,7 +270,7 @@ void Application::updateImGui()
 {
 	static bool accumulate = true;
 	m_accumulationTime += ImGui::GetIO().DeltaTime;
-	m_accumulationTime *= (float)accumulate * (float)!m_useDebugRenderer;
+	m_accumulationTime *= (float)accumulate * (float)!m_useRasterizer;
 
 	bool resetAcu = false;
 
@@ -274,11 +280,6 @@ void Application::updateImGui()
 
 		ImGui::Text("FPS: %.3f", 1.f / ImGui::GetIO().DeltaTime);
 		ImGui::Text("MS: %.3f", ImGui::GetIO().DeltaTime * 1000.f);
-
-		if (ImGui::Checkbox("Debug", &m_useDebugRenderer))
-		{
-			resetAcu = true;
-		}
 
 		ImGui::Separator();
 
@@ -301,15 +302,43 @@ void Application::updateImGui()
 
 		ImGui::Separator();
 
-		if (m_useDebugRenderer)
 		{
-			// TODO: Fill with GUI elements for toggling bvhTree rendering and other cool visualizers
-			static bool drawBvhTree = false;
-			if (ImGui::Checkbox("Draw Bvh Trees", &drawBvhTree))
-				m_debugRenderer.toggleBvhTreeRendering(drawBvhTree);
+			if (ImGui::Checkbox("Rasterizer", &m_useRasterizer)) resetAcu = true;
+
+			ImGui::BeginDisabled(!m_useRasterizer);
+			ImGui::Checkbox("Draw Objects", &m_rasterizerDrawObjects);
+			ImGui::EndDisabled();
+
+			static int mode = DebugRenderer::BvhNodeDrawMode::DrawWithDecendants;
+			static int enttID = -1;
+
+			if (ImGui::DragInt("Entity", &enttID, 0.1f, -1, (int)m_scene.getRegistry().alive()))
+			{
+				m_selectedEntity = enttID != -1 ? Entity(entt::entity(enttID), &m_scene.getRegistry()) : Entity();
+				m_selectedNodeIdx = 0u;
+			}
+
+			const MeshComponent* pMeshComp = m_selectedEntity ? m_selectedEntity.tryGetComponent<MeshComponent>() : nullptr;
+			uint32_t nodeCap = pMeshComp ? m_gpuResourceManager.getMeshDescriptors()[pMeshComp->meshID].numBvhNodes : 1u;
+			
+			ImGui::BeginDisabled(!pMeshComp);
+			ImGui::DragInt("Node Idx", (int*)&m_selectedNodeIdx, 0.1f, 0, nodeCap - 1);
+			m_selectedNodeIdx = nodeCap == 1 && m_selectedNodeIdx > 0 ? 0u : m_selectedNodeIdx;
+			ImGui::EndDisabled();
+
+			ImGui::Checkbox("Draw Node BBs", &m_drawNodeBBs);
+			ImGui::Checkbox("Draw Node Gemoetry", &m_drawNodeGeometry);
+
+			ImGui::Text("Node Draw Mode");
+			ImGui::RadioButton("Draw Single", &mode, DebugRenderer::BvhNodeDrawMode::DrawSingle);
+			ImGui::RadioButton("Draw With Children", &mode, DebugRenderer::BvhNodeDrawMode::DrawWithChildren);
+			ImGui::RadioButton("Draw With Decendants", &mode, DebugRenderer::BvhNodeDrawMode::DrawWithDecendants);
+			m_debugRenderer.setBvhNodeDrawMode(DebugRenderer::BvhNodeDrawMode(mode));
+
+			ImGui::Separator();
 		}
-		else
-		{
+
+		{ // Raytracer
 			ImGui::Text("Accumulation Frames: %u", m_rayTracer.getNumAccumulationFrames());
 			ImGui::Text("Accumulation Time: %.2f", m_accumulationTime);
 			if (ImGui::Checkbox("Accumulate", &accumulate))
@@ -442,8 +471,8 @@ void Application::updateCamera()
 
 		ImGui::Separator();
 
-		if (ImGui::DragFloat("Rotation Speed", &rotationSpeed, 0.02f))			resetAcu = true;
-		if (ImGui::DragFloat("Move Speed", &moveSpeed, 0.2f))					resetAcu = true;
+		ImGui::DragFloat("Rotation Speed", &rotationSpeed, 0.02f);
+		ImGui::DragFloat("Move Speed", &moveSpeed, 0.2f);
 
 		ImGui::PopItemWidth();
 

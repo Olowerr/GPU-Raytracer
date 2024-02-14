@@ -47,7 +47,7 @@ void GPUResourceManager::initiate(const ResourceManager& resourceManager)
 	m_pResourceManager = &resourceManager;
 
 	m_maxBvhLeafTriangles = 100u;
-	m_maxBvhDepth = 2u;
+	m_maxBvhDepth = 50u;
 
 	{ // Basic Sampler
 		D3D11_SAMPLER_DESC simpDesc{};
@@ -92,6 +92,12 @@ void GPUResourceManager::loadResources(std::string_view environmentMapPath)
 	loadEnvironmentMap(environmentMapPath);
 	loadMeshAndBvhData();
 	bindResources();
+}
+
+uint32_t GPUResourceManager::getGlobalNodeIdx(const MeshComponent& pMeshComp, uint32_t localNodeIdx) const
+{
+	const MeshDesc& desc = m_meshDescs[pMeshComp.meshID];
+	return desc.bvhTreeStartIdx + localNodeIdx;
 }
 
 inline uint32_t tryOffsetIdx(uint32_t idx, uint32_t offset)
@@ -161,6 +167,7 @@ void GPUResourceManager::loadMeshAndBvhData()
 			}
 		}
 
+		m_meshDescs[i].numBvhNodes = numNodes;
 		m_meshDescs[i].bvhTreeStartIdx = gpuNodesPrevSize;
 		m_meshDescs[i].startIdx = triBufferCurStartIdx;
 		m_meshDescs[i].endIdx = triBufferCurStartIdx + (uint32_t)meshTris.size();

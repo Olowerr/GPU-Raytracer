@@ -267,12 +267,16 @@ void BvhBuilder::buildTreeInternal()
 
 void BvhBuilder::findAABB(BvhNode& node)
 {
+	node.boundingBox.min = glm::vec3(FLT_MAX);
+	node.boundingBox.max = glm::vec3(-FLT_MAX);
+
 	uint32_t numTriIndicies = (uint32_t)node.triIndicies.size();
 	for (uint32_t i = 0; i < numTriIndicies; i++)
 	{
+		const Okay::Triangle& currentTri = (*m_pMeshTris)[node.triIndicies[i]];
 		for (uint32_t k = 0; k < 3u; k++)
 		{
-			const glm::vec3& point = (*m_pMeshTris)[node.triIndicies[i]].verticies[k].position;
+			const glm::vec3& point = currentTri.verticies[k].position;
 
 			node.boundingBox.min = glm::min(point, node.boundingBox.min);
 			node.boundingBox.max = glm::max(point, node.boundingBox.max);
