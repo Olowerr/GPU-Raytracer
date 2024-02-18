@@ -198,7 +198,7 @@ void DebugRenderer::render(bool includeObjects)
 		return;
 
 	m_pGpuResourceManager->bindResources();
-	bindPipeline();
+	bindGeometryPipeline();
 	updateCameraData();
 
 	const entt::registry& reg = m_pScene->getRegistry();
@@ -252,14 +252,23 @@ void DebugRenderer::renderNodeBBs(Entity entity, uint32_t localNodeIdx)
 	if (!pMeshComp)
 		return;
 	
-	bindPipeline(false);
 	updateCameraData();
 
 	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
+
+	pDevCon->IASetInputLayout(nullptr);
 	pDevCon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+
 	pDevCon->VSSetShader(m_pLineVS, nullptr, 0u);
+	pDevCon->VSSetConstantBuffers(RZ_RENDER_DATA_SLOT, 1u, &m_pRenderDataBuffer);
 	pDevCon->VSSetShaderResources(RM_TRIANGLE_DATA_SLOT, 1u, &m_pBvhNodeBuffer);
+
+	pDevCon->RSSetViewports(1u, &m_viewport);
+
 	pDevCon->PSSetShader(m_pLinePS, nullptr, 0u);
+	pDevCon->PSSetConstantBuffers(RZ_RENDER_DATA_SLOT, 1u, &m_pRenderDataBuffer);
+	
+	pDevCon->OMSetRenderTargets(1u, &m_pRTV, nullptr);
 
 	const Transform& transformComp = entity.getComponent<Transform>();
 	m_renderData.objectWorldMatrix = glm::transpose(transformComp.calculateMatrix());
@@ -281,7 +290,7 @@ void DebugRenderer::renderNodeGeometry(Entity entity, uint32_t localNodeIdx)
 	if (!pMeshComp)
 		return;
 
-	bindPipeline(false);
+	bindGeometryPipeline(false);
 	updateCameraData();
 
 	ID3D11ShaderResourceView* pTriangleBufferSRV = m_pGpuResourceManager->getTriangleData().getSRV();
@@ -290,11 +299,8 @@ void DebugRenderer::renderNodeGeometry(Entity entity, uint32_t localNodeIdx)
 	m_renderData.objectWorldMatrix = glm::transpose(transformComp.calculateMatrix());
 
 	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
-	pDevCon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	pDevCon->VSSetShaderResources(RM_TRIANGLE_DATA_SLOT, 1u, &pTriangleBufferSRV);
-	pDevCon->VSSetShader(m_pVS, nullptr, 0u);
 	pDevCon->RSSetState(m_pDoubleSideRS);
-	pDevCon->PSSetShader(m_pPS, nullptr, 0u);
 
 	uint32_t globalNodeIdx = m_pGpuResourceManager->getGlobalNodeIdx(*pMeshComp, localNodeIdx);
 	executeDrawMode(globalNodeIdx, &DebugRenderer::drawNodeGeometry, *pMeshComp);
@@ -317,7 +323,7 @@ void DebugRenderer::updateCameraData()
 		glm::lookAtLH(camTra.position, camTra.position + camForward, glm::vec3(0.f, 1.f, 0.f)));
 }
 
-void DebugRenderer::bindPipeline(bool clearTarget)
+void DebugRenderer::bindGeometryPipeline(bool clearTarget)
 {
 	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
 	

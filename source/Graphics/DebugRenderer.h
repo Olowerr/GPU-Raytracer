@@ -62,7 +62,7 @@ private: // Pipeline
 	};
 
 	void updateCameraData();
-	void bindPipeline(bool clearTarget = true);
+	void bindGeometryPipeline(bool clearTarget = true);
 
 	// General
 	RenderData m_renderData;

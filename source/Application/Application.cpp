@@ -302,7 +302,7 @@ void Application::updateImGui()
 
 		ImGui::Separator();
 
-		{
+		{ // Mesh rendering debugging
 			if (ImGui::Checkbox("Rasterizer", &m_useRasterizer)) resetAcu = true;
 
 			ImGui::BeginDisabled(!m_useRasterizer);
