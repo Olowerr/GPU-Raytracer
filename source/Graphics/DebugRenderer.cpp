@@ -13,7 +13,7 @@ DebugRenderer::DebugRenderer()
 	:m_pScene(nullptr), m_pGpuResourceManager(nullptr), m_pResourceManager(nullptr),
 	m_pVS(nullptr), m_pPS(nullptr), m_pDSV(nullptr), m_pRTV(nullptr), m_viewport(), m_pRenderDataBuffer(nullptr),
 	m_pShereTriBuffer(nullptr), m_sphereNumVerticies(0u), m_pBvhNodeBuffer(nullptr), m_bvhNodeNumVerticies(0u),
-	m_renderBvhTree(false), m_pLineVS(nullptr), m_pLinePS(nullptr), m_pDoubleSideRS(nullptr)
+	m_renderBvhTree(false), m_pBoundingBoxVS(nullptr), m_pBoundingBoxPS(nullptr), m_pDoubleSideRS(nullptr)
 {
 }
 
@@ -40,8 +40,8 @@ void DebugRenderer::shutdown()
 	DX11_RELEASE(m_pRTV);
 	DX11_RELEASE(m_pShereTriBuffer);
 	DX11_RELEASE(m_pBvhNodeBuffer);
-	DX11_RELEASE(m_pLineVS);
-	DX11_RELEASE(m_pLinePS);
+	DX11_RELEASE(m_pBoundingBoxVS);
+	DX11_RELEASE(m_pBoundingBoxPS);
 	DX11_RELEASE(m_pDoubleSideRS);
 }
 
@@ -108,10 +108,10 @@ void DebugRenderer::initiate(ID3D11Texture2D* pTarget, const GPUResourceManager&
 	OKAY_ASSERT(success);
 
 	// BVH Tree Rendering
-	success = Okay::createShader(SHADER_PATH "DebugNodeVS.hlsl", &m_pLineVS);
+	success = Okay::createShader(SHADER_PATH "DebugBBVS.hlsl", &m_pBoundingBoxVS);
 	OKAY_ASSERT(success);
 
-	success = Okay::createShader(SHADER_PATH "DebugNodePS.hlsl", &m_pLinePS);
+	success = Okay::createShader(SHADER_PATH "DebugBBPS.hlsl", &m_pBoundingBoxPS);
 	OKAY_ASSERT(success);
 
 	D3D11_RASTERIZER_DESC dsRsDesc{};
@@ -180,8 +180,8 @@ void DebugRenderer::reloadShaders()
 {
 	reloadShader(SHADER_PATH "DebugVS.hlsl", &m_pVS);
 	reloadShader(SHADER_PATH "DebugPS.hlsl", &m_pPS);
-	reloadShader(SHADER_PATH "DebugNodeVS.hlsl", &m_pLineVS);
-	reloadShader(SHADER_PATH "DebugNodePS.hlsl", &m_pLinePS);
+	reloadShader(SHADER_PATH "DebugBBVS.hlsl", &m_pBoundingBoxVS);
+	reloadShader(SHADER_PATH "DebugBBPS.hlsl", &m_pBoundingBoxPS);
 }
 
 void DebugRenderer::render(bool includeObjects)
@@ -259,13 +259,13 @@ void DebugRenderer::renderNodeBBs(Entity entity, uint32_t localNodeIdx)
 	pDevCon->IASetInputLayout(nullptr);
 	pDevCon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
 
-	pDevCon->VSSetShader(m_pLineVS, nullptr, 0u);
+	pDevCon->VSSetShader(m_pBoundingBoxVS, nullptr, 0u);
 	pDevCon->VSSetConstantBuffers(RZ_RENDER_DATA_SLOT, 1u, &m_pRenderDataBuffer);
 	pDevCon->VSSetShaderResources(RM_TRIANGLE_DATA_SLOT, 1u, &m_pBvhNodeBuffer);
 
 	pDevCon->RSSetViewports(1u, &m_viewport);
 
-	pDevCon->PSSetShader(m_pLinePS, nullptr, 0u);
+	pDevCon->PSSetShader(m_pBoundingBoxPS, nullptr, 0u);
 	pDevCon->PSSetConstantBuffers(RZ_RENDER_DATA_SLOT, 1u, &m_pRenderDataBuffer);
 	
 	pDevCon->OMSetRenderTargets(1u, &m_pRTV, nullptr);

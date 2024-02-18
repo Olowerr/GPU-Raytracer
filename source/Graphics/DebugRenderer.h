@@ -90,8 +90,8 @@ private: // Pipeline
 	uint32_t m_bvhNodeNumVerticies;
 	ID3D11RasterizerState* m_pDoubleSideRS;
 
-	ID3D11VertexShader* m_pLineVS;
-	ID3D11PixelShader* m_pLinePS;
+	ID3D11VertexShader* m_pBoundingBoxVS;
+	ID3D11PixelShader* m_pBoundingBoxPS;
 };
 
 inline void DebugRenderer::setScene(const Scene& pScene)			{ m_pScene = &pScene; }
