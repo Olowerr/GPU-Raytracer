@@ -25,10 +25,10 @@ cbuffer RenderDataBuffer : register(RZ_RENDER_DATA_GPU_REG)
     float pad1;
 }
 
-float4 main(uint localVertidx : SV_VertexID) : SV_Position
+float4 main(uint localVertIdx : SV_VertexID) : SV_Position
 {
     Node node = bvhNodes[bvhNodeIdx];
-    float3 vertex = lineData[localVertidx];
+    float3 vertex = lineData[localVertIdx];
     
     vertex *= (node.boundingBox.max - node.boundingBox.min) * 0.5f; // Scale
     vertex += (node.boundingBox.max + node.boundingBox.min) * 0.5f; // Offset

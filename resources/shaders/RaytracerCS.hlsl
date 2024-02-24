@@ -3,7 +3,7 @@
 #include "ShaderResourceRegisters.h"
 
 // ---- Defines and constants
-#define NUM_BOUNCES (20)
+#define NUM_BOUNCES (10)
 
 
 // ---- Structs
@@ -232,7 +232,7 @@ Payload findClosestHit(Ray ray)
     
     // TODO: Rewrite the upcoming loop to reduce nesting
     
-    static const uint MAX_STACK_SIZE = 200;
+    static const uint MAX_STACK_SIZE = 50;
     half stack[MAX_STACK_SIZE];
     uint stackSize = 0;
     
@@ -267,7 +267,7 @@ Payload findClosestHit(Ray ray)
                     Vertex p1 = tri.verticies[1];
                     Vertex p2 = tri.verticies[2];
             
-                    float3 baryUVCoord;
+                    float3 baryUVCoord = float3(0.f, 0.f, 0.f);
                     float distanceToHit = Collision::RayAndTriangle(localRay, p0.position, p1.position, p2.position, baryUVCoord.xy);
                     
                     if (distanceToHit <= 0.f)

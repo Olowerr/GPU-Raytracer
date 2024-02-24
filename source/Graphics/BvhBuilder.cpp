@@ -196,14 +196,16 @@ void BvhBuilder::buildTreeInternal()
 		if (nodeData.depth >= m_maxDepth - 1u || nodeNumTris <= m_maxLeafTriangles)
 			continue;
 
-		
+#if SPLIT_COST
 		float splitCost = findBestSplitPlane(*pCurrentNode, axis, splitPos);
-
 		float parentCost = nodeNumTris * pCurrentNode->boundingBox.getArea();
 		if (splitCost >= parentCost)
 		{
 			continue;
 		}
+#else
+		findBestSplitPlane(*pCurrentNode, axis, splitPos);
+#endif
 
 		leftIndicies.clear();
 		rightIndicies.clear();

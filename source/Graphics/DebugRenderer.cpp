@@ -43,6 +43,11 @@ void DebugRenderer::shutdown()
 	DX11_RELEASE(m_pBoundingBoxVS);
 	DX11_RELEASE(m_pBoundingBoxPS);
 	DX11_RELEASE(m_pDoubleSideRS);
+	DX11_RELEASE(m_pSkyboxVS);
+	DX11_RELEASE(m_pSkyboxPS);
+	DX11_RELEASE(m_pCubeTriBuffer);
+	DX11_RELEASE(m_noCullRS);
+	DX11_RELEASE(m_pLessEqualDSS);
 }
 
 void DebugRenderer::initiate(ID3D11Texture2D* pTarget, const GPUResourceManager& pGpuResourceManager)
@@ -163,6 +168,51 @@ void DebugRenderer::initiate(ID3D11Texture2D* pTarget, const GPUResourceManager&
 	OKAY_ASSERT(success);
 
 	m_bvhNodeNumVerticies = 24u;
+
+	// Skybox
+	success = Okay::createShader(SHADER_PATH "DebugSkyboxVS.hlsl", &m_pSkyboxVS);
+	OKAY_ASSERT(success);
+
+	success = Okay::createShader(SHADER_PATH "DebugSkyboxPS.hlsl", &m_pSkyboxPS);
+	OKAY_ASSERT(success);
+
+	MeshData cubeData;
+	success = Importer::loadMesh("resources/meshes/cube.fbx", cubeData);
+	OKAY_ASSERT(success);
+
+	Mesh cubeMesh(cubeData, "");
+	const std::vector<Okay::Triangle>& cubeTris = cubeMesh.getTriangles();
+	m_cubeNumVerticies = (uint32_t)cubeData.positions.size();
+
+	ID3D11Buffer* pCubeBuffer = nullptr;
+	success = Okay::createStructuredBuffer(&pCubeBuffer, &m_pCubeTriBuffer, cubeTris.data(), sizeof(Okay::Triangle), (uint32_t)cubeTris.size());
+	DX11_RELEASE(pCubeBuffer);
+	OKAY_ASSERT(success);
+
+	D3D11_RASTERIZER_DESC noCullRSDesc{};
+	noCullRSDesc.FillMode = D3D11_FILL_SOLID;
+	noCullRSDesc.CullMode = D3D11_CULL_NONE;
+	noCullRSDesc.FrontCounterClockwise = FALSE;
+	noCullRSDesc.DepthBias = 0;
+	noCullRSDesc.SlopeScaledDepthBias = 0.0f;
+	noCullRSDesc.DepthBiasClamp = 0.0f;
+	noCullRSDesc.DepthClipEnable = TRUE;
+	noCullRSDesc.ScissorEnable = FALSE;
+	noCullRSDesc.MultisampleEnable = FALSE;
+	noCullRSDesc.AntialiasedLineEnable = FALSE;
+	success = SUCCEEDED(pDevice->CreateRasterizerState(&noCullRSDesc, &m_noCullRS));
+	OKAY_ASSERT(success);
+
+	D3D11_DEPTH_STENCIL_DESC dsLessEqaulDesc{};
+	dsLessEqaulDesc.DepthEnable = true;
+	dsLessEqaulDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+	dsLessEqaulDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
+	dsLessEqaulDesc.StencilEnable = false;
+	dsLessEqaulDesc.StencilReadMask = 0;
+	dsLessEqaulDesc.StencilWriteMask = 0;
+
+	success = SUCCEEDED(pDevice->CreateDepthStencilState(&dsLessEqaulDesc, &m_pLessEqualDSS));
+	OKAY_ASSERT(success);
 }
 
 template<typename ShaderType>
@@ -191,37 +241,31 @@ void DebugRenderer::render(bool includeObjects)
 	static const glm::vec4 clearColor = glm::vec4(0.f, 0.f, 0.f, 0.f);
 	pDevCon->ClearRenderTargetView(m_pRTV, &clearColor.x);
 
-	// TODO: Draw Skybox
-
-
-	if (!includeObjects)
-		return;
-
 	m_pGpuResourceManager->bindResources();
 	bindGeometryPipeline();
 	updateCameraData();
 
-	const entt::registry& reg = m_pScene->getRegistry();
-	const std::vector<MeshDesc>& meshDescs = m_pGpuResourceManager->getMeshDescriptors();
+	// Skybox
+	Okay::updateBuffer(m_pRenderDataBuffer, &m_renderData, sizeof(RenderData));
+	pDevCon->VSSetShader(m_pSkyboxVS, nullptr, 0u);
+	pDevCon->VSSetShaderResources(RM_TRIANGLE_DATA_SLOT, 1u, &m_pCubeTriBuffer);
+	pDevCon->RSSetState(m_noCullRS);
+	pDevCon->PSSetShader(m_pSkyboxPS, nullptr, 0u);
+	pDevCon->OMSetDepthStencilState(m_pLessEqualDSS, 0u);
 
-	auto meshView = reg.view<MeshComponent, Transform>();
-	for (entt::entity entity : meshView) // Draw Meshes
-	{
-		auto [meshComp, transform] = meshView[entity];
-
-		const MeshDesc& desc = meshDescs[meshComp.meshID];
-
-		m_renderData.objectWorldMatrix = glm::transpose(transform.calculateMatrix());
-		m_renderData.vertStartIdx = desc.startIdx * 3u;
-		m_renderData.albedo = meshComp.material.albedo;
-
-		Okay::updateBuffer(m_pRenderDataBuffer, &m_renderData, sizeof(RenderData));
-
-		pDevCon->Draw((desc.endIdx - desc.startIdx) * 3u, 0u);
-	}
+	pDevCon->Draw(m_cubeNumVerticies, 0u);
 	
-	pDevCon->VSSetShaderResources(RM_TRIANGLE_DATA_SLOT, 1u, &m_pShereTriBuffer);
+	pDevCon->RSSetState(nullptr);
+	pDevCon->OMSetDepthStencilState(nullptr, 0u);
 
+	if (!includeObjects)
+		return;
+
+	pDevCon->VSSetShader(m_pVS, nullptr, 0u);
+	pDevCon->VSSetShaderResources(RM_TRIANGLE_DATA_SLOT, 1u, &m_pShereTriBuffer);
+	pDevCon->PSSetShader(m_pPS, nullptr, 0u);
+
+	const entt::registry& reg = m_pScene->getRegistry();
 	auto sphereView = reg.view<Sphere, Transform>();
 	for (entt::entity entity : sphereView) // Draw Spheres
 	{
@@ -241,6 +285,23 @@ void DebugRenderer::render(bool includeObjects)
 
 	ID3D11ShaderResourceView* pOrigTriangleBuffer = m_pGpuResourceManager->getTriangleData().getSRV();
 	pDevCon->VSSetShaderResources(RM_TRIANGLE_DATA_SLOT, 1u, &pOrigTriangleBuffer);
+
+	const std::vector<MeshDesc>& meshDescs = m_pGpuResourceManager->getMeshDescriptors();
+	auto meshView = reg.view<MeshComponent, Transform>();
+	for (entt::entity entity : meshView) // Draw Meshes
+	{
+		auto [meshComp, transform] = meshView[entity];
+
+		const MeshDesc& desc = meshDescs[meshComp.meshID];
+
+		m_renderData.objectWorldMatrix = glm::transpose(transform.calculateMatrix());
+		m_renderData.vertStartIdx = desc.startIdx * 3u;
+		m_renderData.albedo = meshComp.material.albedo;
+
+		Okay::updateBuffer(m_pRenderDataBuffer, &m_renderData, sizeof(RenderData));
+
+		pDevCon->Draw((desc.endIdx - desc.startIdx) * 3u, 0u);
+	}	
 }
 
 void DebugRenderer::renderNodeBBs(Entity entity, uint32_t localNodeIdx)
@@ -317,6 +378,7 @@ void DebugRenderer::updateCameraData()
 	const glm::mat3 rotationMatrix = glm::toMat3(glm::quat(glm::radians(camTra.rotation)));
 	const glm::vec3& camForward = rotationMatrix[2];
 
+	m_renderData.cameraPos = camTra.position;
 	m_renderData.cameraDir = camForward;
 	m_renderData.cameraViewProjectMatrix = glm::transpose(
 		glm::perspectiveFovLH(glm::radians(camData.fov), m_viewport.Width, m_viewport.Height, camData.nearZ, camData.farZ) *

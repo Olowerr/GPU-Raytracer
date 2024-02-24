@@ -173,5 +173,7 @@
     <None Include="resources\shaders\DebugPS.hlsl" />
     <None Include="resources\shaders\DebugBBVS.hlsl" />
     <None Include="resources\shaders\DebugBBPS.hlsl" />
+    <None Include="resources\shaders\DebugSkyboxPS.hlsl" />
+    <None Include="resources\shaders\DebugSkyboxVS.hlsl" />
   </ItemGroup>
 </Project>

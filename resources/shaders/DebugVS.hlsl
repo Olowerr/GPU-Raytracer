@@ -15,11 +15,11 @@ cbuffer RenderDataBuffer : register(RZ_RENDER_DATA_GPU_REG)
     float pad1;
 }
 
-PS_Input main(uint localVertidx : SV_VertexID)
+PS_Input main(uint localVertIdx : SV_VertexID)
 {
     PS_Input outData;
 	
-    uint vertexIdx = vertStartIdx + localVertidx;
+    uint vertexIdx = vertStartIdx + localVertIdx;
     Triangle tri = triangleData[vertexIdx / 3u];
     Vertex vert = tri.verticies[vertexIdx % 3u];
 	

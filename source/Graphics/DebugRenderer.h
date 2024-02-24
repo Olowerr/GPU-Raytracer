@@ -59,6 +59,8 @@ private: // Pipeline
 		MaterialColour3 albedo;
 		glm::vec3 cameraDir = glm::vec3(0.f);
 		float pad1 = 0.f;
+		glm::vec3 cameraPos = glm::vec3(0.f);
+		float pad2 = 0.f;
 	};
 
 	void updateCameraData();
@@ -81,7 +83,7 @@ private: // Pipeline
 	ID3D11DepthStencilView* m_pDSV;
 	ID3D11RenderTargetView* m_pRTV;
 
-	ID3D11ShaderResourceView* m_pShereTriBuffer;
+	ID3D11ShaderResourceView* m_pShereTriBuffer; // TODO: Switch to GPUStorage
 	uint32_t m_sphereNumVerticies;
 
 	// Bvh pipeline
@@ -92,6 +94,14 @@ private: // Pipeline
 
 	ID3D11VertexShader* m_pBoundingBoxVS;
 	ID3D11PixelShader* m_pBoundingBoxPS;
+	
+	// Skybox
+	ID3D11VertexShader* m_pSkyboxVS;
+	ID3D11PixelShader* m_pSkyboxPS;
+	ID3D11ShaderResourceView* m_pCubeTriBuffer; // TODO: Switch to GPUStorage
+	uint32_t m_cubeNumVerticies;
+	ID3D11RasterizerState* m_noCullRS;
+	ID3D11DepthStencilState* m_pLessEqualDSS;
 };
 
 inline void DebugRenderer::setScene(const Scene& pScene)			{ m_pScene = &pScene; }
