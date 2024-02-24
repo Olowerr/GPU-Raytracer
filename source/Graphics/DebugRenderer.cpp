@@ -412,8 +412,7 @@ void DebugRenderer::drawNodeBoundingBox(uint32_t nodeIdx, uint32_t baseNodeIdx, 
 {
 	OKAY_ASSERT(nodeIdx < (uint32_t)m_pGpuResourceManager->getBvhTreeNodes().size());
 
-	uint32_t localDepth = nodeIdx - baseNodeIdx;
-	float colourStrength = (meshDesc.numBvhNodes - localDepth) / (float)meshDesc.numBvhNodes;
+	float colourStrength = 1.f - nodeIdx / (float)meshDesc.numBvhNodes;
 	
 	m_renderData.albedo.textureId = Okay::INVALID_UINT;
 	m_renderData.albedo.colour = BVH_NODE_COLOUR * colourStrength;

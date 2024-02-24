@@ -46,8 +46,8 @@ void GPUResourceManager::initiate(const ResourceManager& resourceManager)
 
 	m_pResourceManager = &resourceManager;
 
-	m_maxBvhLeafTriangles = 100u;
-	m_maxBvhDepth = 50u;
+	m_maxBvhLeafTriangles = 30u;
+	m_maxBvhDepth = 30u;
 
 	{ // Basic Sampler
 		D3D11_SAMPLER_DESC simpDesc{};
