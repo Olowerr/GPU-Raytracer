@@ -12,8 +12,8 @@ constexpr glm::vec3 BVH_NODE_COLOUR = glm::vec3(0.9f, 0.7f, 0.5f);
 DebugRenderer::DebugRenderer()
 	:m_pScene(nullptr), m_pGpuResourceManager(nullptr), m_pResourceManager(nullptr),
 	m_pVS(nullptr), m_pPS(nullptr), m_pDSV(nullptr), m_pRTV(nullptr), m_viewport(), m_pRenderDataBuffer(nullptr),
-	m_pShereTriBuffer(nullptr), m_sphereNumVerticies(0u), m_pBvhNodeBuffer(nullptr), m_bvhNodeNumVerticies(0u),
-	m_renderBvhTree(false), m_pBoundingBoxVS(nullptr), m_pBoundingBoxPS(nullptr), m_pDoubleSideRS(nullptr)
+	m_pBvhNodeBuffer(nullptr), m_bvhNodeNumVerticies(0u), m_renderBvhTree(false), m_pBoundingBoxVS(nullptr),
+	m_pBoundingBoxPS(nullptr), m_pDoubleSideRS(nullptr)
 {
 }
 
@@ -33,19 +33,20 @@ void DebugRenderer::shutdown()
 	m_pGpuResourceManager = nullptr;
 	m_pResourceManager = nullptr;
 
+	m_sphereTriData.shutdown();
+	m_cubeTriData.shutdown();
+
 	DX11_RELEASE(m_pRenderDataBuffer);
 	DX11_RELEASE(m_pVS);
 	DX11_RELEASE(m_pPS);
 	DX11_RELEASE(m_pDSV);
 	DX11_RELEASE(m_pRTV);
-	DX11_RELEASE(m_pShereTriBuffer);
 	DX11_RELEASE(m_pBvhNodeBuffer);
 	DX11_RELEASE(m_pBoundingBoxVS);
 	DX11_RELEASE(m_pBoundingBoxPS);
 	DX11_RELEASE(m_pDoubleSideRS);
 	DX11_RELEASE(m_pSkyboxVS);
 	DX11_RELEASE(m_pSkyboxPS);
-	DX11_RELEASE(m_pCubeTriBuffer);
 	DX11_RELEASE(m_noCullRS);
 	DX11_RELEASE(m_pLessEqualDSS);
 }
@@ -104,13 +105,8 @@ void DebugRenderer::initiate(ID3D11Texture2D* pTarget, const GPUResourceManager&
 	OKAY_ASSERT(success);
 
 	Mesh sphereMesh(sphereData, "");
-	const std::vector<Okay::Triangle>& spehreTris = sphereMesh.getTriangles();
-	m_sphereNumVerticies = (uint32_t)sphereData.positions.size();
-
-	ID3D11Buffer* pSphereBuffer = nullptr;
-	success = Okay::createStructuredBuffer(&pSphereBuffer, &m_pShereTriBuffer, spehreTris.data(), sizeof(Okay::Triangle), (uint32_t)spehreTris.size());
-	DX11_RELEASE(pSphereBuffer);
-	OKAY_ASSERT(success);
+	const std::vector<Okay::Triangle>& sphereTris = sphereMesh.getTriangles();
+	m_sphereTriData.initiate((uint32_t)sizeof(Okay::Triangle), (uint32_t)sphereTris.size(), sphereTris.data());
 
 	// BVH Tree Rendering
 	success = Okay::createShader(SHADER_PATH "DebugBBVS.hlsl", &m_pBoundingBoxVS);
@@ -182,12 +178,7 @@ void DebugRenderer::initiate(ID3D11Texture2D* pTarget, const GPUResourceManager&
 
 	Mesh cubeMesh(cubeData, "");
 	const std::vector<Okay::Triangle>& cubeTris = cubeMesh.getTriangles();
-	m_cubeNumVerticies = (uint32_t)cubeData.positions.size();
-
-	ID3D11Buffer* pCubeBuffer = nullptr;
-	success = Okay::createStructuredBuffer(&pCubeBuffer, &m_pCubeTriBuffer, cubeTris.data(), sizeof(Okay::Triangle), (uint32_t)cubeTris.size());
-	DX11_RELEASE(pCubeBuffer);
-	OKAY_ASSERT(success);
+	m_cubeTriData.initiate((uint32_t)sizeof(Okay::Triangle), (uint32_t)cubeTris.size(), cubeTris.data());
 
 	D3D11_RASTERIZER_DESC noCullRSDesc{};
 	noCullRSDesc.FillMode = D3D11_FILL_SOLID;
@@ -246,14 +237,17 @@ void DebugRenderer::render(bool includeObjects)
 	updateCameraData();
 
 	// Skybox
+	ID3D11ShaderResourceView* pCubeTriBuffer = m_cubeTriData.getSRV();
+	uint32_t cubeNumVerticies = m_cubeTriData.getCapacity() * 3u;
+
 	Okay::updateBuffer(m_pRenderDataBuffer, &m_renderData, sizeof(RenderData));
 	pDevCon->VSSetShader(m_pSkyboxVS, nullptr, 0u);
-	pDevCon->VSSetShaderResources(RM_TRIANGLE_DATA_SLOT, 1u, &m_pCubeTriBuffer);
+	pDevCon->VSSetShaderResources(RM_TRIANGLE_DATA_SLOT, 1u, &pCubeTriBuffer);
 	pDevCon->RSSetState(m_noCullRS);
 	pDevCon->PSSetShader(m_pSkyboxPS, nullptr, 0u);
 	pDevCon->OMSetDepthStencilState(m_pLessEqualDSS, 0u);
 
-	pDevCon->Draw(m_cubeNumVerticies, 0u);
+	pDevCon->Draw(cubeNumVerticies, 0u);
 	
 	pDevCon->RSSetState(nullptr);
 	pDevCon->OMSetDepthStencilState(nullptr, 0u);
@@ -261,8 +255,11 @@ void DebugRenderer::render(bool includeObjects)
 	if (!includeObjects)
 		return;
 
+	ID3D11ShaderResourceView* pSphereTriBuffer = m_sphereTriData.getSRV();
+	uint32_t sphereNumVerticies = m_sphereTriData.getCapacity() * 3u;
+
 	pDevCon->VSSetShader(m_pVS, nullptr, 0u);
-	pDevCon->VSSetShaderResources(RM_TRIANGLE_DATA_SLOT, 1u, &m_pShereTriBuffer);
+	pDevCon->VSSetShaderResources(RM_TRIANGLE_DATA_SLOT, 1u, &pSphereTriBuffer);
 	pDevCon->PSSetShader(m_pPS, nullptr, 0u);
 
 	const entt::registry& reg = m_pScene->getRegistry();
@@ -280,7 +277,7 @@ void DebugRenderer::render(bool includeObjects)
 
 		Okay::updateBuffer(m_pRenderDataBuffer, &m_renderData, sizeof(RenderData));
 
-		pDevCon->Draw(m_sphereNumVerticies, 0u);
+		pDevCon->Draw(sphereNumVerticies, 0u);
 	}
 
 	ID3D11ShaderResourceView* pOrigTriangleBuffer = m_pGpuResourceManager->getTriangleData().getSRV();

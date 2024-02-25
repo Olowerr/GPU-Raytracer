@@ -83,8 +83,7 @@ private: // Pipeline
 	ID3D11DepthStencilView* m_pDSV;
 	ID3D11RenderTargetView* m_pRTV;
 
-	ID3D11ShaderResourceView* m_pShereTriBuffer; // TODO: Switch to GPUStorage
-	uint32_t m_sphereNumVerticies;
+	GPUStorage m_sphereTriData;
 
 	// Bvh pipeline
 	bool m_renderBvhTree;
@@ -98,8 +97,7 @@ private: // Pipeline
 	// Skybox
 	ID3D11VertexShader* m_pSkyboxVS;
 	ID3D11PixelShader* m_pSkyboxPS;
-	ID3D11ShaderResourceView* m_pCubeTriBuffer; // TODO: Switch to GPUStorage
-	uint32_t m_cubeNumVerticies;
+	GPUStorage m_cubeTriData;
 	ID3D11RasterizerState* m_noCullRS;
 	ID3D11DepthStencilState* m_pLessEqualDSS;
 };

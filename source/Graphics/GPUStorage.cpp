@@ -6,7 +6,7 @@ GPUStorage::GPUStorage()
 {
 }
 
-GPUStorage::GPUStorage(uint32_t elementByteWidth, uint32_t capacity, void* pData)
+GPUStorage::GPUStorage(uint32_t elementByteWidth, uint32_t capacity, const void* pData)
 {
 	initiate(elementByteWidth, capacity, pData);
 }
@@ -25,7 +25,7 @@ void GPUStorage::shutdown()
 	m_elementByteWidth = 0u;
 }
 
-void GPUStorage::initiate(uint32_t elementByteWidth, uint32_t capacity, void* pData)
+void GPUStorage::initiate(uint32_t elementByteWidth, uint32_t capacity, const void* pData)
 {
 	OKAY_ASSERT(elementByteWidth);
 	OKAY_ASSERT(capacity);
@@ -39,7 +39,7 @@ void GPUStorage::initiate(uint32_t elementByteWidth, uint32_t capacity, void* pD
 	OKAY_ASSERT(success);
 }
 
-void GPUStorage::updateRaw(uint32_t newCapacity, void* pData)
+void GPUStorage::updateRaw(uint32_t newCapacity, const void* pData)
 {
 	OKAY_ASSERT(pData);
 	OKAY_ASSERT(newCapacity);

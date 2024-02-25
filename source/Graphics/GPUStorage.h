@@ -6,17 +6,18 @@ class GPUStorage
 {
 public:
 	GPUStorage();
-	GPUStorage(uint32_t elementByteWidth, uint32_t capacity, void* pData);
+	GPUStorage(uint32_t elementByteWidth, uint32_t capacity, const void* pData);
 	~GPUStorage();
 
 	void shutdown();
-	void initiate(uint32_t elementByteWidth, uint32_t capacity, void* pData);
+	void initiate(uint32_t elementByteWidth, uint32_t capacity, const void* pData);
 
 	template<typename UpdateFunction>
 	void update(uint32_t newCapacity, UpdateFunction function);
-	void updateRaw(uint32_t newCapacity, void* pData);
+	void updateRaw(uint32_t newCapacity, const void* pData);
 
 	inline ID3D11ShaderResourceView* getSRV() const;
+	inline uint32_t getCapacity() const;
 
 private:
 	ID3D11Buffer* m_pBuffer;
@@ -27,6 +28,7 @@ private:
 };
 
 inline ID3D11ShaderResourceView* GPUStorage::getSRV() const { return m_pSRV; }
+inline uint32_t GPUStorage::getCapacity() const				{ return m_capacity; }
 
 template<typename UpdateFunction>
 inline void GPUStorage::update(uint32_t newCapacity, UpdateFunction function)
