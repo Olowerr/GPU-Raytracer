@@ -50,7 +50,6 @@ private: // Scene & Resources
 private: // Pipeline
 	struct RenderData // Aligned 16
 	{
-		// TEMP
 		glm::mat4 cameraViewProjectMatrix = glm::mat4(1.f);
 		glm::mat4 objectWorldMatrix = glm::mat4(1.f);
 		uint32_t vertStartIdx = 0u;

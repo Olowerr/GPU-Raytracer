@@ -330,6 +330,7 @@ void Application::updateImGui()
 			ImGui::Checkbox("Draw Node Gemoetry", &m_drawNodeGeometry);
 
 			ImGui::Text("Node Draw Mode");
+			ImGui::RadioButton("Draw None", &mode, DebugRenderer::BvhNodeDrawMode::None);
 			ImGui::RadioButton("Draw Single", &mode, DebugRenderer::BvhNodeDrawMode::DrawSingle);
 			ImGui::RadioButton("Draw With Children", &mode, DebugRenderer::BvhNodeDrawMode::DrawWithChildren);
 			ImGui::RadioButton("Draw With Decendants", &mode, DebugRenderer::BvhNodeDrawMode::DrawWithDecendants);

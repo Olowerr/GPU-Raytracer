@@ -227,6 +227,9 @@ void DebugRenderer::reloadShaders()
 
 void DebugRenderer::render(bool includeObjects)
 {
+	if (m_bvhDrawMode == BvhNodeDrawMode::None)
+		return;
+
 	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
 
 	static const glm::vec4 clearColor = glm::vec4(0.f, 0.f, 0.f, 0.f);
@@ -303,6 +306,9 @@ void DebugRenderer::render(bool includeObjects)
 
 void DebugRenderer::renderNodeBBs(Entity entity, uint32_t localNodeIdx)
 {
+	if (m_bvhDrawMode == BvhNodeDrawMode::None)
+		return;
+
 	if (!entity)
 		return;
 
@@ -341,6 +347,9 @@ void DebugRenderer::renderNodeBBs(Entity entity, uint32_t localNodeIdx)
 
 void DebugRenderer::renderNodeGeometry(Entity entity, uint32_t localNodeIdx)
 {
+	if (m_bvhDrawMode == BvhNodeDrawMode::None)
+		return;
+
 	if (!entity)
 		return;
 
