@@ -14,7 +14,7 @@
 
 
 Application::Application()
-	:m_pBackBuffer(nullptr), m_accumulationTime(0.f)
+	:m_accumulationTime(0.f)
 {
 	glfwInitHint(GLFW_CLIENT_API, GLFW_NO_API);
 
@@ -24,8 +24,7 @@ Application::Application()
 	Okay::initiateDX11();
 	m_window.initiate(1600u, 900u, "GPU Raytracer");
 
-	Okay::initiateImGui(m_window.getGLFWWindow());
-	Okay::getDevice()->CreateRenderTargetView(m_window.getBackBuffer(), nullptr, &m_pBackBuffer);
+	Okay::initiateImGui(m_window);
 
 	m_resourceManager.importFile("resources/meshes/room.fbx");	
 	m_resourceManager.importFile("resources/textures/RedBlue.png");
@@ -49,7 +48,6 @@ Application::~Application()
 {
 	m_window.shutdown();
 	m_rayTracer.shutdown();
-	DX11_RELEASE(m_pBackBuffer);
 
 	glfwTerminate();
 	Okay::shutdownImGui();
@@ -258,10 +256,7 @@ void Application::run()
 		if (m_drawNodeBBs)
 			m_debugRenderer.renderNodeBBs(m_selectedEntity, m_selectedNodeIdx);
 
-		Okay::getDeviceContext()->OMSetRenderTargets(1u, &m_pBackBuffer, nullptr);
 		Okay::endFrameImGui();
-		Okay::getDeviceContext()->OMSetRenderTargets(1u, &nullRTV, nullptr);
-
 		m_window.present();
 	}
 }

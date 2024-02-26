@@ -267,6 +267,7 @@ SET ERRORLEVEL=0</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="source\Application\ImGuiHelper.cpp" />
     <ClCompile Include="source\Graphics\BvhBuilder.cpp" />
     <ClCompile Include="deps\include\imgui\imgui.cpp" />
     <ClCompile Include="deps\include\imgui\imgui_demo.cpp" />

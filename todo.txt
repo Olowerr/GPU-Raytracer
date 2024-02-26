@@ -1,3 +1,4 @@
 
+[ ] Improve gui
 [ ] Fix Metal property
 [ ] ? try old shading code again

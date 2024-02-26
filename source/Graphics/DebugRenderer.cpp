@@ -227,9 +227,6 @@ void DebugRenderer::reloadShaders()
 
 void DebugRenderer::render(bool includeObjects)
 {
-	if (m_bvhDrawMode == BvhNodeDrawMode::None)
-		return;
-
 	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
 
 	static const glm::vec4 clearColor = glm::vec4(0.f, 0.f, 0.f, 0.f);
