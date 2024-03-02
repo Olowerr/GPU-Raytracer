@@ -210,6 +210,21 @@ namespace Okay
 	template bool createShader(std::string_view path, ID3D11VertexShader** ppShader, std::string* pOutShaderData);
 	template bool createShader(std::string_view path, ID3D11PixelShader** ppShader, std::string* pOutShaderData);
 
+	template void reloadShader(std::string_view path, ID3D11ComputeShader** ppShader);
+	template void reloadShader(std::string_view path, ID3D11VertexShader** ppShader);
+	template void reloadShader(std::string_view path, ID3D11PixelShader** ppShader);
+
+	template<typename ShaderType>
+	void reloadShader(std::string_view path, ShaderType** ppShader)
+	{
+		ShaderType* pNewShader = nullptr;
+		if (!Okay::createShader(path, &pNewShader))
+			return;
+
+		DX11_RELEASE(*ppShader);
+		*ppShader = pNewShader;
+	}
+
 	template<typename ShaderType>
 	bool createShader(std::string_view path, ShaderType** ppShader, std::string* pOutShaderData)
 	{

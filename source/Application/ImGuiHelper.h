@@ -1,7 +1,7 @@
 #pragma once
 
 // Technically we don't need these includes here
-// but I feel like they should be included when including "ImGuiHelper.h".
+// but I feel like imgui stuff should be included when including "ImGuiHelper.h".
 // So I'll just leave them here
 
 #include "Window.h"

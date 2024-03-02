@@ -125,13 +125,7 @@ void RayTracer::render()
 
 void RayTracer::reloadShaders()
 {
-	ID3D11ComputeShader* pNewShader = nullptr;
-	if (!Okay::createShader(SHADER_PATH "RayTracerCS.hlsl", &pNewShader))
-		return;
-
-	DX11_RELEASE(m_pMainRaytracingCS);
-	m_pMainRaytracingCS = pNewShader;
-
+	Okay::reloadShader(SHADER_PATH "RayTracerCS.hlsl", &m_pMainRaytracingCS);
 	resetAccumulation();
 }
 

@@ -206,23 +206,12 @@ void DebugRenderer::initiate(ID3D11Texture2D* pTarget, const GPUResourceManager&
 	OKAY_ASSERT(success);
 }
 
-template<typename ShaderType>
-void reloadShader(std::string_view path, ShaderType** ppShader) // TODO: Move to DX11.h
-{
-	ShaderType* pNewShader = nullptr;
-	if (!Okay::createShader(path, &pNewShader))
-		return;
-
-	DX11_RELEASE(*ppShader);
-	*ppShader = pNewShader;
-}
-
 void DebugRenderer::reloadShaders()
 {
-	reloadShader(SHADER_PATH "DebugVS.hlsl", &m_pVS);
-	reloadShader(SHADER_PATH "DebugPS.hlsl", &m_pPS);
-	reloadShader(SHADER_PATH "DebugBBVS.hlsl", &m_pBoundingBoxVS);
-	reloadShader(SHADER_PATH "DebugBBPS.hlsl", &m_pBoundingBoxPS);
+	Okay::reloadShader(SHADER_PATH "DebugVS.hlsl", &m_pVS);
+	Okay::reloadShader(SHADER_PATH "DebugPS.hlsl", &m_pPS);
+	Okay::reloadShader(SHADER_PATH "DebugBBVS.hlsl", &m_pBoundingBoxVS);
+	Okay::reloadShader(SHADER_PATH "DebugBBPS.hlsl", &m_pBoundingBoxPS);
 }
 
 void DebugRenderer::render(bool includeObjects)
