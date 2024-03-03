@@ -15,6 +15,7 @@
 #define DX11_RELEASE(X)		 if (X) {(X)->Release(); } (X) = nullptr
 #define OKAY_DELETE(X)		 if (X) { delete (X);	 } (X) = nullptr
 #define OKAY_DELETE_ARRAY(X) if (X) { delete[](X);	 } (X) = nullptr
+#define CHECK_BIT(X, pos)	((X) & 1<<(pos))
 
 #define SHADER_PATH "resources/shaders/"
 
