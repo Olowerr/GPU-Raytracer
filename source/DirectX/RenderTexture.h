@@ -9,7 +9,7 @@ public:
 
 	// Maybe rework these enums? feels kinda 'clunky',
 	// and writing 'RenderTexture::Flags::SHADER_READ' is long lol
-	// Maybe 'Description' struct?
+	// Maybe 'Description' struct? Or move enums out of class and rename
 	enum BitPos : uint32_t
 	{
 		B_RENDER = 0,

@@ -6,7 +6,7 @@ namespace Okay
 {
 	struct ImGuiData
 	{
-		ID3D11RenderTargetView* pGuiTarget = nullptr;
+		const RenderTexture* pGuiTexture = nullptr;
 	};
 	static ImGuiData imGuiData;
 
@@ -14,8 +14,7 @@ namespace Okay
 
 	void initiateImGui(Window& window)
 	{
-		bool success = SUCCEEDED(Okay::getDevice()->CreateRenderTargetView(window.getBackBuffer(), nullptr, &imGuiData.pGuiTarget));
-		OKAY_ASSERT(success);
+		imGuiData.pGuiTexture = &window.getTexture();
 
 		IMGUI_CHECKVERSION();
 		ImGui::CreateContext();
@@ -32,7 +31,6 @@ namespace Okay
 
 	void shutdownImGui()
 	{
-		DX11_RELEASE(imGuiData.pGuiTarget);
 		ImGui_ImplDX11_Shutdown();
 		ImGui_ImplGlfw_Shutdown();
 		ImGui::DestroyContext();
@@ -50,7 +48,7 @@ namespace Okay
 		static ID3D11RenderTargetView* nullRTV = nullptr;
 
 		ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
-		pDevCon->OMSetRenderTargets(1u, &imGuiData.pGuiTarget, nullptr);
+		pDevCon->OMSetRenderTargets(1u, imGuiData.pGuiTexture->getRTV(), nullptr);
 
 		ImGui::Render();
 		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());

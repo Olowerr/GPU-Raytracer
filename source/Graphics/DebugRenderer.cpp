@@ -11,15 +11,15 @@ constexpr glm::vec3 BVH_NODE_COLOUR = glm::vec3(0.9f, 0.7f, 0.5f);
 
 DebugRenderer::DebugRenderer()
 	:m_pScene(nullptr), m_pGpuResourceManager(nullptr), m_pResourceManager(nullptr),
-	m_pVS(nullptr), m_pPS(nullptr), m_pDSV(nullptr), m_pRTV(nullptr), m_viewport(), m_pRenderDataBuffer(nullptr),
-	m_pBvhNodeBuffer(nullptr), m_bvhNodeNumVerticies(0u), m_renderBvhTree(false), m_pBoundingBoxVS(nullptr),
-	m_pBoundingBoxPS(nullptr), m_pDoubleSideRS(nullptr)
+	m_pVS(nullptr), m_pPS(nullptr), m_viewport(), m_pRenderDataBuffer(nullptr), 
+	m_pBvhNodeBuffer(nullptr), m_bvhNodeNumVerticies(0u), m_renderBvhTree(false),
+	m_pBoundingBoxVS(nullptr), m_pBoundingBoxPS(nullptr), m_pDoubleSideRS(nullptr)
 {
 }
 
-DebugRenderer::DebugRenderer(ID3D11Texture2D* pTarget, const GPUResourceManager& pGpuResourceManager)
+DebugRenderer::DebugRenderer(const RenderTexture& target, const GPUResourceManager& pGpuResourceManager)
 {
-	initiate(pTarget, pGpuResourceManager);
+	initiate(target, pGpuResourceManager);
 }
 
 DebugRenderer::~DebugRenderer()
@@ -39,8 +39,6 @@ void DebugRenderer::shutdown()
 	DX11_RELEASE(m_pRenderDataBuffer);
 	DX11_RELEASE(m_pVS);
 	DX11_RELEASE(m_pPS);
-	DX11_RELEASE(m_pDSV);
-	DX11_RELEASE(m_pRTV);
 	DX11_RELEASE(m_pBvhNodeBuffer);
 	DX11_RELEASE(m_pBoundingBoxVS);
 	DX11_RELEASE(m_pBoundingBoxPS);
@@ -51,11 +49,10 @@ void DebugRenderer::shutdown()
 	DX11_RELEASE(m_pLessEqualDSS);
 }
 
-void DebugRenderer::initiate(ID3D11Texture2D* pTarget, const GPUResourceManager& pGpuResourceManager)
+void DebugRenderer::initiate(const RenderTexture& target, const GPUResourceManager& pGpuResourceManager)
 {
-	OKAY_ASSERT(pTarget);
-
 	shutdown();
+	m_pTargetTexture = &target;
 	m_pGpuResourceManager = &pGpuResourceManager;
 
 	bool success = false;
@@ -68,32 +65,11 @@ void DebugRenderer::initiate(ID3D11Texture2D* pTarget, const GPUResourceManager&
 	success = Okay::createShader(SHADER_PATH "DebugPS.hlsl", &m_pPS);
 	OKAY_ASSERT(success);
 
-	success = SUCCEEDED(pDevice->CreateRenderTargetView(pTarget, nullptr, &m_pRTV));
-	OKAY_ASSERT(success);
-
-	ID3D11Texture2D* depthBuffer = nullptr;
-	D3D11_TEXTURE2D_DESC depthDesc{};
-	pTarget->GetDesc(&depthDesc);
-	depthDesc.Format = DXGI_FORMAT_D16_UNORM;
-	depthDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-
-	success = SUCCEEDED(pDevice->CreateTexture2D(&depthDesc, nullptr, &depthBuffer));
-	OKAY_ASSERT(success);
-
-	success = SUCCEEDED(pDevice->CreateDepthStencilView(depthBuffer, nullptr, &m_pDSV));
-	DX11_RELEASE(depthBuffer);
-	OKAY_ASSERT(success);
-
 	success = Okay::createConstantBuffer(&m_pRenderDataBuffer, nullptr, sizeof(RenderData));
 	OKAY_ASSERT(success);
 
-	glm::vec4 clearColor = glm::vec4(0.f, 0.f, 0.f, 0.f);
-	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
-	pDevCon->ClearRenderTargetView(m_pRTV, &clearColor.x);
-	pDevCon->ClearDepthStencilView(m_pDSV, D3D11_CLEAR_DEPTH, 1.f, 0);
-
-	m_viewport.Height = (float)depthDesc.Height;
-	m_viewport.Width = (float)depthDesc.Width;
+	m_viewport.Height = (float)target.getDimensions().y;
+	m_viewport.Width = (float)target.getDimensions().x;
 	m_viewport.MinDepth = 0.f;
 	m_viewport.MaxDepth = 1.f;
 	m_viewport.TopLeftX = 0.f;
@@ -219,7 +195,7 @@ void DebugRenderer::render(bool includeObjects)
 	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
 
 	static const glm::vec4 clearColor = glm::vec4(0.f, 0.f, 0.f, 0.f);
-	pDevCon->ClearRenderTargetView(m_pRTV, &clearColor.x);
+	pDevCon->ClearRenderTargetView(*m_pTargetTexture->getRTV(), &clearColor.x);
 
 	m_pGpuResourceManager->bindResources();
 	bindGeometryPipeline();
@@ -318,7 +294,7 @@ void DebugRenderer::renderNodeBBs(Entity entity, uint32_t localNodeIdx)
 	pDevCon->PSSetShader(m_pBoundingBoxPS, nullptr, 0u);
 	pDevCon->PSSetConstantBuffers(RZ_RENDER_DATA_SLOT, 1u, &m_pRenderDataBuffer);
 	
-	pDevCon->OMSetRenderTargets(1u, &m_pRTV, nullptr);
+	pDevCon->OMSetRenderTargets(1u, m_pTargetTexture->getRTV(), nullptr);
 
 	const Transform& transformComp = entity.getComponent<Transform>();
 	m_renderData.objectWorldMatrix = glm::transpose(transformComp.calculateMatrix());
@@ -380,13 +356,15 @@ void DebugRenderer::updateCameraData()
 void DebugRenderer::bindGeometryPipeline(bool clearTarget)
 {
 	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
-	
+	ID3D11RenderTargetView* pTargetRTV = *m_pTargetTexture->getRTV();
+	ID3D11DepthStencilView* pTargetDSV = *m_pTargetTexture->getDSV();
+
 	if (clearTarget)
 	{
 		static const glm::vec4 clearColor = glm::vec4(0.f, 0.f, 0.f, 0.f);
-		pDevCon->ClearRenderTargetView(m_pRTV, &clearColor.x);
+		pDevCon->ClearRenderTargetView(pTargetRTV, &clearColor.x);
 	}
-	pDevCon->ClearDepthStencilView(m_pDSV, D3D11_CLEAR_DEPTH, 1.f, 0);
+	pDevCon->ClearDepthStencilView(pTargetDSV, D3D11_CLEAR_DEPTH, 1.f, 0);
 
 	pDevCon->IASetInputLayout(nullptr);
 	pDevCon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -394,7 +372,7 @@ void DebugRenderer::bindGeometryPipeline(bool clearTarget)
 	pDevCon->VSSetShader(m_pVS, nullptr, 0u);
 	pDevCon->RSSetViewports(1u, &m_viewport);
 	pDevCon->PSSetShader(m_pPS, nullptr, 0u);
-	pDevCon->OMSetRenderTargets(1u, &m_pRTV, m_pDSV);
+	pDevCon->OMSetRenderTargets(1u, &pTargetRTV, pTargetDSV);
 
 	pDevCon->VSSetConstantBuffers(RZ_RENDER_DATA_SLOT, 1u, &m_pRenderDataBuffer);
 	pDevCon->PSSetConstantBuffers(RZ_RENDER_DATA_SLOT, 1u, &m_pRenderDataBuffer);

@@ -4,6 +4,7 @@
 #include "Scene/Entity.h"
 #include "Scene/Components.h"
 #include "GPUStorage.h"
+#include "DirectX/RenderTexture.h"
 
 #include "glm/glm.hpp"
 
@@ -15,11 +16,11 @@ class RayTracer
 {
 public:
 	RayTracer();
-	RayTracer(ID3D11Texture2D* pTarget, const GPUResourceManager& pGpuResourceManager);
+	RayTracer(const RenderTexture& target, const GPUResourceManager& pGpuResourceManager);
 	~RayTracer();
 
 	void shutdown();
-	void initiate(ID3D11Texture2D* pTarget, const GPUResourceManager& pGpuResourceManager);
+	void initiate(const RenderTexture& target, const GPUResourceManager& pGpuResourceManager);
 
 	inline void setScene(const Scene& pScene);
 	void render();
@@ -65,8 +66,8 @@ private: // DX11
 
 	void updateBuffers();
 
-	ID3D11UnorderedAccessView* m_pTargetUAV;
-	ID3D11UnorderedAccessView* m_pAccumulationUAV;
+	const RenderTexture* m_pTargetTexture;
+	RenderTexture m_accumulationTexture;
 
 	RenderData m_renderData;
 	ID3D11Buffer* m_pRenderDataBuffer;
@@ -91,7 +92,7 @@ inline void RayTracer::resetAccumulation()
 	m_renderData.numAccumulationFrames = 0u;
 
 	static const float CLEAR_COLOUR[4] = { 0.f, 0.f, 0.f, 0.f };
-	Okay::getDeviceContext()->ClearUnorderedAccessViewFloat(m_pAccumulationUAV, CLEAR_COLOUR);
+	Okay::getDeviceContext()->ClearUnorderedAccessViewFloat(*m_accumulationTexture.getUAV(), CLEAR_COLOUR);
 }
 
 inline uint32_t RayTracer::getNumAccumulationFrames() const { return m_renderData.numAccumulationFrames; }

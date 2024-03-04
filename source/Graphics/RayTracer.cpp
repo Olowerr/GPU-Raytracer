@@ -10,15 +10,14 @@
 #include "glm/gtx/quaternion.hpp"
 
 RayTracer::RayTracer()
-	:m_pTargetUAV(nullptr), m_pMainRaytracingCS(nullptr), m_pScene(nullptr), m_renderData(),
-	m_pAccumulationUAV(nullptr), m_pRenderDataBuffer(nullptr), m_pGpuResourceManager(nullptr),
-	m_pResourceManager(nullptr)
+	:m_pMainRaytracingCS(nullptr), m_pScene(nullptr), m_renderData(), m_pRenderDataBuffer(nullptr),
+	m_pGpuResourceManager(nullptr), m_pResourceManager(nullptr)
 {
 }
 
-RayTracer::RayTracer(ID3D11Texture2D* pTarget, const GPUResourceManager& gpuResourceManager)
+RayTracer::RayTracer(const RenderTexture& target, const GPUResourceManager& gpuResourceManager)
 {
-	initiate(pTarget, gpuResourceManager);
+	initiate(target, gpuResourceManager);
 }
 
 RayTracer::~RayTracer()
@@ -32,47 +31,29 @@ void RayTracer::shutdown()
 	m_pGpuResourceManager = nullptr;
 	m_pResourceManager = nullptr;
 
-	DX11_RELEASE(m_pTargetUAV);
-	DX11_RELEASE(m_pAccumulationUAV);
-	DX11_RELEASE(m_pRenderDataBuffer);
-	DX11_RELEASE(m_pMainRaytracingCS);
-	
 	m_meshData.shutdown();
 	m_spheres.shutdown();
+	m_accumulationTexture.shutdown();
+
+	DX11_RELEASE(m_pRenderDataBuffer);
+	DX11_RELEASE(m_pMainRaytracingCS);
 }
 
-void RayTracer::initiate(ID3D11Texture2D* pTarget, const GPUResourceManager& gpuResourceManager)
+void RayTracer::initiate(const RenderTexture& target, const GPUResourceManager& gpuResourceManager)
 {
-	OKAY_ASSERT(pTarget);
-
 	shutdown();
 
+	m_pTargetTexture = &target;
 	m_pGpuResourceManager = &gpuResourceManager;
 	m_pResourceManager = &gpuResourceManager.getResourceManager();
 
-	D3D11_TEXTURE2D_DESC textureDesc{};
-	pTarget->GetDesc(&textureDesc);
-	m_renderData.textureDims.x = textureDesc.Width;
-	m_renderData.textureDims.y = textureDesc.Height;
-
+	m_renderData.textureDims = target.getDimensions();
 
 	ID3D11Device* pDevice = Okay::getDevice();
 	bool success = false;
-
-	// Target Texture UAV
-	success = SUCCEEDED(pDevice->CreateUnorderedAccessView(pTarget, nullptr, &m_pTargetUAV));
-	OKAY_ASSERT(success);
 	
-	// Accumulation Buffer
-	ID3D11Texture2D* pAccumulationBuffer = nullptr;
-	textureDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-	success = SUCCEEDED(pDevice->CreateTexture2D(&textureDesc, nullptr, &pAccumulationBuffer));
-	OKAY_ASSERT(success);
-
-	// Accumulation UAV
-	success = SUCCEEDED(pDevice->CreateUnorderedAccessView(pAccumulationBuffer, nullptr, &m_pAccumulationUAV));
-	DX11_RELEASE(pAccumulationBuffer);
-	OKAY_ASSERT(success);
+	// Accumulation Texture
+	m_accumulationTexture.initiate(m_renderData.textureDims.x, m_renderData.textureDims.y, RenderTexture::Format::F_32X4, RenderTexture::SHADER_WRITE);
 
 
 	// Render Data
@@ -102,7 +83,7 @@ void RayTracer::render()
 
 	// Clear
 	static const float CLEAR_COLOUR[4]{ 0.2f, 0.4f, 0.6f, 1.f };
-	pDevCon->ClearUnorderedAccessViewFloat(m_pTargetUAV, CLEAR_COLOUR);
+	pDevCon->ClearUnorderedAccessViewFloat(*m_pTargetTexture->getUAV(), CLEAR_COLOUR);
 
 	ID3D11ShaderResourceView* srvs[2u]{};
 	srvs[0] = m_spheres.getSRV();
@@ -112,8 +93,8 @@ void RayTracer::render()
 
 	// Bind standard resources
 	pDevCon->CSSetShader(m_pMainRaytracingCS, nullptr, 0u);
-	pDevCon->CSSetUnorderedAccessViews(RT_RESULT_BUFFER_SLOT, 1u, &m_pTargetUAV, nullptr);
-	pDevCon->CSSetUnorderedAccessViews(RT_ACCUMULATION_BUFFER_SLOT, 1u, &m_pAccumulationUAV, nullptr);
+	pDevCon->CSSetUnorderedAccessViews(RT_RESULT_BUFFER_SLOT, 1u, m_pTargetTexture->getUAV(), nullptr);
+	pDevCon->CSSetUnorderedAccessViews(RT_ACCUMULATION_BUFFER_SLOT, 1u, m_accumulationTexture.getUAV(), nullptr);
 	pDevCon->CSSetConstantBuffers(RT_RENDER_DATA_SLOT, 1u, &m_pRenderDataBuffer);
 
 	// Dispatch and unbind

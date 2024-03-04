@@ -5,6 +5,7 @@
 #include "Scene/Components.h"
 #include "GPUStorage.h"
 #include "GPUResourceManager.h"
+#include "DirectX/RenderTexture.h"
 
 #include "glm/glm.hpp"
 
@@ -25,11 +26,11 @@ public:
 
 public:
 	DebugRenderer();
-	DebugRenderer(ID3D11Texture2D* pTarget, const GPUResourceManager& pGpuResourceManager);
+	DebugRenderer(const RenderTexture& target, const GPUResourceManager& pGpuResourceManager);
 	~DebugRenderer();
 
 	void shutdown();
-	void initiate(ID3D11Texture2D* pTarget, const GPUResourceManager& pGpuResourceManager);
+	void initiate(const RenderTexture& target, const GPUResourceManager& pGpuResourceManager);
 
 	inline void setScene(const Scene& pScene);
 	void reloadShaders();
@@ -66,6 +67,7 @@ private: // Pipeline
 	void bindGeometryPipeline(bool clearTarget = true);
 
 	// General
+	const RenderTexture* m_pTargetTexture;
 	RenderData m_renderData;
 	ID3D11Buffer* m_pRenderDataBuffer;
 	void drawNodeBoundingBox(uint32_t nodeIdx, uint32_t baseNodeIdx, const MeshDesc& meshDesc);
@@ -78,9 +80,6 @@ private: // Pipeline
 	ID3D11VertexShader* m_pVS;
 	D3D11_VIEWPORT m_viewport;
 	ID3D11PixelShader* m_pPS;
-
-	ID3D11DepthStencilView* m_pDSV;
-	ID3D11RenderTargetView* m_pRTV;
 
 	GPUStorage m_sphereTriData;
 

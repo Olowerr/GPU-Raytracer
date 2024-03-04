@@ -37,10 +37,10 @@ Application::Application()
 	m_gpuResourceManager.initiate(m_resourceManager);
 	m_gpuResourceManager.loadResources("resources/environmentMaps/Skybox2.jpg");
 
-	m_rayTracer.initiate(m_window.getBackBuffer(), m_gpuResourceManager);
+	m_rayTracer.initiate(m_window.getTexture(), m_gpuResourceManager);
 	m_rayTracer.setScene(m_scene);
 
-	m_debugRenderer.initiate(m_window.getBackBuffer(), m_gpuResourceManager);
+	m_debugRenderer.initiate(m_window.getTexture(), m_gpuResourceManager);
 	m_debugRenderer.setScene(m_scene);
 }
 
