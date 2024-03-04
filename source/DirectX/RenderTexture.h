@@ -36,11 +36,11 @@ public:
 
 	RenderTexture();
 	RenderTexture(uint32_t width, uint32_t height, Format format, uint32_t flags);
-	RenderTexture(ID3D11Texture2D* pDX11Texture, uint32_t flags);
+	RenderTexture(ID3D11Texture2D* pDX11Texture, bool createDepthTexture = true);
 	~RenderTexture();
 
 	void initiate(uint32_t width, uint32_t height, Format format, uint32_t flags);
-	void initiate(ID3D11Texture2D* pDX11Texture, uint32_t flags);
+	void initiate(ID3D11Texture2D* pDX11Texture, bool createDepthTexture = true);
 	void shutdown();
 
 	inline ID3D11RenderTargetView* const* getRTV() const;

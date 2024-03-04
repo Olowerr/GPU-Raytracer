@@ -47,8 +47,7 @@ void Window::initiate(uint32_t width, uint32_t height, std::string_view windowNa
 	m_pDXSwapChain->GetBuffer(0u, __uuidof(ID3D11Texture2D), (void**)&pBackBuffer);
 	OKAY_ASSERT(pBackBuffer);
 
-	uint32_t flags = RenderTexture::Flags::RENDER | RenderTexture::Flags::SHADER_READ | RenderTexture::Flags::SHADER_WRITE | RenderTexture::Flags::DEPTH;
-	m_texture.initiate(pBackBuffer, flags);
+	m_texture.initiate(pBackBuffer);
 	DX11_RELEASE(pBackBuffer);
 
 	if (GLFWmonitor* pMonitor = glfwGetPrimaryMonitor())

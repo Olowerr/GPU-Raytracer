@@ -16,9 +16,9 @@ RenderTexture::RenderTexture(uint32_t width, uint32_t height, Format format, uin
 	initiate(width, height, format, flags);
 }
 
-RenderTexture::RenderTexture(ID3D11Texture2D* pDX11Texture, uint32_t flags)
+RenderTexture::RenderTexture(ID3D11Texture2D* pDX11Texture, bool createDepthTexture)
 {
-	initiate(pDX11Texture, flags);
+	initiate(pDX11Texture);
 }
 
 RenderTexture::~RenderTexture()
@@ -54,7 +54,7 @@ void RenderTexture::initiate(uint32_t width, uint32_t height, Format format, uin
 	createViewsFromFlags(flags);
 }
 
-void RenderTexture::initiate(ID3D11Texture2D* pDX11Texture, uint32_t flags)
+void RenderTexture::initiate(ID3D11Texture2D* pDX11Texture, bool createDepthTexture)
 {
 	OKAY_ASSERT(pDX11Texture);
 
@@ -63,12 +63,23 @@ void RenderTexture::initiate(ID3D11Texture2D* pDX11Texture, uint32_t flags)
 	m_pBuffer = pDX11Texture;
 	m_pBuffer->AddRef();
 
+	D3D11_TEXTURE2D_DESC desc{};
+	m_pBuffer->GetDesc(&desc);
+
+	// Convert D3D11 flags to our flags, can create more dynamic way of doing this, but I'm guessing these values won't change :]
+	// Maybe different on different systems tho, but feels unlikely :think:
+	uint32_t flags = 0u;
+	flags |= CHECK_BIT(desc.BindFlags, 3) ? Flags::SHADER_READ : 0; // SRV - Bit position of D3D11_BIND_SHADER_RESOURCE (Value 8)
+	flags |= CHECK_BIT(desc.BindFlags, 5) ? Flags::RENDER : 0;		// RTV - Bit position of D3D11_BIND_RENDER_TARGET (Value 32)
+	flags |= CHECK_BIT(desc.BindFlags, 7) ? Flags::SHADER_WRITE : 0; // UAV - Bit position of D3D11_BIND_UNORDERED_ACCESS (Value 128)
+	flags |= createDepthTexture ? Flags::DEPTH : 0;
+
 	createViewsFromFlags(flags);
 }
 
 void RenderTexture::shutdown()
 {
-	DX11_RELEASE(m_pBuffer);
+	DX11_RELEASE(m_pBuffer);	
 	DX11_RELEASE(m_pRTV);
 	DX11_RELEASE(m_pSRV);
 	DX11_RELEASE(m_pUAV);
