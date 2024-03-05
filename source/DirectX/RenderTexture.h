@@ -3,43 +3,40 @@
 
 #include "glm/glm.hpp"
 
+
+enum TextureFlagsBitPos : uint32_t
+{
+	B_RENDER = 0,
+	B_SHADER_READ = 1,
+	B_SHADER_WRITE = 2,
+	B_DEPTH = 3,
+};
+
+enum TextureFormat : uint32_t
+{
+	INVALID = DXGI_FORMAT_UNKNOWN,
+	F_8X1 = DXGI_FORMAT_R8_UNORM,
+	F_8X4 = DXGI_FORMAT_R8G8B8A8_UNORM,
+	F_32X4 = DXGI_FORMAT_R32G32B32A32_FLOAT,
+};
+
+enum TextureFlags : uint32_t
+{
+	RENDER = 1 << TextureFlagsBitPos::B_RENDER,
+	SHADER_READ = 1 << TextureFlagsBitPos::B_SHADER_READ,
+	SHADER_WRITE = 1 << TextureFlagsBitPos::B_SHADER_WRITE,
+	DEPTH = 1 << TextureFlagsBitPos::B_DEPTH,
+};
+
 class RenderTexture
 {
 public: 
-
-	// Maybe rework these enums? feels kinda 'clunky',
-	// and writing 'RenderTexture::Flags::SHADER_READ' is long lol
-	// Maybe 'Description' struct? Or move enums out of class and rename
-	enum BitPos : uint32_t
-	{
-		B_RENDER = 0,
-		B_SHADER_READ = 1,
-		B_SHADER_WRITE = 2,
-		B_DEPTH = 3,
-	};
-
-	enum Format : uint32_t
-	{
-		INVALID = DXGI_FORMAT_UNKNOWN,
-		F_8X1 = DXGI_FORMAT_R8_UNORM,
-		F_8X4 = DXGI_FORMAT_R8G8B8A8_UNORM,
-		F_32X4 = DXGI_FORMAT_R32G32B32A32_FLOAT,
-	};
-
-	enum Flags : uint32_t
-	{
-		RENDER = 1 << BitPos::B_RENDER,
-		SHADER_READ = 1 << BitPos::B_SHADER_READ,
-		SHADER_WRITE = 1 << BitPos::B_SHADER_WRITE,
-		DEPTH = 1 << BitPos::B_DEPTH,
-	};
-
 	RenderTexture();
-	RenderTexture(uint32_t width, uint32_t height, Format format, uint32_t flags);
+	RenderTexture(uint32_t width, uint32_t height, TextureFormat format, uint32_t flags);
 	RenderTexture(ID3D11Texture2D* pDX11Texture, bool createDepthTexture = true);
 	~RenderTexture();
 
-	void initiate(uint32_t width, uint32_t height, Format format, uint32_t flags);
+	void initiate(uint32_t width, uint32_t height, TextureFormat format, uint32_t flags);
 	void initiate(ID3D11Texture2D* pDX11Texture, bool createDepthTexture = true);
 	void shutdown();
 

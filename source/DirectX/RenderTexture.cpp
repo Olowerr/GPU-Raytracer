@@ -11,7 +11,7 @@ RenderTexture::RenderTexture()
 	m_pDSV = nullptr;
 }
 
-RenderTexture::RenderTexture(uint32_t width, uint32_t height, Format format, uint32_t flags)
+RenderTexture::RenderTexture(uint32_t width, uint32_t height, TextureFormat format, uint32_t flags)
 {
 	initiate(width, height, format, flags);
 }
@@ -26,9 +26,12 @@ RenderTexture::~RenderTexture()
 	shutdown();
 }
 
-void RenderTexture::initiate(uint32_t width, uint32_t height, Format format, uint32_t flags)
+void RenderTexture::initiate(uint32_t width, uint32_t height, TextureFormat format, uint32_t flags)
 {
-	OKAY_ASSERT(format != Format::INVALID);
+	OKAY_ASSERT(width);
+	OKAY_ASSERT(height);
+	OKAY_ASSERT(format != TextureFormat::INVALID);
+	OKAY_ASSERT(flags);
 
 	shutdown();
 
@@ -37,9 +40,9 @@ void RenderTexture::initiate(uint32_t width, uint32_t height, Format format, uin
 	desc.Width = width;
 	desc.Height = height;
 	desc.BindFlags =
-		(CHECK_BIT(flags, BitPos::B_RENDER) ? D3D11_BIND_RENDER_TARGET : 0u) |
-		(CHECK_BIT(flags, BitPos::B_SHADER_READ) ? D3D11_BIND_SHADER_RESOURCE : 0u) |
-		(CHECK_BIT(flags, BitPos::B_SHADER_WRITE) ? D3D11_BIND_UNORDERED_ACCESS : 0u);
+		(CHECK_BIT(flags, TextureFlagsBitPos::B_RENDER) ? D3D11_BIND_RENDER_TARGET : 0u) |
+		(CHECK_BIT(flags, TextureFlagsBitPos::B_SHADER_READ) ? D3D11_BIND_SHADER_RESOURCE : 0u) |
+		(CHECK_BIT(flags, TextureFlagsBitPos::B_SHADER_WRITE) ? D3D11_BIND_UNORDERED_ACCESS : 0u);
 	desc.Usage = D3D11_USAGE_DEFAULT;
 	desc.CPUAccessFlags = 0u;
 	desc.ArraySize = 1u;
@@ -69,10 +72,10 @@ void RenderTexture::initiate(ID3D11Texture2D* pDX11Texture, bool createDepthText
 	// Convert D3D11 flags to our flags, can create more dynamic way of doing this, but I'm guessing these values won't change :]
 	// Maybe different on different systems tho, but feels unlikely :thonk:
 	uint32_t flags = 0u;
-	flags |= CHECK_BIT(desc.BindFlags, 3) ? Flags::SHADER_READ : 0;  // SRV - Bit position of D3D11_BIND_SHADER_RESOURCE (Value 8)
-	flags |= CHECK_BIT(desc.BindFlags, 5) ? Flags::RENDER : 0;		 // RTV - Bit position of D3D11_BIND_RENDER_TARGET (Value 32)
-	flags |= CHECK_BIT(desc.BindFlags, 7) ? Flags::SHADER_WRITE : 0; // UAV - Bit position of D3D11_BIND_UNORDERED_ACCESS (Value 128)
-	flags |= createDepthTexture ? Flags::DEPTH : 0;
+	flags |= CHECK_BIT(desc.BindFlags, 3) ? TextureFlags::SHADER_READ : 0;  // SRV - Bit position of D3D11_BIND_SHADER_RESOURCE (Value 8)
+	flags |= CHECK_BIT(desc.BindFlags, 5) ? TextureFlags::RENDER : 0;		 // RTV - Bit position of D3D11_BIND_RENDER_TARGET (Value 32)
+	flags |= CHECK_BIT(desc.BindFlags, 7) ? TextureFlags::SHADER_WRITE : 0; // UAV - Bit position of D3D11_BIND_UNORDERED_ACCESS (Value 128)
+	flags |= createDepthTexture ? TextureFlags::DEPTH : 0;
 
 	createViewsFromFlags(flags);
 }
@@ -91,27 +94,34 @@ void RenderTexture::shutdown()
 void RenderTexture::createViewsFromFlags(uint32_t flags)
 {
 	ID3D11Device* pDevice = Okay::getDevice();
+	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
 	bool success = false;
 
-	if (CHECK_BIT(flags, BitPos::B_RENDER))
+	if (CHECK_BIT(flags, TextureFlagsBitPos::B_RENDER))
 	{
 		success = SUCCEEDED(pDevice->CreateRenderTargetView(m_pBuffer, nullptr, &m_pRTV));
 		OKAY_ASSERT(success);
+
+		glm::vec4 clearColour = glm::vec4(0.f);
+		pDevCon->ClearRenderTargetView(m_pRTV, &clearColour.x);
 	}
 
-	if (CHECK_BIT(flags, BitPos::B_SHADER_READ))
+	if (CHECK_BIT(flags, TextureFlagsBitPos::B_SHADER_READ))
 	{
 		success = SUCCEEDED(pDevice->CreateShaderResourceView(m_pBuffer, nullptr, &m_pSRV));
 		OKAY_ASSERT(success);
 	}
 
-	if (CHECK_BIT(flags, BitPos::B_SHADER_WRITE))
+	if (CHECK_BIT(flags, TextureFlagsBitPos::B_SHADER_WRITE))
 	{
 		success = SUCCEEDED(pDevice->CreateUnorderedAccessView(m_pBuffer, nullptr, &m_pUAV));
 		OKAY_ASSERT(success);
+
+		glm::vec4 clearColour = glm::vec4(0.f);
+		pDevCon->ClearUnorderedAccessViewFloat(m_pUAV, &clearColour.x);
 	}
 	
-	if (CHECK_BIT(flags, BitPos::B_DEPTH))
+	if (CHECK_BIT(flags, TextureFlagsBitPos::B_DEPTH))
 	{
 		D3D11_TEXTURE2D_DESC depthDesc{};
 		m_pBuffer->GetDesc(&depthDesc);
@@ -123,5 +133,7 @@ void RenderTexture::createViewsFromFlags(uint32_t flags)
 
 		success = SUCCEEDED(pDevice->CreateDepthStencilView(m_pDepthBuffer, nullptr, &m_pDSV));
 		OKAY_ASSERT(success);
+
+		Okay::getDeviceContext()->ClearDepthStencilView(m_pDSV, D3D11_CLEAR_DEPTH, 1.f, 0);
 	}
 }

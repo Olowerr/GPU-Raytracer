@@ -53,7 +53,7 @@ void RayTracer::initiate(const RenderTexture& target, const GPUResourceManager& 
 	bool success = false;
 	
 	// Accumulation Texture
-	m_accumulationTexture.initiate(m_renderData.textureDims.x, m_renderData.textureDims.y, RenderTexture::Format::F_32X4, RenderTexture::SHADER_WRITE);
+	m_accumulationTexture.initiate(m_renderData.textureDims.x, m_renderData.textureDims.y, TextureFormat::F_32X4, TextureFlags::SHADER_WRITE);
 
 
 	// Render Data
