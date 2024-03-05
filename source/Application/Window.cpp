@@ -7,7 +7,7 @@
 #include <GLFW/glfw3native.h>
 
 Window::Window()
-	:m_pGLWindow(nullptr), m_pDXSwapChain(nullptr), m_pDXBackBuffer(nullptr)
+	:m_pGLWindow(nullptr), m_pDXSwapChain(nullptr)
 {
 }
 
@@ -30,7 +30,7 @@ void Window::shutdown()
 	}
 
 	DX11_RELEASE(m_pDXSwapChain);
-	DX11_RELEASE(m_pDXBackBuffer);
+	m_texture.shutdown();
 }
 
 void Window::initiate(uint32_t width, uint32_t height, std::string_view windowName)
@@ -43,8 +43,12 @@ void Window::initiate(uint32_t width, uint32_t height, std::string_view windowNa
 	Okay::createSwapChain(&m_pDXSwapChain, glfwGetWin32Window(m_pGLWindow));
 	OKAY_ASSERT(m_pDXSwapChain);
 
-	m_pDXSwapChain->GetBuffer(0u, __uuidof(ID3D11Texture2D), (void**)&m_pDXBackBuffer);
-	OKAY_ASSERT(m_pDXBackBuffer);
+	ID3D11Texture2D* pBackBuffer = nullptr;
+	m_pDXSwapChain->GetBuffer(0u, __uuidof(ID3D11Texture2D), (void**)&pBackBuffer);
+	OKAY_ASSERT(pBackBuffer);
+
+	m_texture.initiate(pBackBuffer);
+	DX11_RELEASE(pBackBuffer);
 
 	if (GLFWmonitor* pMonitor = glfwGetPrimaryMonitor())
 	{

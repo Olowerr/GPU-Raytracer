@@ -51,7 +51,7 @@ namespace Okay
 		DXGI_SWAP_CHAIN_DESC desc{};
 		desc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 		desc.BufferCount = 1u;
-		desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_UNORDERED_ACCESS;
+		desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_UNORDERED_ACCESS | DXGI_USAGE_SHADER_INPUT;
 
 		desc.BufferDesc.Width = 0u; // 0u defaults to the window dimensions
 		desc.BufferDesc.Height = 0u;

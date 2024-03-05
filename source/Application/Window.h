@@ -1,5 +1,5 @@
 #pragma once
-#include "DirectX/DX11.h"
+#include "DirectX/RenderTexture.h"
 
 #include "GLFW/glfw3.h"
 
@@ -15,7 +15,7 @@ public:
 	void shutdown();
 	void initiate(uint32_t width, uint32_t height, std::string_view windowName);
 
-	inline ID3D11Texture2D* getBackBuffer();
+	inline const RenderTexture& getTexture();
 	HWND getHWND();
 	inline GLFWwindow* getGLFWWindow();
 
@@ -28,19 +28,18 @@ private:
 	GLFWwindow* m_pGLWindow;
 	
 	IDXGISwapChain* m_pDXSwapChain;
-	ID3D11Texture2D* m_pDXBackBuffer;
+	RenderTexture m_texture;
 };
 
-inline ID3D11Texture2D* Window::getBackBuffer()
+inline const RenderTexture& Window::getTexture()
 {
-	return m_pDXBackBuffer;
+	return m_texture;
 }
 
 inline GLFWwindow* Window::getGLFWWindow()
 {
 	return m_pGLWindow;
 }
-
 
 inline void Window::present()
 {
