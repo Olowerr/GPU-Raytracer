@@ -11,5 +11,5 @@ struct Input
 
 float4 main(Input input) : SV_TARGET
 {
-    return environmentMap.Sample(simp, input.localPos);;
+    return environmentMap.Sample(simp, input.localPos);
 }

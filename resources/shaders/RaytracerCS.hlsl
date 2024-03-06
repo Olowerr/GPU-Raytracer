@@ -449,7 +449,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
     
     if (renderData.accumulationEnabled == 1)
     {
-        accumulationBuffer[DTid.xy] += float4(light, 0.f);
+        accumulationBuffer[DTid.xy] += float4(light, 1.f);
         resultBuffer[DTid.xy] = saturate(accumulationBuffer[DTid.xy] / (float) renderData.numAccumulationFrames);
     }
     else

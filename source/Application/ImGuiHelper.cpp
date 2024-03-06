@@ -41,6 +41,7 @@ namespace Okay
 		ImGui_ImplDX11_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
+		ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
 	}
 
 	void endFrameImGui()

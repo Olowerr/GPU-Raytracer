@@ -35,6 +35,9 @@ void RenderTexture::initiate(uint32_t width, uint32_t height, TextureFormat form
 
 	shutdown();
 
+	if (flags == TextureFlags::ALL)
+		flags = TextureFlags::RENDER | TextureFlags::SHADER_READ | TextureFlags::SHADER_WRITE | TextureFlags::DEPTH;
+
 	D3D11_TEXTURE2D_DESC desc{};
 	desc.Format = DXGI_FORMAT(format);
 	desc.Width = width;

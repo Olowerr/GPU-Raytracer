@@ -20,6 +20,7 @@ private:
 	Scene m_scene;
 	ResourceManager m_resourceManager;
 	GPUResourceManager m_gpuResourceManager;
+	RenderTexture m_target;
 
 	DebugRenderer m_debugRenderer;
 	bool m_useRasterizer = false;

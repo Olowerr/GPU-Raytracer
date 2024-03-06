@@ -23,8 +23,9 @@ Application::Application()
 
 	Okay::initiateDX11();
 	m_window.initiate(1600u, 900u, "GPU Raytracer");
-
 	Okay::initiateImGui(m_window);
+
+	m_target.initiate(1600u, 900u, TextureFormat::F_8X4);
 
 	m_resourceManager.importFile("resources/meshes/room.fbx");	
 	m_resourceManager.importFile("resources/textures/RedBlue.png");
@@ -37,10 +38,10 @@ Application::Application()
 	m_gpuResourceManager.initiate(m_resourceManager);
 	m_gpuResourceManager.loadResources("resources/environmentMaps/Skybox2.jpg");
 
-	m_rayTracer.initiate(m_window.getTexture(), m_gpuResourceManager);
+	m_rayTracer.initiate(m_target, m_gpuResourceManager);
 	m_rayTracer.setScene(m_scene);
 
-	m_debugRenderer.initiate(m_window.getTexture(), m_gpuResourceManager);
+	m_debugRenderer.initiate(m_target, m_gpuResourceManager);
 	m_debugRenderer.setScene(m_scene);
 }
 
@@ -268,6 +269,17 @@ void Application::updateImGui()
 	m_accumulationTime *= (float)accumulate * (float)!m_useRasterizer;
 
 	bool resetAcu = false;
+
+	if (ImGui::Begin("Main"))
+	{
+		glm::uvec2 textureDims = m_target.getDimensions();
+		float aspectRatio = textureDims.x / (float)textureDims.y;
+		float windowWidth = ImGui::GetWindowWidth();
+
+		ImVec2 imageDims = ImVec2(windowWidth, windowWidth / aspectRatio);
+		ImGui::Image(*m_target.getSRV(), imageDims);
+	}
+	ImGui::End();
 
 	if (ImGui::Begin("Rendering"))
 	{

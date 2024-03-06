@@ -194,9 +194,6 @@ void DebugRenderer::render(bool includeObjects)
 {
 	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
 
-	static const glm::vec4 clearColor = glm::vec4(0.f, 0.f, 0.f, 0.f);
-	pDevCon->ClearRenderTargetView(*m_pTargetTexture->getRTV(), &clearColor.x);
-
 	m_pGpuResourceManager->bindResources();
 	bindGeometryPipeline();
 	updateCameraData();
@@ -361,7 +358,7 @@ void DebugRenderer::bindGeometryPipeline(bool clearTarget)
 
 	if (clearTarget)
 	{
-		static const glm::vec4 clearColor = glm::vec4(0.f, 0.f, 0.f, 0.f);
+		static const glm::vec4 clearColor = glm::vec4(0.f, 0.f, 0.f, 1.f);
 		pDevCon->ClearRenderTargetView(pTargetRTV, &clearColor.x);
 	}
 	pDevCon->ClearDepthStencilView(pTargetDSV, D3D11_CLEAR_DEPTH, 1.f, 0);

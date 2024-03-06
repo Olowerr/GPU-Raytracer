@@ -6,15 +6,15 @@
 
 enum TextureFlagsBitPos : uint32_t
 {
-	B_RENDER = 0,
-	B_SHADER_READ = 1,
-	B_SHADER_WRITE = 2,
-	B_DEPTH = 3,
+	B_RENDER = 1,
+	B_SHADER_READ = 2,
+	B_SHADER_WRITE = 3,
+	B_DEPTH = 4,
 };
 
 enum TextureFormat : uint32_t
 {
-	INVALID = DXGI_FORMAT_UNKNOWN,
+	INVALID = 0u,
 	F_8X1 = DXGI_FORMAT_R8_UNORM,
 	F_8X4 = DXGI_FORMAT_R8G8B8A8_UNORM,
 	F_32X4 = DXGI_FORMAT_R32G32B32A32_FLOAT,
@@ -22,6 +22,7 @@ enum TextureFormat : uint32_t
 
 enum TextureFlags : uint32_t
 {
+	ALL = 1u,
 	RENDER = 1 << TextureFlagsBitPos::B_RENDER,
 	SHADER_READ = 1 << TextureFlagsBitPos::B_SHADER_READ,
 	SHADER_WRITE = 1 << TextureFlagsBitPos::B_SHADER_WRITE,
@@ -32,11 +33,11 @@ class RenderTexture
 {
 public: 
 	RenderTexture();
-	RenderTexture(uint32_t width, uint32_t height, TextureFormat format, uint32_t flags);
+	RenderTexture(uint32_t width, uint32_t height, TextureFormat format, uint32_t flags = TextureFlags::ALL);
 	RenderTexture(ID3D11Texture2D* pDX11Texture, bool createDepthTexture = true);
 	~RenderTexture();
 
-	void initiate(uint32_t width, uint32_t height, TextureFormat format, uint32_t flags);
+	void initiate(uint32_t width, uint32_t height, TextureFormat format, uint32_t flags = TextureFlags::ALL);
 	void initiate(ID3D11Texture2D* pDX11Texture, bool createDepthTexture = true);
 	void shutdown();
 
