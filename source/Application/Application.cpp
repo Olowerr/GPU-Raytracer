@@ -277,8 +277,7 @@ void Application::updateImGui()
 		float windowWidth = ImGui::GetWindowWidth();
 
 		ImVec2 imageDims = ImVec2(windowWidth, windowWidth / aspectRatio);
-		//ImGui::Image(*m_target.getSRV(), imageDims);
-		ImGui::Image(*m_target.getSRV(), ImVec2(800, 450));
+		ImGui::Image(*m_target.getSRV(), imageDims);
 	}
 	ImGui::End();
 
@@ -290,30 +289,17 @@ void Application::updateImGui()
 		ImGui::Text("MS: %.3f", ImGui::GetIO().DeltaTime * 1000.f);
 
 		ImGui::Separator();
-		
-		static glm::ivec2 renderDims = m_target.getDimensions();
-		glm::ivec2 prevDims = renderDims;
-		if (ImGui::DragInt2("Resolution (16:9)", glm::value_ptr(renderDims), 0.1f, 16, 8192, "%d", ImGuiSliderFlags_NoInput))
+
+		static const char* resolutionLables[] = { "1024x576", "1600x900", "1920x1080", "3840x2160", "7680x4320" };
+		static const glm::uvec2 resolutionValues[] = { {1024, 576}, {1600, 900}, {1920, 1080}, {3840, 2160}, {7680, 4320} };
+		static int currentIdx = 1;
+
+		if (ImGui::Combo("Resolution", &currentIdx, resolutionLables, IM_ARRAYSIZE(resolutionLables)))
 		{
-			// TODO: Fix so aspect ratio is always perfect, should never need to round the dims like (1601, 900.56), find closest valid 16:9 dims instead
-			// Can maybe use prevDims to only update every 16 steps or something, or maybe decrease the dragging speed :thonk:
-			// Update: low drag speed is nice, can determine direction using prevDims to know if should find next valid 16:9 dims above or below current values
-
-			// Detect which value was changed and which direction (+ or -)
-			if (prevDims.x != renderDims.x)
-			{
-				renderDims = prevDims + glm::ivec2(16, 9) * (renderDims.x > prevDims.x ? 1 : -1);
-			}
-			else
-			{
-				renderDims = prevDims + glm::ivec2(16, 9) * (renderDims.y > prevDims.y ? 1 : -1);
-			}
-			prevDims = renderDims;
-
-			OKAY_ASSERT(renderDims.x % 16 == 0);
-			OKAY_ASSERT(renderDims.y % 9 == 0);
-
-			m_target.resize(renderDims.x, renderDims.y);
+			const glm::uvec2& resolution = resolutionValues[currentIdx];
+			m_target.resize(resolution.x, resolution.y);
+			m_rayTracer.onResize();
+			m_debugRenderer.onResize();
 		}
 
 		if (ImGui::Button("Save screenshot"))
