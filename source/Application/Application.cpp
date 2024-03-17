@@ -3,10 +3,10 @@
 #include "Utilities.h"
 #include "Scene/Components.h"
 #include "Scene/Entity.h"
-
+#include "Input.h"
 #include "ImGuiHelper.h"
 
-#include "Input.h"
+#include "stb/stb_image_write.h"
 
 #include "glm/gtx/quaternion.hpp"
 #include "glm/gtc/matrix_transform.hpp"
@@ -290,6 +290,13 @@ void Application::updateImGui()
 
 		ImGui::Separator();
 
+		if (ImGui::Button("Save screenshot"))
+		{
+			saveScreenshot();
+		}
+
+		ImGui::Separator();
+
 		if (ImGui::Button("Reload Shaders"))
 		{
 			m_rayTracer.reloadShaders();
@@ -529,4 +536,31 @@ void Application::updateCamera()
 		m_rayTracer.resetAccumulation();
 		m_accumulationTime = 0.f;
 	}
+}
+
+void Application::saveScreenshot()
+{
+	ID3D11Texture2D* sourceBuffer = *m_target.getBuffer();
+
+	D3D11_TEXTURE2D_DESC desc{};
+	sourceBuffer->GetDesc(&desc);
+	desc.Usage = D3D11_USAGE_STAGING;
+	desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+	desc.BindFlags = 0u;
+
+	ID3D11Texture2D* stagingBuffer = nullptr;
+	Okay::getDevice()->CreateTexture2D(&desc, nullptr, &stagingBuffer);
+	if (!stagingBuffer)
+		return;
+
+	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
+	pDevCon->CopyResource(stagingBuffer, sourceBuffer);
+
+	D3D11_MAPPED_SUBRESOURCE sub{};
+	pDevCon->Map(stagingBuffer, 0u, D3D11_MAP_READ, 0u, &sub);
+
+	stbi_write_png("render.png", (int)desc.Width, (int)desc.Height, 4, sub.pData, (int)sub.RowPitch);
+
+	pDevCon->Unmap(stagingBuffer, 0u);
+	DX11_RELEASE(stagingBuffer);
 }

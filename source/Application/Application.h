@@ -33,6 +33,7 @@ private:
 
 	void updateImGui();
 	void updateCamera();
+	void saveScreenshot();
 
 	float m_accumulationTime;
 };

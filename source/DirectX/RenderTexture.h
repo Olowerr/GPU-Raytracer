@@ -41,6 +41,7 @@ public:
 	void initiate(ID3D11Texture2D* pDX11Texture, bool createDepthTexture = true);
 	void shutdown();
 
+	inline ID3D11Texture2D* const* getBuffer() const;
 	inline ID3D11RenderTargetView* const* getRTV() const;
 	inline ID3D11ShaderResourceView* const* getSRV() const;
 	inline ID3D11UnorderedAccessView* const* getUAV() const;
@@ -60,6 +61,11 @@ private:
 private:
 	void createViewsFromFlags(uint32_t flags);
 };
+
+inline ID3D11Texture2D* const* RenderTexture::getBuffer() const
+{
+	return &m_pBuffer;
+}
 
 inline ID3D11RenderTargetView* const* RenderTexture::getRTV() const
 {
