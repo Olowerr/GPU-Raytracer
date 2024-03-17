@@ -41,6 +41,8 @@ public:
 
 	void setBvhNodeDrawMode(BvhNodeDrawMode mode);
 
+	void onResize();
+
 private: // Scene & Resources
 	const Scene* m_pScene;
 	const GPUResourceManager* m_pGpuResourceManager;

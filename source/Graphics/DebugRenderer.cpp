@@ -454,3 +454,10 @@ void DebugRenderer::executeDrawMode(uint32_t nodeIdx, NodeFunction pFunc, Args..
 		break;
 	}
 }
+
+void DebugRenderer::onResize()
+{
+	glm::uvec2 newDims = m_pTargetTexture->getDimensions();
+	m_viewport.Width = (float)newDims.x;
+	m_viewport.Height = (float)newDims.y;
+}
