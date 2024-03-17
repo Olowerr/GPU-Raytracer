@@ -1,5 +1,6 @@
 #pragma once
 #include "DX11.h"
+#include "Utilities.h"
 
 #include "glm/glm.hpp"
 
@@ -31,6 +32,9 @@ enum TextureFlags : uint32_t
 
 class RenderTexture
 {
+public:
+	static uint32_t getTextureFlagsFromDX11(uint32_t bindFlags, bool depth = false);
+
 public: 
 	RenderTexture();
 	RenderTexture(uint32_t width, uint32_t height, TextureFormat format, uint32_t flags = TextureFlags::ALL);
@@ -48,6 +52,9 @@ public:
 	inline ID3D11DepthStencilView* const* getDSV() const;
 
 	inline glm::uvec2 getDimensions() const;
+
+	// Will lose all refrences to orignal buffer if object doesn't own the buffer
+	void resize(uint32_t width, uint32_t height);
 
 private:
 	ID3D11Texture2D* m_pBuffer;

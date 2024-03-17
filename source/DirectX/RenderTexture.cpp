@@ -1,5 +1,4 @@
 #include "RenderTexture.h"
-#include "Utilities.h"
 
 RenderTexture::RenderTexture()
 {
@@ -72,14 +71,7 @@ void RenderTexture::initiate(ID3D11Texture2D* pDX11Texture, bool createDepthText
 	D3D11_TEXTURE2D_DESC desc{};
 	m_pBuffer->GetDesc(&desc);
 
-	// Convert D3D11 flags to our flags, can create more dynamic way of doing this, but I'm guessing these values won't change :]
-	// Maybe different on different systems tho, but feels unlikely :thonk:
-	uint32_t flags = 0u;
-	flags |= CHECK_BIT(desc.BindFlags, 3) ? TextureFlags::SHADER_READ : 0;  // SRV - Bit position of D3D11_BIND_SHADER_RESOURCE (Value 8)
-	flags |= CHECK_BIT(desc.BindFlags, 5) ? TextureFlags::RENDER : 0;		 // RTV - Bit position of D3D11_BIND_RENDER_TARGET (Value 32)
-	flags |= CHECK_BIT(desc.BindFlags, 7) ? TextureFlags::SHADER_WRITE : 0; // UAV - Bit position of D3D11_BIND_UNORDERED_ACCESS (Value 128)
-	flags |= createDepthTexture ? TextureFlags::DEPTH : 0;
-
+	uint32_t flags = getTextureFlagsFromDX11(desc.BindFlags, createDepthTexture);
 	createViewsFromFlags(flags);
 }
 
@@ -92,6 +84,18 @@ void RenderTexture::shutdown()
 
 	DX11_RELEASE(m_pDepthBuffer);
 	DX11_RELEASE(m_pDSV);
+}
+
+void RenderTexture::resize(uint32_t width, uint32_t height)
+{
+	OKAY_ASSERT(width);
+	OKAY_ASSERT(height);
+
+	D3D11_TEXTURE2D_DESC orignalDesc{};
+	m_pBuffer->GetDesc(&orignalDesc);
+
+	uint32_t flags = getTextureFlagsFromDX11(orignalDesc.BindFlags, m_pDepthBuffer);
+	initiate(width, height, TextureFormat(orignalDesc.Format), flags);
 }
 
 void RenderTexture::createViewsFromFlags(uint32_t flags)
@@ -139,4 +143,18 @@ void RenderTexture::createViewsFromFlags(uint32_t flags)
 
 		Okay::getDeviceContext()->ClearDepthStencilView(m_pDSV, D3D11_CLEAR_DEPTH, 1.f, 0);
 	}
+}
+
+uint32_t RenderTexture::getTextureFlagsFromDX11(uint32_t bindFlags, bool depth)
+{
+	// Convert D3D11 flags to our flags, can create more dynamic way of doing this, but I'm guessing these values won't change :]
+	// Maybe different on different systems tho, but feels unlikely :thonk:
+
+	uint32_t flags = 0u;
+	flags |= CHECK_BIT(bindFlags, 3) ? TextureFlags::SHADER_READ : 0;	// SRV - Bit position of D3D11_BIND_SHADER_RESOURCE (Value 8)
+	flags |= CHECK_BIT(bindFlags, 5) ? TextureFlags::RENDER : 0;		// RTV - Bit position of D3D11_BIND_RENDER_TARGET (Value 32)
+	flags |= CHECK_BIT(bindFlags, 7) ? TextureFlags::SHADER_WRITE : 0;	// UAV - Bit position of D3D11_BIND_UNORDERED_ACCESS (Value 128)
+	flags |= depth ? TextureFlags::DEPTH : 0;
+
+	return flags;
 }
