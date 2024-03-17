@@ -208,3 +208,12 @@ void RayTracer::updateBuffers()
 
 	Okay::updateBuffer(m_pRenderDataBuffer, &m_renderData, sizeof(RenderData));
 }
+
+void RayTracer::onResize()
+{
+	glm::uvec2 newDims = m_pTargetTexture->getDimensions();
+
+	m_renderData.textureDims = newDims;
+	m_accumulationTexture.resize(newDims.x, newDims.y);
+	resetAccumulation();
+}

@@ -34,6 +34,8 @@ public:
 	inline float& getDOFStrength();
 	inline float& getDOFDistance();
 
+	void onResize();
+
 private: // Scene & Resources
 	const Scene* m_pScene;
 	const GPUResourceManager* m_pGpuResourceManager;
