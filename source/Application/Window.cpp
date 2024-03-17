@@ -40,6 +40,8 @@ void Window::initiate(uint32_t width, uint32_t height, std::string_view windowNa
 	m_pGLWindow = glfwCreateWindow(width, height, windowName.data(), nullptr, nullptr);
 	OKAY_ASSERT(m_pGLWindow);
 
+	glfwSetWindowUserPointer(m_pGLWindow, this);
+
 	Okay::createSwapChain(&m_pDXSwapChain, glfwGetWin32Window(m_pGLWindow));
 	OKAY_ASSERT(m_pDXSwapChain);
 
@@ -59,7 +61,7 @@ void Window::initiate(uint32_t width, uint32_t height, std::string_view windowNa
 
 	Input::pWindow = m_pGLWindow;
 
-	glfwSetKeyCallback(m_pGLWindow, [](GLFWwindow* window, int key, int scancode, int action, int mods)
+	glfwSetKeyCallback(m_pGLWindow, [](GLFWwindow* pGLWindow, int key, int scancode, int action, int mods)
 	{
 		switch (action)
 		{
@@ -72,6 +74,28 @@ void Window::initiate(uint32_t width, uint32_t height, std::string_view windowNa
 			break;
 		}
 	});
+
+	glfwSetWindowSizeCallback(m_pGLWindow, [](GLFWwindow* pGLWindow, int width, int height)
+	{
+		Window* pWindow = (Window*)glfwGetWindowUserPointer(pGLWindow);
+		pWindow->onResize();
+	});
+}
+
+void Window::onResize()
+{
+	// Release all backbuffer references first, or ResizeBuffers will fail
+	m_texture.shutdown();
+
+	bool success = SUCCEEDED(m_pDXSwapChain->ResizeBuffers(1u, 0u, 0u, DXGI_FORMAT_UNKNOWN, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
+	OKAY_ASSERT(success);
+
+	ID3D11Texture2D* pBackBuffer = nullptr;
+	m_pDXSwapChain->GetBuffer(0u, __uuidof(ID3D11Texture2D), (void**)&pBackBuffer);
+	OKAY_ASSERT(pBackBuffer);
+
+	m_texture.initiate(pBackBuffer);
+	DX11_RELEASE(pBackBuffer);
 }
 
 void Window::processMessages()

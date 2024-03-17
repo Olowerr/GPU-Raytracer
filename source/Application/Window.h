@@ -24,6 +24,8 @@ public:
 	void processMessages();
 	inline void present();
 
+	void onResize();
+
 private:
 	GLFWwindow* m_pGLWindow;
 	
