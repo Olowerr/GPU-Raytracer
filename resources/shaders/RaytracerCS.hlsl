@@ -84,6 +84,15 @@ cbuffer RenderDataBuffer : register(RT_RENDER_DATA_GPU_REG)
 
 
 // ---- Functions
+float2 normalToUV(float3 normal)
+{
+    float2 uv;
+    uv.x = atan2(normal.x, normal.z) / (2 * PI) + 0.5;
+    uv.y = normal.y * 0.5 + 0.5;
+    
+    return uv;
+}
+
 float3 getEnvironmentLight(float3 direction)
 {
     return environmentMap.SampleLevel(simp, direction, 0.f).rgb;
@@ -158,13 +167,30 @@ float3 sampleTexture(uint textureIdx, float2 meshUVs)
 void findMaterialTextureColours(inout Material material, float2 meshUVs)
 {
     if (isValidIdx(material.albedo.textureIdx))
+    {
         material.albedo.colour = sampleTexture(material.albedo.textureIdx, meshUVs);
+    }
     
     if (isValidIdx(material.roughness.textureIdx))
-        material.roughness.colour = sampleTexture(material.roughness.textureIdx, meshUVs).r;
+    {
+        float roughness = sampleTexture(material.roughness.textureIdx, meshUVs).r;
+        roughness = clamp(roughness, material.roughness.colour, 1.f);
+        material.roughness.colour = roughness;
+    }
     
     if (isValidIdx(material.metallic.textureIdx))
-        material.metallic.colour = sampleTexture(material.metallic.textureIdx, meshUVs).r;
+    {
+        float metallic = sampleTexture(material.metallic.textureIdx, meshUVs).r;
+        metallic = clamp(metallic, material.metallic.colour, 1.f);
+        material.metallic.colour = metallic;
+    }
+    
+     if (isValidIdx(material.specular.textureIdx))
+    {
+        float specular = sampleTexture(material.specular.textureIdx, meshUVs).r;
+        specular = clamp(specular, material.specular.colour, 1.f);
+        material.specular.colour = specular;
+    }
 }
 
 float3 sampleNormalMap(uint textureIdx, float2 meshUVs, float3 normal, float3 tangent, float3 bitangent)
@@ -174,7 +200,7 @@ float3 sampleNormalMap(uint textureIdx, float2 meshUVs, float3 normal, float3 ta
     
     float3x3 tbn = float3x3(tangent, bitangent, normal);
  
-    return mul(sampledNormal, tbn);
+    return normalize(mul(sampledNormal, tbn));
 }
 
 Payload findClosestHit(Ray ray)
@@ -198,6 +224,8 @@ Payload findClosestHit(Ray ray)
         }
     }
     
+    // TODO: Rewrite the upcoming loop to reduce nesting
+
     static const uint MAX_STACK_SIZE = 50;
     half stack[MAX_STACK_SIZE];
     uint stackSize = 0;
@@ -277,7 +305,25 @@ Payload findClosestHit(Ray ray)
     {
         case 0: // Sphere
             payload.material = sphereData[hitIdx].material;
-            payload.worldNormal = normalize(payload.worldPosition - sphereData[hitIdx].position);
+            
+            float3 hitNormal = normalize(payload.worldPosition - sphereData[hitIdx].position);
+            float2 sphereUVs = normalToUV(hitNormal);
+            
+            if (isValidIdx(payload.material.normalMapIdx))
+            {
+                float3 normal = hitNormal;
+                float3 tangent = normalize(cross(float3(0.f, 1.f, 0.f), hitNormal));
+                float3 bitangent = normalize(cross(tangent, hitNormal));
+        
+                payload.worldNormal = sampleNormalMap(payload.material.normalMapIdx, sphereUVs, normal, tangent, bitangent);
+            }
+            else
+            {
+                payload.worldNormal = hitNormal;
+            }
+            
+            
+            findMaterialTextureColours(payload.material, sphereUVs);
             break;
         
         case 1: // Mesh
@@ -414,30 +460,77 @@ void main(uint3 DTid : SV_DispatchThreadID)
         
         material = hitData.material;
 
-        float roughness = hitData.material.roughness.colour;
+        float roughness = material.roughness.colour;
+        float roughnessFactor = float(roughness >= randomFloat(seed));
         float specularFactor = float(material.metallic.colour >= randomFloat(seed));
         float3 reflectDir = findReflectDirection(ray.direction, hitData.worldNormal, roughness, 1.f - specularFactor, seed);
         float3 refractDir = findTransparencyBounce(ray.direction, hitData.worldNormal, hitData.material.indexOfRefraction, seed);
 
         float transparencyFactor = hitData.material.transparency >= randomFloat(seed);
         float3 bounceDir = normalize(lerp(reflectDir, refractDir, transparencyFactor));
-        
         float3 hitPoint = hitData.worldPosition + bounceDir * 0.001f;
         
+        float3 blinnPhongLight = float3(0.f, 0.f, 0.f);
+        {
+            Ray toLightRay;
+            toLightRay.origin = ray.origin;
+            toLightRay.direction = normalize(float3(-1.f, 1.f, 1.f));
+        
+            static const float3 SUN_COLOUR = float3(1.f, 1.f, 1.f);
+            static const float SUN_STRENGTH = 1.f;
+        
+            Payload lightPayLoad = findClosestHit(toLightRay);
+            
+            const float3 halfwayVec = normalize(toLightRay.direction + -ray.direction);
+            const float3 lightDotNormal = clampedDot(toLightRay.direction, hitData.worldNormal);
+            const float3 halfwayDotNormal = clampedDot(halfwayVec, hitData.worldNormal);
+            
+            float3 diffuse = material.albedo.colour * lightDotNormal;
+            float3 specular = float3(1.f, 1.f, 1.f) * pow(halfwayDotNormal, max(300.f * material.specular.colour, 1.f));
+            
+            //blinnPhongLight = (diffuse + specular) * SUN_COLOUR * SUN_STRENGTH;
+            blinnPhongLight = lerp(specular, diffuse, roughnessFactor * (1.f - specularFactor)) * SUN_COLOUR * SUN_STRENGTH;
+        }
+        
+        /*
+            Fix normal maps
+            Change specularColour to a float1, only controls the specular pow exponent (maybe still 0-1 & multiply with some value like 300? then can still use textures)
+            Fix entity components for the 3 light types (directional, point, spot)
+            Fix metal calculations
+            Fix transparency calculations
+        
+        
+        
+        maybe change so there are normal (diffuse) bounces & specular bounces.
+        where normal/diffuse bounces will just bounce off in bounceDir and calculate lighing like normal
+        and specular bounces will do the specular pow calculations?
+        but how do we determine when which bounce is gonna happen?
+        maybe just use roughnessFactor as it is, and let specular.colour be the exponent like normal?   
+        not sure what to do with lightPayLoad in that version tho... do we cast it on diffuse bounces too, or only specular ones..?
+        only on specular doesn't make sense, since then diffuse materials have no shadows? but then we need to do light calcs for diffuse and we're just back at square one?
+        
+        */
+        
+        contribution *= lerp(material.albedo.colour, float3(1.f, 1.f, 1.f), specularFactor);
+        light += material.emissionColour * material.emissionPower * contribution * (1.f - transparencyFactor);
+        light += blinnPhongLight * contribution;
+       
         ray.origin = hitPoint;
         ray.direction = bounceDir;
-        
-        contribution *= lerp(material.albedo.colour, material.specularColour, specularFactor);
-        light += material.emissionColour * material.emissionPower * contribution * (1.f - transparencyFactor);
     }
     
+    float4 result;
     if (renderData.accumulationEnabled == 1)
     {
         accumulationBuffer[DTid.xy] += float4(light, 1.f);
-        resultBuffer[DTid.xy] = saturate(accumulationBuffer[DTid.xy] / (float) renderData.numAccumulationFrames);
+        result = saturate(accumulationBuffer[DTid.xy] / (float) renderData.numAccumulationFrames);
     }
     else
     {
-        resultBuffer[DTid.xy] = float4(saturate(light), 1.f);
+        result = float4(saturate(light), 1.f);
     }
+    
+    //result = pow(result, float4(2.f, 2.f, 2.f, 0.f));
+    resultBuffer[DTid.xy] = result;
+
 }

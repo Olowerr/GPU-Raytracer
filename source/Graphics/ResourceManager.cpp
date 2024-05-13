@@ -16,6 +16,7 @@ AssetID ResourceManager::importFile(std::string_view filePath)
 	if (id = loadMesh(filePath))
 		return id;
 
+	OKAY_ASSERT(id);
 	return id;
 }
 
@@ -34,6 +35,7 @@ AssetID ResourceManager::loadTexture(std::string_view path)
 {
 	int width, height;
 	unsigned char* pData = stbi_load(path.data(), &width, &height, nullptr, STBI_rgb_alpha);
+
 
 	if (!pData)
 		return AssetID();

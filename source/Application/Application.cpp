@@ -14,7 +14,7 @@
 
 
 Application::Application()
-	:m_accumulationTime(0.f)
+	:m_accumulationTime(0.f), m_selectedNodeIdx(Okay::INVALID_UINT)
 {
 	glfwInitHint(GLFW_CLIENT_API, GLFW_NO_API);
 
@@ -27,15 +27,10 @@ Application::Application()
 
 	m_target.initiate(1600u, 900u, TextureFormat::F_8X4);
 
-	//m_resourceManager.importFile("resources/meshes/room.fbx");	
-	//m_resourceManager.importFile("resources/textures/RedBlue.png");
-
-	m_resourceManager.importFile("resources/meshes/revolver.fbx");
-	m_resourceManager.importFile("resources/textures/rev/rev_albedo.png");
-	m_resourceManager.importFile("resources/textures/rev/rev_roughness.png");
-	m_resourceManager.importFile("resources/textures/rev/rev_metallic.png");
-	m_resourceManager.importFile("resources/textures/rev/rev_normalMap.png");
-
+	m_resourceManager.importFile("resources/textures/wood/whnfeb2_2K_Albedo.jpg");
+	m_resourceManager.importFile("resources/textures/wood/whnfeb2_2K_Roughness.jpg");
+	m_resourceManager.importFile("resources/textures/wood/whnfeb2_2K_Specular.jpg");
+	m_resourceManager.importFile("resources/textures/wood/whnfeb2_2K_Normal.jpg");
 
 	m_gpuResourceManager.initiate(m_resourceManager);
 	m_gpuResourceManager.loadResources("resources/environmentMaps/Skybox2.jpg");
@@ -67,18 +62,50 @@ void Application::run()
 	camera.getComponent<Transform>().rotation.y = -90.f;
 
 	{
-		Entity meshEntity = m_scene.createEntity();
-		MeshComponent& meshComp = meshEntity.addComponent<MeshComponent>();
-		meshComp.material.albedo.textureId = 0;
-		meshComp.material.roughness.textureId = 1;
-		meshComp.material.metallic.textureId = 2;
-		meshComp.material.normalMapIdx = 3;
-		meshComp.meshID = 0;
+		Entity sphere = m_scene.createEntity();
 		
-		Entity sphereEntity = m_scene.createEntity();
-		Sphere& sphereComp = sphereEntity.addComponent<Sphere>();
-		sphereComp.material = meshComp.material;
+		Material& sphereMaterial = sphere.addComponent<Sphere>().material;
+		sphereMaterial.albedo.textureId = 0u;
+		sphereMaterial.roughness.textureId = 1u;
+		sphereMaterial.specular.textureId = 2u;
+		sphereMaterial.normalMapIdx = 3u;
 	}
+#if 0
+	glm::vec3 colours[3] =
+	{
+		{0.05f, 0.05f, 0.95f},
+		{0.05f, 0.95f, 0.05f},
+		{0.95f, 0.05f, 0.05f},
+	};
+
+	uint32_t num = 10u;
+	float dist = 3.f;
+	float offset = (num - 1u) * 0.5f * dist;
+	for (uint32_t y = 0; y < num; y++)
+	{
+		for (uint32_t x = 0; x < num; x++)
+		{
+			Entity entity = m_scene.createEntity();
+
+			Sphere& sphere = entity.addComponent<Sphere>();
+			sphere.radius = dist * 0.4f;
+			sphere.material.roughness = x / (num - 1.f);
+			sphere.material.metallic = y / (num - 1.f);
+
+			Transform& tra = entity.getComponent<Transform>();
+			tra.position = glm::vec3(x * dist - offset, y * dist - offset, 10.f);
+
+
+			uint32_t id = x + y * num;
+			float t = (float)id / float(num * num);
+			int idx1 = int(t * (3 - 1));
+			int idx2 = (idx1 + 1) % 3;
+			float tBlend = (t * (3 - 1)) - idx1;
+
+			sphere.material.albedo.colour = glm::vec3(0.8f, 0.8f, 0.8f);// glm::mix(colours[idx1], colours[idx2], tBlend);
+		}
+	}
+#endif
 
 	while (m_window.isOpen())
 	{
@@ -257,7 +284,7 @@ void Application::updateImGui()
 			if (ImGui::DragFloat("Radius", &sphere.radius, 0.1f))									resetAcu = true;
 			if (ImGui::DragFloat("Roughness", &mat.roughness.colour, 0.01f, 0.f, 1.f))				resetAcu = true;
 			if (ImGui::DragFloat("Metallic", &mat.metallic.colour, 0.01f, 0.f, 1.f))				resetAcu = true;
-			if (ImGui::ColorEdit3("Specular Colour", &mat.specularColour.x))						resetAcu = true;
+			if (ImGui::DragFloat("Specular", &mat.specular.colour, 0.01f, 0.f, 1.f))				resetAcu = true;
 			if (ImGui::DragFloat("Transparency", &mat.transparency, 0.01f, 0.f, 1.f))				resetAcu = true;
 			if (ImGui::DragFloat("Refraction Idx", &mat.indexOfRefraction, 0.01f, 1.f, 5.f))		resetAcu = true;
 
@@ -299,7 +326,7 @@ void Application::updateImGui()
 			if (ImGui::DragFloat("Emission Power", &mat.emissionPower, 0.01f))						resetAcu = true;
 			if (ImGui::DragFloat("Roughness", &mat.roughness.colour, 0.01f, 0.f, 1.f))				resetAcu = true;
 			if (ImGui::DragFloat("Metallic", &mat.metallic.colour, 0.01f, 0.f, 1.f))				resetAcu = true;
-			if (ImGui::ColorEdit3("Specular Colour", &mat.specularColour.x))						resetAcu = true;
+			if (ImGui::DragFloat("Specular", &mat.specular.colour, 0.01f, 0.f, 1.f))				resetAcu = true;
 			if (ImGui::DragFloat("Transparency", &mat.transparency, 0.01f, 0.f, 1.f))				resetAcu = true;
 			if (ImGui::DragFloat("Refraction Idx", &mat.indexOfRefraction, 0.01f, 1.f, 5.f))		resetAcu = true;
 			if (ImGui::DragInt("MeshID", (int*)&mesh.meshID, 0.1f, 0, maxMeshId))					resetAcu = true;

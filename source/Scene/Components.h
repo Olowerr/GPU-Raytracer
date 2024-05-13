@@ -20,7 +20,7 @@ struct Transform
 
 struct MaterialColour3
 {
-	glm::vec3 colour = glm::vec3(1.f);
+	glm::vec3 colour = glm::vec3(0.f);
 	AssetID textureId = Okay::INVALID_UINT;
 };
 
@@ -30,7 +30,7 @@ struct MaterialColour1
 	MaterialColour1(float colour)
 		:colour(colour) { }
 
-	float colour = 1.f;
+	float colour = 0.f;
 	AssetID textureId = Okay::INVALID_UINT;
 };
 
@@ -38,9 +38,8 @@ struct Material
 {
 	MaterialColour3 albedo;
 	MaterialColour1 roughness;
-	MaterialColour1 metallic = MaterialColour1(0.f);
-
-	glm::vec3 specularColour = glm::vec3(1.f);
+	MaterialColour1 metallic;
+	MaterialColour1 specular = MaterialColour1(1.f);
 
 	AssetID normalMapIdx;
 

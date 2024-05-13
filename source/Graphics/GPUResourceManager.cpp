@@ -110,6 +110,9 @@ void GPUResourceManager::loadMeshAndBvhData()
 	const std::vector<Mesh>& meshes = m_pResourceManager->getAll<Mesh>();
 	const uint32_t numMeshes = (uint32_t)meshes.size();
 
+	if (!numMeshes)
+		return;
+
 	m_meshDescs.resize(numMeshes);
 
 	uint32_t numTotalTriangles = 0u;

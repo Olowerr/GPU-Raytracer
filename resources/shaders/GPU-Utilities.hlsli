@@ -21,8 +21,7 @@ struct Material
     MaterialColour3 albedo;
     MaterialColour1 roughness;
     MaterialColour1 metallic;
-
-    float3 specularColour;
+    MaterialColour1 specular;
     
     uint normalMapIdx;
     
@@ -150,6 +149,11 @@ float2 randomPointInCircle(inout uint seed)
     float angle = randomFloat(seed) * 2.f * PI;
     float2 pointOnCircle = float2(cos(angle), sin(angle));
     return pointOnCircle * sqrt(randomFloat(seed));
+}
+
+float clampedDot(float3 v, float3 u)
+{
+    return max(dot(v, u), 0.f);
 }
 
 float3 refract(float3 direction, float3 normal, float refractionRatio)
