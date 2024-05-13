@@ -8,6 +8,8 @@ struct MeshData
 	std::vector<glm::vec3> positions;
 	std::vector<glm::vec3> normals;
 	std::vector<glm::vec2> uvs;
+	std::vector<glm::vec3> tangents;
+	std::vector<glm::vec3> bitangents;
 
 	Okay::AABB boundingBox;
 };
@@ -31,6 +33,8 @@ public:
 			localVertex.position = meshData.positions[i];
 			localVertex.normal = meshData.normals[i];
 			localVertex.uv = meshData.uvs[i];
+			localVertex.tangent = meshData.tangents[i];
+			localVertex.bitangent = meshData.bitangents[i];
 			
 			// Ensure all UVs are between [0, 1]
 			localVertex.uv -= glm::floor(localVertex.uv);

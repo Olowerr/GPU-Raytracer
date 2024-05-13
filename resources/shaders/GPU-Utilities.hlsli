@@ -24,6 +24,8 @@ struct Material
 
     float3 specularColour;
     
+    uint normalMapIdx;
+    
     float3 emissionColour;
     float emissionPower;
     
@@ -57,6 +59,8 @@ struct Vertex
     float3 position;
     float3 normal;
     float2 uv;
+    float3 tangent;
+    float3 bitangent;
 };
 
 struct Triangle

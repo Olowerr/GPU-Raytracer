@@ -42,6 +42,8 @@ struct Material
 
 	glm::vec3 specularColour = glm::vec3(1.f);
 
+	AssetID normalMapIdx;
+
 	glm::vec3 emissionColour = glm::vec3(1.f);
 	float emissionPower = 0.f;
 

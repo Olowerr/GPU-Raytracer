@@ -167,11 +167,20 @@ void findMaterialTextureColours(inout Material material, float2 meshUVs)
         material.metallic.colour = sampleTexture(material.metallic.textureIdx, meshUVs).r;
 }
 
+float3 sampleNormalMap(uint textureIdx, float2 meshUVs, float3 normal, float3 tangent, float3 bitangent)
+{
+    float3 sampledNormal = sampleTexture(textureIdx, meshUVs);
+    sampledNormal = sampledNormal * 2.f - 1.f;
+    
+    float3x3 tbn = float3x3(tangent, bitangent, normal);
+ 
+    return mul(sampledNormal, tbn);
+}
+
 Payload findClosestHit(Ray ray)
 {
     Payload payload;
     
-    float2 meshUVs = float2(0.f, 0.f);
     float closestHitDistance = FLT_MAX;
     uint hitIdx = UINT_MAX;
     uint hitType = 0;
@@ -189,54 +198,14 @@ Payload findClosestHit(Ray ray)
         }
     }
     
-#if 0
-    for (uint j = 0; j < renderData.numMeshes; j++)
-    {
-        if (Collision::RayAndAABB(ray, meshData[j].boundingBox))
-        {
-            uint triStart = meshData[j].triangleStartIdx;
-            uint triEnd = meshData[j].triangleEndIdx;
-            
-            for (uint k = triStart; k < triEnd; k++)
-            {
-                //float3 translation = meshData[j].transformMatrix[3].xyz;
-                Triangle tri = triangleData[k];
-                
-                float3 pos0 = tri.p0.position/* + translation*/;
-                float3 pos1 = tri.p1.position/* + translation*/;
-                float3 pos2 = tri.p2.position/* + translation*/;
-                
-                float3 baryUVCoord;
-                float distanceToHit = Collision::RayAndTriangle(ray, pos0, pos1, pos2, baryUVCoord.xy);
-                
-                if (distanceToHit > 0.f && distanceToHit < closestHitDistance)
-                {
-                    closestHitDistance = distanceToHit;
-                    hitIdx = j;
-                    hitType = 1;
-                    
-                    baryUVCoord.z = 1.f - (baryUVCoord.x + baryUVCoord.y);
-                    float3 normal = barycentricInterpolation(baryUVCoord, tri.p0.normal, tri.p1.normal, tri.p2.normal);
-                    float2 lerpedUV = barycentricInterpolation(baryUVCoord, tri.p0.uv, tri.p1.uv, tri.p2.uv);
-                    
-                    payload.worldNormal = normalize(normal);
-                    meshUVs = lerpedUV;
-                }
-            }
-        }
-    }
-#else
-    // TODO: Rework the 'for each mesh' loop to go through the BVH tree for each mesh.
-    // Recursion is fine to start with but I believe a loop would be better to avoid stack overflow
-    // NOTE: Recursive functions are not allowed in cs_5_0, using a stack approach instead
-    
-    // TODO: Rewrite the upcoming loop to reduce nesting
-    
     static const uint MAX_STACK_SIZE = 50;
     half stack[MAX_STACK_SIZE];
     uint stackSize = 0;
-    
+
     uint triHitIdx = UINT_MAX;
+    float3 hitBaryUVCoords = float3(0.f, 0.f, 0.f);
+    
+    // TODO: Rewrite the upcoming loop to reduce nesting
     for (uint j = 0; j < renderData.numMeshes; j++)
     {
         uint currentNodeIdx = meshData[j].bvhNodeStartIdx;
@@ -267,8 +236,8 @@ Payload findClosestHit(Ray ray)
                     Vertex p1 = tri.verticies[1];
                     Vertex p2 = tri.verticies[2];
             
-                    float3 baryUVCoord = float3(0.f, 0.f, 0.f);
-                    float distanceToHit = Collision::RayAndTriangle(localRay, p0.position, p1.position, p2.position, baryUVCoord.xy);
+                    float2 baryUVCoords = float2(0.f, 0.f);
+                    float distanceToHit = Collision::RayAndTriangle(localRay, p0.position, p1.position, p2.position, baryUVCoords);
                     
                     if (distanceToHit <= 0.f)
                     {
@@ -285,14 +254,10 @@ Payload findClosestHit(Ray ray)
                         closestHitDistance = distanceToHit;
                         hitIdx = j;
                         hitType = 1;
-            
-                        baryUVCoord.z = 1.f - (baryUVCoord.x + baryUVCoord.y);
-                        float4 normal = float4(barycentricInterpolation(baryUVCoord, p0.normal, p1.normal, p2.normal), 0.f);
-                        float2 lerpedUV = barycentricInterpolation(baryUVCoord, p0.uv, p1.uv, p2.uv);
+                        triHitIdx = i;
                         
-                        // Convert normal to worldspace
-                        payload.worldNormal = normalize(mul(normal, traMatrix).xyz);
-                        meshUVs = lerpedUV;
+                        hitBaryUVCoords.xy = baryUVCoords;
+                        hitBaryUVCoords.z = 1.f - (hitBaryUVCoords.x + hitBaryUVCoords.y);
                     }
                 }
             }
@@ -303,7 +268,6 @@ Payload findClosestHit(Ray ray)
             }
         }
     }
-#endif
     
     payload.hit = hitIdx != UINT_MAX;
     payload.worldPosition = ray.origin + ray.direction * closestHitDistance;
@@ -318,7 +282,27 @@ Payload findClosestHit(Ray ray)
         
         case 1: // Mesh
             payload.material = meshData[hitIdx].material;
-            findMaterialTextureColours(payload.material, meshUVs);
+
+            Triangle tri = triangleData[triHitIdx];
+            Vertex p0 = tri.verticies[0];
+            Vertex p1 = tri.verticies[1];
+            Vertex p2 = tri.verticies[2];
+        
+            float2 lerpedUV = barycentricInterpolation(hitBaryUVCoords, p0.uv, p1.uv, p2.uv);
+            float3 normal = mul(float4(barycentricInterpolation(hitBaryUVCoords, p0.normal, p1.normal, p2.normal), 0.f), meshData[hitIdx].transformMatrix).xyz;
+            float3 tangent = mul(float4(barycentricInterpolation(hitBaryUVCoords, p0.tangent, p1.tangent, p2.tangent), 0.f), meshData[hitIdx].transformMatrix).xyz;
+            float3 bitangent = mul(float4(barycentricInterpolation(hitBaryUVCoords, p0.bitangent, p1.bitangent, p2.bitangent), 0.f), meshData[hitIdx].transformMatrix).xyz;
+        
+            if (isValidIdx(payload.material.normalMapIdx))
+            {
+                payload.worldNormal = sampleNormalMap(payload.material.normalMapIdx, lerpedUV, normal, tangent, bitangent);
+            }
+            else
+            {
+                payload.worldNormal = normal;
+            }
+        
+            findMaterialTextureColours(payload.material, lerpedUV);
             break;
     }
        

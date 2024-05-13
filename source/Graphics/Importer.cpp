@@ -17,7 +17,7 @@ namespace Importer
 		Assimp::Importer importer;
 
 		const aiScene* pScene = importer.ReadFile(filePath.data(),
-			aiProcess_Triangulate | aiProcess_ConvertToLeftHanded);
+			aiProcess_Triangulate | aiProcess_ConvertToLeftHanded | aiProcess_CalcTangentSpace);
 
 		if (!pScene)
 			return false;
@@ -33,6 +33,8 @@ namespace Importer
 		outData.positions.resize(numVerticies);
 		outData.normals.resize(numVerticies);
 		outData.uvs.resize(numVerticies);
+		outData.tangents.resize(numVerticies);
+		outData.bitangents.resize(numVerticies);
 
 		for (uint32_t i = 0; i < pMesh->mNumFaces; i++)
 		{
@@ -41,17 +43,21 @@ namespace Importer
 
 			for (uint32_t j = 0; j < 3; j++)
 			{
-				glm::vec3 p = assimpToGlmVec3(pMesh->mVertices[aiIndices[j]]);
-				glm::vec3 n = assimpToGlmVec3(pMesh->mNormals[aiIndices[j]]);
-				glm::vec2 u = assimpToGlmVec3(pMesh->mTextureCoords[0][aiIndices[j]]);
+				glm::vec3 position = assimpToGlmVec3(pMesh->mVertices[aiIndices[j]]);
+				glm::vec3 normal = assimpToGlmVec3(pMesh->mNormals[aiIndices[j]]);
+				glm::vec2 uv = assimpToGlmVec3(pMesh->mTextureCoords[0][aiIndices[j]]);
+				glm::vec3 tangent = assimpToGlmVec3(pMesh->mTangents[aiIndices[j]]);
+				glm::vec3 bitangent = assimpToGlmVec3(pMesh->mBitangents[aiIndices[j]]);
 
-				outData.positions[vertex0Idx + j] = p;
-				outData.normals[vertex0Idx + j] = n;
-				outData.uvs[vertex0Idx + j] = u;
+				outData.positions[vertex0Idx + j] = position;
+				outData.normals[vertex0Idx + j] = normal;
+				outData.uvs[vertex0Idx + j] = uv;
+				outData.tangents[vertex0Idx + j] = tangent;
+				outData.bitangents[vertex0Idx + j] = bitangent;
 
 				// Perhaps not the best way but works
-				outData.boundingBox.min = glm::min(p, outData.boundingBox.min);
-				outData.boundingBox.max = glm::max(p, outData.boundingBox.max);
+				outData.boundingBox.min = glm::min(position, outData.boundingBox.min);
+				outData.boundingBox.max = glm::max(position, outData.boundingBox.max);
 			}	
 		}
 
