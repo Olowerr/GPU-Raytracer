@@ -114,11 +114,11 @@ float reflectance(float cosine, float reflectionIdx)
     return r0 + (1.f + r0) * pow(1.f - cosine, 5.f);
 }
 
-float3 findReflectDirection(float3 direction, float3 normal, float roughness, float specularFactor, inout uint seed)
+float3 findReflectDirection(float3 direction, float3 normal, float roughness, inout uint seed)
 {
     float3 diffuseReflection = normalize(normal + getRandomVector(seed));
     float3 specularReflection = reflect(direction, normal);
-    return normalize(lerp(specularReflection, diffuseReflection, roughness * specularFactor));
+    return normalize(lerp(specularReflection, diffuseReflection, roughness));
 }
 
 float3 findTransparencyBounce(float3 direction, float3 normal, float refractionIdx, inout uint seed)
@@ -339,6 +339,10 @@ Payload findClosestHit(Ray ray)
             float3 tangent = mul(float4(barycentricInterpolation(hitBaryUVCoords, p0.tangent, p1.tangent, p2.tangent), 0.f), meshData[hitIdx].transformMatrix).xyz;
             float3 bitangent = mul(float4(barycentricInterpolation(hitBaryUVCoords, p0.bitangent, p1.bitangent, p2.bitangent), 0.f), meshData[hitIdx].transformMatrix).xyz;
         
+            normal = normalize(normal);
+            tangent = normalize(tangent);
+            bitangent = normalize(bitangent);
+        
             if (isValidIdx(payload.material.normalMapIdx))
             {
                 payload.worldNormal = sampleNormalMap(payload.material.normalMapIdx, lerpedUV, normal, tangent, bitangent);
@@ -460,38 +464,44 @@ void main(uint3 DTid : SV_DispatchThreadID)
         
         material = hitData.material;
 
-        float roughness = material.roughness.colour;
-        float roughnessFactor = float(roughness >= randomFloat(seed));
-        float specularFactor = float(material.metallic.colour >= randomFloat(seed));
-        float3 reflectDir = findReflectDirection(ray.direction, hitData.worldNormal, roughness, 1.f - specularFactor, seed);
-        float3 refractDir = findTransparencyBounce(ray.direction, hitData.worldNormal, hitData.material.indexOfRefraction, seed);
-
-        float transparencyFactor = hitData.material.transparency >= randomFloat(seed);
-        float3 bounceDir = normalize(lerp(reflectDir, refractDir, transparencyFactor));
+        /*
+            roughness defines if diffuse or perfect reflection entirely, still use randomFloat < value thing I think
+                float roughnessFactor = material.roughness.colour >= RandomFloat(seed)
+        
+            metal * (1- roughness) lerps between albedo and specular (white) (0 -> albedo, 1 -> specular)
+                float metalFactor = material.metallic.color >= RandomFloat(seed)
+                float metalFactor = (metal * (1- roughness)) >= RandomFloat(seed)
+        
+            chill with transparency for now
+        */
+        float roughnessFactor = material.roughness.colour >= randomFloat(seed); 
+        float metallicFactor = (material.metallic.colour * (1 - material.roughness.colour)) >= randomFloat(seed);
+        float specularFactor = (material.specular.colour * (1.f - material.roughness.colour)) >= randomFloat(seed);
+        
+        float3 bounceDir = findReflectDirection(ray.direction, hitData.worldNormal, material.roughness.colour * (1.f - specularFactor), seed);
         float3 hitPoint = hitData.worldPosition + bounceDir * 0.001f;
         
         float3 blinnPhongLight = float3(0.f, 0.f, 0.f);
         {
-            Ray toLightRay;
-            toLightRay.origin = ray.origin;
-            toLightRay.direction = normalize(float3(-1.f, 1.f, 1.f));
-        
             static const float3 SUN_COLOUR = float3(1.f, 1.f, 1.f);
+            static const float3 SUN_DIR = normalize(float3(1.f, 1.f, 1.f));
             static const float SUN_STRENGTH = 1.f;
-        
-            Payload lightPayLoad = findClosestHit(toLightRay);
             
-            const float3 halfwayVec = normalize(toLightRay.direction + -ray.direction);
-            const float3 lightDotNormal = clampedDot(toLightRay.direction, hitData.worldNormal);
-            const float3 halfwayDotNormal = clampedDot(halfwayVec, hitData.worldNormal);
+            const float3 lightReflection = reflect(-SUN_DIR, hitData.worldNormal);
+            const float lightDotNormal = clampedDot(SUN_DIR, hitData.worldNormal);
+            const float lightReflectDotView= clampedDot(lightReflection, -ray.direction);
             
             float3 diffuse = material.albedo.colour * lightDotNormal;
-            float3 specular = float3(1.f, 1.f, 1.f) * pow(halfwayDotNormal, max(300.f * material.specular.colour, 1.f));
+            float3 specular = float3(1.f, 1.f, 1.f) * pow(lightReflectDotView, max(100.f * smoothstep(0.f, 1.f, material.specular.colour), 1.f));
             
-            //blinnPhongLight = (diffuse + specular) * SUN_COLOUR * SUN_STRENGTH;
-            blinnPhongLight = lerp(specular, diffuse, roughnessFactor * (1.f - specularFactor)) * SUN_COLOUR * SUN_STRENGTH;
+            Ray toLightRay;
+            toLightRay.origin = hitPoint;
+            toLightRay.direction = normalize(float3(1.f, 1.f, 1.f) + getRandomVector(seed) * 0.1f);
+            Payload lightPayLoad = findClosestHit(toLightRay);
+            
+            blinnPhongLight = lerp(diffuse, specular * 10, specularFactor) * SUN_COLOUR * SUN_STRENGTH * !lightPayLoad.hit;
         }
-        
+
         /*
             Fix normal maps
             Change specularColour to a float1, only controls the specular pow exponent (maybe still 0-1 & multiply with some value like 300? then can still use textures)
@@ -511,8 +521,8 @@ void main(uint3 DTid : SV_DispatchThreadID)
         
         */
         
-        contribution *= lerp(material.albedo.colour, float3(1.f, 1.f, 1.f), specularFactor);
-        light += material.emissionColour * material.emissionPower * contribution * (1.f - transparencyFactor);
+        contribution *= lerp(material.albedo.colour, float3(1.f, 1.f, 1.f), metallicFactor);
+        light += material.emissionColour * material.emissionPower * contribution;
         light += blinnPhongLight * contribution;
        
         ray.origin = hitPoint;
@@ -530,7 +540,8 @@ void main(uint3 DTid : SV_DispatchThreadID)
         result = float4(saturate(light), 1.f);
     }
     
-    //result = pow(result, float4(2.f, 2.f, 2.f, 0.f));
+    float gamma = 2.f;
+    //result = pow(result, float4(gamma, gamma, gamma, 0.f));
     resultBuffer[DTid.xy] = result;
 
 }

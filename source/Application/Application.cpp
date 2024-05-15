@@ -27,10 +27,17 @@ Application::Application()
 
 	m_target.initiate(1600u, 900u, TextureFormat::F_8X4);
 
+	m_resourceManager.importFile("resources/meshes/cube.fbx");
 	m_resourceManager.importFile("resources/textures/wood/whnfeb2_2K_Albedo.jpg");
 	m_resourceManager.importFile("resources/textures/wood/whnfeb2_2K_Roughness.jpg");
 	m_resourceManager.importFile("resources/textures/wood/whnfeb2_2K_Specular.jpg");
 	m_resourceManager.importFile("resources/textures/wood/whnfeb2_2K_Normal.jpg");
+
+	m_resourceManager.importFile("resources/meshes/revolver.fbx");
+	m_resourceManager.importFile("resources/textures/rev/rev_albedo.png");
+	m_resourceManager.importFile("resources/textures/rev/rev_roughness.png");
+	m_resourceManager.importFile("resources/textures/rev/rev_metallic.png");
+	m_resourceManager.importFile("resources/textures/rev/rev_normalMap.png");
 
 	m_gpuResourceManager.initiate(m_resourceManager);
 	m_gpuResourceManager.loadResources("resources/environmentMaps/Skybox2.jpg");
@@ -62,15 +69,32 @@ void Application::run()
 	camera.getComponent<Transform>().rotation.y = -90.f;
 
 	{
-		Entity sphere = m_scene.createEntity();
+		Entity ent = m_scene.createEntity();
 		
-		Material& sphereMaterial = sphere.addComponent<Sphere>().material;
-		sphereMaterial.albedo.textureId = 0u;
-		sphereMaterial.roughness.textureId = 1u;
-		sphereMaterial.specular.textureId = 2u;
-		sphereMaterial.normalMapIdx = 3u;
+		MeshComponent& meshComp = ent.addComponent<MeshComponent>();
+		meshComp.meshID = 0;
+
+		Material& mat = meshComp.material;
+		mat.albedo.textureId = 0u;
+		mat.roughness.textureId = 1u;
+		mat.specular.textureId = 2u;
+		mat.normalMapIdx = 3u;
 	}
-#if 0
+	
+	{
+		Entity ent = m_scene.createEntity();
+		
+		MeshComponent& meshComp = ent.addComponent<MeshComponent>();
+		meshComp.meshID = 1;
+
+		Material& mat = meshComp.material;
+		mat.albedo.textureId = 4u;
+		mat.roughness.textureId = 5u;
+		mat.metallic.textureId = 6u;
+		mat.normalMapIdx = 7u;
+	}
+
+#if 1
 	glm::vec3 colours[3] =
 	{
 		{0.05f, 0.05f, 0.95f},
@@ -102,7 +126,7 @@ void Application::run()
 			int idx2 = (idx1 + 1) % 3;
 			float tBlend = (t * (3 - 1)) - idx1;
 
-			sphere.material.albedo.colour = glm::vec3(0.8f, 0.8f, 0.8f);// glm::mix(colours[idx1], colours[idx2], tBlend);
+			sphere.material.albedo.colour = glm::mix(colours[idx1], colours[idx2], tBlend); // glm::vec3(0.8f, 0.8f, 0.8f);//
 		}
 	}
 #endif
