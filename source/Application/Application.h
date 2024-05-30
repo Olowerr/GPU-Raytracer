@@ -6,6 +6,8 @@
 #include "Graphics/GPUResourceManager.h"
 #include "Scene/Scene.h"
 
+#include "ImGuiHelper.h"
+
 class Application
 {
 public:
@@ -28,12 +30,32 @@ private:
 	bool m_drawNodeBBs = true;
 	bool m_drawNodeGeometry = true;
 
-	Entity m_selectedEntity;
-	uint32_t m_selectedNodeIdx;
+	Entity m_debugSelectedEntity;
+	uint32_t m_debugSelectedNodeIdx;
 
 	void updateImGui();
 	void updateCamera();
 	void saveScreenshot();
 
+	void displayComponents(Entity entity);
+	Entity m_selectedEntity;
+
+	template<typename ComponentType>
+	void createComponentSelection(Entity entity, std::string_view componentName);
+
 	float m_accumulationTime;
 };
+
+template<typename ComponentType>
+void Application::createComponentSelection(Entity entity, std::string_view componentName)
+{
+	if (entity.hasComponents<ComponentType>())
+	{
+		return;
+	}
+
+	if (ImGui::Selectable(componentName.data(), false))
+	{
+		entity.addComponent<ComponentType>();
+	}
+}

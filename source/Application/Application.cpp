@@ -4,7 +4,6 @@
 #include "Scene/Components.h"
 #include "Scene/Entity.h"
 #include "Input.h"
-#include "ImGuiHelper.h"
 
 #include "stb/stb_image_write.h"
 
@@ -14,7 +13,7 @@
 
 
 Application::Application()
-	:m_accumulationTime(0.f), m_selectedNodeIdx(Okay::INVALID_UINT)
+	:m_accumulationTime(0.f), m_debugSelectedNodeIdx(Okay::INVALID_UINT)
 {
 	glfwInitHint(GLFW_CLIENT_API, GLFW_NO_API);
 
@@ -33,7 +32,7 @@ Application::Application()
 	m_resourceManager.importFile("resources/textures/wood/whnfeb2_2K_Specular.jpg");
 	m_resourceManager.importFile("resources/textures/wood/whnfeb2_2K_Normal.jpg");
 
-	m_resourceManager.importFile("resources/meshes/revolver.fbx");
+	//m_resourceManager.importFile("resources/meshes/revolver.fbx");
 	m_resourceManager.importFile("resources/textures/rev/rev_albedo.png");
 	m_resourceManager.importFile("resources/textures/rev/rev_roughness.png");
 	m_resourceManager.importFile("resources/textures/rev/rev_metallic.png");
@@ -81,18 +80,18 @@ void Application::run()
 		mat.normalMapIdx = 3u;
 	}
 	
-	{
-		Entity ent = m_scene.createEntity();
-		
-		MeshComponent& meshComp = ent.addComponent<MeshComponent>();
-		meshComp.meshID = 1;
-
-		Material& mat = meshComp.material;
-		mat.albedo.textureId = 4u;
-		mat.roughness.textureId = 5u;
-		mat.metallic.textureId = 6u;
-		mat.normalMapIdx = 7u;
-	}
+	//{
+	//	Entity ent = m_scene.createEntity();
+	//	
+	//	MeshComponent& meshComp = ent.addComponent<MeshComponent>();
+	//	meshComp.meshID = 1;
+	//
+	//	Material& mat = meshComp.material;
+	//	mat.albedo.textureId = 4u;
+	//	mat.roughness.textureId = 5u;
+	//	mat.metallic.textureId = 6u;
+	//	mat.normalMapIdx = 7u;
+	//}
 
 #if 1
 	glm::vec3 colours[3] =
@@ -145,12 +144,158 @@ void Application::run()
 			m_rayTracer.render();
 
 		if (m_drawNodeGeometry)
-			m_debugRenderer.renderNodeGeometry(m_selectedEntity, m_selectedNodeIdx);
+			m_debugRenderer.renderNodeGeometry(m_debugSelectedEntity, m_debugSelectedNodeIdx);
 		if (m_drawNodeBBs)
-			m_debugRenderer.renderNodeBBs(m_selectedEntity, m_selectedNodeIdx);
+			m_debugRenderer.renderNodeBBs(m_debugSelectedEntity, m_debugSelectedNodeIdx);
 
 		Okay::endFrameImGui();
 		m_window.present();
+	}
+}
+
+void Application::displayComponents(Entity entity)
+{
+	bool resetAcu = false;
+
+	ImGui::Text("Transform");
+
+	Transform& transform = entity.getComponent<Transform>();
+	if (ImGui::DragFloat3("Position", &transform.position.x, 0.1f))
+		resetAcu = true;
+	if (ImGui::DragFloat3("Rotation", &transform.rotation.x, 0.1f))
+		resetAcu = true;
+	if (ImGui::DragFloat3("Scale", &transform.scale.x, 0.1f))
+		resetAcu = true;
+
+
+	ImGui::Separator();
+
+	Material* pMaterial = nullptr;
+
+	if (Sphere* pSphere = entity.tryGetComponent<Sphere>())
+	{
+		ImGui::Text("Sphere");
+		ImGui::SameLine();
+		bool deleted = ImGui::Button("X");
+
+		if (ImGui::DragFloat("Radius", &pSphere->radius, 0.1f))
+			resetAcu = true;
+
+		pMaterial = &pSphere->material;
+		if (deleted)
+		{
+			entity.removeComponent<Sphere>();
+			resetAcu = true;
+		}
+		else
+		{
+			pMaterial = &pSphere->material;
+		}
+	}
+
+	else if (MeshComponent* pMeshComp = entity.tryGetComponent<MeshComponent>())
+	{
+		ImGui::Text("Mesh");
+		ImGui::SameLine();
+		bool deleted = ImGui::Button("X");
+
+		const uint32_t maxMeshId = m_resourceManager.getCount<Mesh>() - 1;
+		if (ImGui::DragInt("MeshID", (int*)&pMeshComp->meshID, 0.1f, 0, maxMeshId))
+			resetAcu = true;
+
+		if (maxMeshId == 0) // If maxMeshId is 0 then ImGui thinks there should be no max value for the input
+		{
+			pMeshComp->meshID = 0;
+		}
+
+		if (deleted)
+		{
+			entity.removeComponent<MeshComponent>();
+			resetAcu = true;
+		}
+		else
+		{
+			pMaterial = &pMeshComp->material;
+		}
+	}
+
+	if (pMaterial)
+	{
+		ImGui::Separator();
+
+		ImGui::Text("Material");
+		
+		if (ImGui::ColorEdit3("Colour", glm::value_ptr(pMaterial->albedo.colour)))					resetAcu = true;
+		if (ImGui::ColorEdit3("Emission Colour", glm::value_ptr(pMaterial->emissionColour)))		resetAcu = true;
+		if (ImGui::DragFloat("Emission Power", &pMaterial->emissionPower, 0.01f))					resetAcu = true;
+		if (ImGui::DragFloat("Roughness", &pMaterial->roughness.colour, 0.01f, 0.f, 1.f))			resetAcu = true;
+		if (ImGui::DragFloat("Metallic", &pMaterial->metallic.colour, 0.01f, 0.f, 1.f))				resetAcu = true;
+		if (ImGui::DragFloat("Specular", &pMaterial->specular.colour, 0.01f, 0.f, 1.f))				resetAcu = true;
+		if (ImGui::DragFloat("Transparency", &pMaterial->transparency, 0.01f, 0.f, 1.f))			resetAcu = true;
+		if (ImGui::DragFloat("Refraction Idx", &pMaterial->indexOfRefraction, 0.01f, 1.f, 5.f))		resetAcu = true;
+	}
+
+	if (DirectionalLight* pDirLight = entity.tryGetComponent<DirectionalLight>())
+	{
+		ImGui::Text("Directional Light");
+		ImGui::SameLine();
+		bool deleted = ImGui::Button("X");
+
+		if (ImGui::ColorEdit3("Colour", glm::value_ptr(pDirLight->colour)))										resetAcu = true;
+		if (ImGui::DragFloat("Intensity", &pDirLight->intensity, 0.01f, 0.f, 10.f))								resetAcu = true;
+		if (ImGui::DragFloat("Specular Strength", &pDirLight->specularStrength, 0.f, 10.f))						resetAcu = true;
+		if (ImGui::DragFloat("Penumbra size factor", &pDirLight->penumbraSizeModifier, 0.001f, 0.f, 10.f))		resetAcu = true;
+
+		if (deleted)
+		{
+			entity.removeComponent<DirectionalLight>();
+			resetAcu = true;
+		}
+	}
+
+	if (PointLight* pPointLight = entity.tryGetComponent<PointLight>())
+	{
+		ImGui::Text("Point Light");
+		ImGui::SameLine();
+		bool deleted = ImGui::Button("X");
+
+		if (ImGui::ColorEdit3("Colour", glm::value_ptr(pPointLight->colour)))								resetAcu = true;
+		if (ImGui::DragFloat("Intensity", &pPointLight->intensity, 0.01f, 0.f, 10.f))						resetAcu = true;
+		if (ImGui::DragFloat("Specular Strength", &pPointLight->specularStrength, 0.01f, 0.f, 10.f))		resetAcu = true;
+		if (ImGui::DragFloat2("Attenuation", glm::value_ptr(pPointLight->attenuation), 0.01f, 0.f, 1.f))	resetAcu = true;
+		if (ImGui::DragFloat("Penumbra radius", &pPointLight->penumbraRadius, 0.01f, 0.f, 10.f))			resetAcu = true;
+
+		if (deleted)
+		{
+			entity.removeComponent<PointLight>();
+			resetAcu = true;
+		}
+	}
+	
+	if (SpotLight* pSpotLight = entity.tryGetComponent<SpotLight>())
+	{
+		ImGui::Text("Spot Light");
+		ImGui::SameLine();
+		bool deleted = ImGui::Button("X");
+
+		if (ImGui::ColorEdit3("Colour", glm::value_ptr(pSpotLight->colour)))								resetAcu = true;
+		if (ImGui::DragFloat("Intensity", &pSpotLight->intensity, 0.01f, 0.f, 10.f))						resetAcu = true;
+		if (ImGui::DragFloat("Specular Strength", &pSpotLight->specularStrength, 0.01f, 0.f, 10.f))			resetAcu = true;
+		if (ImGui::DragFloat2("Attenuation", glm::value_ptr(pSpotLight->attenuation), 0.01f, 0.f, 1.f))		resetAcu = true;
+		if (ImGui::DragFloat("Penumbra radius", &pSpotLight->penumbraRadius, 0.01f, 0.f, 10.f))				resetAcu = true;
+		if (ImGui::DragFloat("Max angle", &pSpotLight->maxAngle, 0.01f, 0.f, 360.f))						resetAcu = true;
+
+		if (deleted)
+		{
+			entity.removeComponent<SpotLight>();
+			resetAcu = true;
+		}
+	}
+
+	if (resetAcu)
+	{
+		m_rayTracer.resetAccumulation();
+		m_accumulationTime = 0.f;
 	}
 }
 
@@ -232,16 +377,16 @@ void Application::updateImGui()
 
 			if (ImGui::DragInt("Entity", &enttID, 0.1f, -1, (int)m_scene.getRegistry().alive()))
 			{
-				m_selectedEntity = enttID != -1 ? Entity(entt::entity(enttID), &m_scene.getRegistry()) : Entity();
-				m_selectedNodeIdx = 0u;
+				m_debugSelectedEntity = enttID != -1 ? Entity(entt::entity(enttID), &m_scene.getRegistry()) : Entity();
+				m_debugSelectedNodeIdx = 0u;
 			}
 
-			const MeshComponent* pMeshComp = m_selectedEntity ? m_selectedEntity.tryGetComponent<MeshComponent>() : nullptr;
+			const MeshComponent* pMeshComp = m_debugSelectedEntity ? m_debugSelectedEntity.tryGetComponent<MeshComponent>() : nullptr;
 			uint32_t nodeCap = pMeshComp ? m_gpuResourceManager.getMeshDescriptors()[pMeshComp->meshID].numBvhNodes : 1u;
 			
 			ImGui::BeginDisabled(!pMeshComp);
-			ImGui::DragInt("Node Idx", (int*)&m_selectedNodeIdx, 0.1f, 0, nodeCap - 1);
-			m_selectedNodeIdx = nodeCap == 1 && m_selectedNodeIdx > 0 ? 0u : m_selectedNodeIdx;
+			ImGui::DragInt("Node Idx", (int*)&m_debugSelectedNodeIdx, 0.1f, 0, nodeCap - 1);
+			m_debugSelectedNodeIdx = nodeCap == 1 && m_debugSelectedNodeIdx > 0 ? 0u : m_debugSelectedNodeIdx;
 			ImGui::EndDisabled();
 
 			ImGui::Checkbox("Draw Node BBs", &m_drawNodeBBs);
@@ -280,86 +425,57 @@ void Application::updateImGui()
 	ImGui::End();
 
 
-	if (ImGui::Begin("Spheres"))
+	if (ImGui::Begin("Entities"))
 	{
-		ImGui::PushItemWidth(-120.f);
+		if (ImGui::Button("Create"))
+		{
+			m_selectedEntity = m_scene.createEntity();
+			resetAcu = true;
+		}
 
-		if (ImGui::Button("Add Sphere"))
-			m_scene.createEntity().addComponent<Sphere>();
+		ImGui::SameLine();
+
+		ImGui::BeginDisabled(!m_selectedEntity);
+		if (ImGui::Button("Remove"))
+		{
+			m_scene.destroyEntity(m_selectedEntity);
+			m_selectedEntity = Entity();
+			resetAcu = true;
+		}
+		ImGui::EndDisabled();
 
 		ImGui::Separator();
 
-		auto sphereView = m_scene.getRegistry().view<Sphere, Transform>();
-		for (entt::entity entity : sphereView)
+		auto transformView = m_scene.getRegistry().view<Transform>();
+		for (entt::entity entity : transformView)
 		{
-			auto [sphere, transform] = sphereView.get<Sphere, Transform>(entity);
-			Material& mat = sphere.material;
-
-			const uint32_t entityID = (uint32_t)entity;
-
-			ImGui::PushID(entityID);
-
-			// TODO: Switch to glm::value_ptr
-			ImGui::Text("Sphere: %u", entityID);
-			if (ImGui::DragFloat3("Position", &transform.position.x, 0.1f))							resetAcu = true;
-			if (ImGui::ColorEdit3("Colour", &mat.albedo.colour.x))									resetAcu = true;
-			if (ImGui::ColorEdit3("Emission Colour", &mat.emissionColour.x))						resetAcu = true;
-			if (ImGui::DragFloat("Emission Power", &mat.emissionPower, 0.01f))						resetAcu = true;
-			if (ImGui::DragFloat("Radius", &sphere.radius, 0.1f))									resetAcu = true;
-			if (ImGui::DragFloat("Roughness", &mat.roughness.colour, 0.01f, 0.f, 1.f))				resetAcu = true;
-			if (ImGui::DragFloat("Metallic", &mat.metallic.colour, 0.01f, 0.f, 1.f))				resetAcu = true;
-			if (ImGui::DragFloat("Specular", &mat.specular.colour, 0.01f, 0.f, 1.f))				resetAcu = true;
-			if (ImGui::DragFloat("Transparency", &mat.transparency, 0.01f, 0.f, 1.f))				resetAcu = true;
-			if (ImGui::DragFloat("Refraction Idx", &mat.indexOfRefraction, 0.01f, 1.f, 5.f))		resetAcu = true;
-
-			ImGui::Separator();
-
-			ImGui::PopID();
+			if (ImGui::Selectable(std::to_string((uint32_t)entity).c_str(), entity == (entt::entity)m_selectedEntity.getID()))
+			{
+				m_selectedEntity = Entity(entity, &m_scene.getRegistry());
+			}
 		}
-		ImGui::PopItemWidth();
 	}
 	ImGui::End();
 
-	if (ImGui::Begin("Meshes"))
+	if (ImGui::Begin("Components"))
 	{
-		ImGui::PushItemWidth(-120.f);
-
-		if (ImGui::Button("Add Mesh entity"))
-			m_scene.createEntity().addComponent<MeshComponent>();
-
-		ImGui::Separator();
-
-		const uint32_t maxMeshId = m_resourceManager.getCount<Mesh>() - 1;
-		auto meshView = m_scene.getRegistry().view<MeshComponent, Transform>();
-		for (entt::entity entity : meshView)
+		if (m_selectedEntity)
 		{
-			auto [mesh, transform] = meshView.get<MeshComponent, Transform>(entity);
-			Material& mat = mesh.material;
+			if (ImGui::BeginCombo("##AddComps", "Add Component"))
+			{
+				createComponentSelection<MeshComponent>(m_selectedEntity, "MeshComponent");
+				createComponentSelection<Sphere>(m_selectedEntity, "Sphere");
+				createComponentSelection<PointLight>(m_selectedEntity, "PointLight");
+				createComponentSelection<DirectionalLight>(m_selectedEntity, "DirectionalLight");
+				createComponentSelection<SpotLight>(m_selectedEntity, "SpotLight");
 
-			const uint32_t entityID = (uint32_t)entity;
-
-			ImGui::PushID(entityID);
-
-			// TODO: Switch to glm::value_ptr
-			ImGui::Text("Entity: %u", entityID);
-			if (ImGui::DragFloat3("Position", &transform.position.x, 0.1f))							resetAcu = true;
-			if (ImGui::DragFloat3("Rotation", &transform.rotation.x, 0.1f))							resetAcu = true;
-			if (ImGui::DragFloat3("Scale", &transform.scale.x, 0.1f))								resetAcu = true;
-			if (ImGui::ColorEdit3("Colour", &mat.albedo.colour.x))									resetAcu = true;
-			if (ImGui::ColorEdit3("Emission Colour", &mat.emissionColour.x))						resetAcu = true;
-			if (ImGui::DragFloat("Emission Power", &mat.emissionPower, 0.01f))						resetAcu = true;
-			if (ImGui::DragFloat("Roughness", &mat.roughness.colour, 0.01f, 0.f, 1.f))				resetAcu = true;
-			if (ImGui::DragFloat("Metallic", &mat.metallic.colour, 0.01f, 0.f, 1.f))				resetAcu = true;
-			if (ImGui::DragFloat("Specular", &mat.specular.colour, 0.01f, 0.f, 1.f))				resetAcu = true;
-			if (ImGui::DragFloat("Transparency", &mat.transparency, 0.01f, 0.f, 1.f))				resetAcu = true;
-			if (ImGui::DragFloat("Refraction Idx", &mat.indexOfRefraction, 0.01f, 1.f, 5.f))		resetAcu = true;
-			if (ImGui::DragInt("MeshID", (int*)&mesh.meshID, 0.1f, 0, maxMeshId))					resetAcu = true;
+				ImGui::EndCombo();
+			}
 
 			ImGui::Separator();
 
-			ImGui::PopID();
+			displayComponents(m_selectedEntity);
 		}
-		ImGui::PopItemWidth();
 	}
 	ImGui::End();
 
