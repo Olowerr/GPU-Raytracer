@@ -11,7 +11,7 @@
 
 RayTracer::RayTracer()
 	:m_pMainRaytracingCS(nullptr), m_pScene(nullptr), m_renderData(), m_pRenderDataBuffer(nullptr),
-	m_pGpuResourceManager(nullptr), m_pResourceManager(nullptr)
+	m_pGpuResourceManager(nullptr), m_pResourceManager(nullptr), m_pTargetTexture(nullptr)
 {
 }
 
@@ -33,6 +33,9 @@ void RayTracer::shutdown()
 
 	m_meshData.shutdown();
 	m_spheres.shutdown();
+	m_directionalLights.shutdown();
+	m_pointLights.shutdown();
+	m_spotLights.shutdown();
 	m_accumulationTexture.shutdown();
 
 	DX11_RELEASE(m_pRenderDataBuffer);
@@ -70,6 +73,9 @@ void RayTracer::initiate(const RenderTexture& target, const GPUResourceManager& 
 	const uint32_t SRV_START_SIZE = 10u;
 	m_spheres.initiate(sizeof(glm::vec3) + sizeof(Sphere), SRV_START_SIZE, nullptr);
 	m_meshData.initiate(sizeof(GPU_MeshComponent), SRV_START_SIZE, nullptr);
+	m_directionalLights.initiate(sizeof(GPU_DirectionalLight), SRV_START_SIZE, nullptr);
+	m_pointLights.initiate(sizeof(GPU_PointLight), SRV_START_SIZE, nullptr);
+	m_spotLights.initiate(sizeof(GPU_SpotLight), SRV_START_SIZE, nullptr);
 }
 
 void RayTracer::render()
@@ -85,10 +91,13 @@ void RayTracer::render()
 	static const float CLEAR_COLOUR[4]{ 0.2f, 0.4f, 0.6f, 1.f };
 	pDevCon->ClearUnorderedAccessViewFloat(*m_pTargetTexture->getUAV(), CLEAR_COLOUR);
 
-	ID3D11ShaderResourceView* srvs[2u]{};
+	ID3D11ShaderResourceView* srvs[5u]{};
 	srvs[0] = m_spheres.getSRV();
 	srvs[1] = m_meshData.getSRV();
-	pDevCon->CSSetShaderResources(RT_SPHERE_DATA_SLOT, 2u, srvs);
+	srvs[2] = m_directionalLights.getSRV();
+	srvs[3] = m_pointLights.getSRV();
+	srvs[4] = m_spotLights.getSRV();
+	pDevCon->CSSetShaderResources(RT_SPHERE_DATA_SLOT, 5u, srvs);
 
 
 	// Bind standard resources
@@ -141,10 +150,9 @@ void RayTracer::calculateProjectionData()
 		glm::perspectiveFovLH(glm::radians(camData.fov), windowDimsVec.x, windowDimsVec.y, camData.nearZ, camData.farZ)));
 
 	// View vectors
-	const glm::mat3 rotationMatrix = glm::toMat3(glm::quat(glm::radians(camTra.rotation)));
-	const glm::vec3& camForward = rotationMatrix[2];
-	const glm::vec3& camRight = rotationMatrix[0];
-	const glm::vec3& camUp = rotationMatrix[1];
+	glm::vec3 camForward = camTra.getForwardVec();
+	glm::vec3 camRight = camTra.getRightVec();
+	glm::vec3 camUp = camTra.getUpVec();
 	m_renderData.cameraRightDir = camRight;
 	m_renderData.cameraUpDir = camUp;
 
@@ -200,10 +208,57 @@ void RayTracer::updateBuffers()
 		}
 	});
 
+	auto dirLightView = reg.view<DirectionalLight, Transform>();
+	m_directionalLights.update((uint32_t)dirLightView.size_hint(), [&](char* pMappedBufferData)
+		{
+			GPU_DirectionalLight* pGPUData = nullptr;
+			for (entt::entity entity : dirLightView)
+			{
+				pGPUData = (GPU_DirectionalLight*)pMappedBufferData;
+
+				auto [dirLight, transform] = dirLightView[entity];
+				pGPUData->light = dirLight;
+				pGPUData->direction = transform.getForwardVec();
+			}
+		});
+
+	auto pointLightView = reg.view<PointLight, Transform>();
+	m_pointLights.update((uint32_t)pointLightView.size_hint(), [&](char* pMappedBufferData)
+		{
+			GPU_PointLight* pGPUData = nullptr;
+			for (entt::entity entity : pointLightView)
+			{
+				pGPUData = (GPU_PointLight*)pMappedBufferData;
+
+				auto [pointLight, transform] = pointLightView[entity];
+				pGPUData->light = pointLight;
+				pGPUData->position = transform.position;
+			}
+		});
+
+	auto spotLightView = reg.view<SpotLight, Transform>();
+	m_spotLights.update((uint32_t)spotLightView.size_hint(), [&](char* pMappedBufferData)
+		{
+			GPU_SpotLight* pGPUData = nullptr;
+			for (entt::entity entity : spotLightView)
+			{
+				pGPUData = (GPU_SpotLight*)pMappedBufferData;
+
+				auto [spotLight, transform] = spotLightView[entity];
+				pGPUData->light = spotLight;
+				pGPUData->position = transform.position;
+				pGPUData->direction = transform.getForwardVec();
+			}
+		});
+
+
 	
 	// Render Data
 	m_renderData.numSpheres = (uint32_t)sphereView.size_hint();
 	m_renderData.numMeshes = (uint32_t)meshView.size_hint();
+	m_renderData.numDirLights = (uint32_t)dirLightView.size_hint();
+	m_renderData.numPointLights = (uint32_t)pointLightView.size_hint();
+	m_renderData.numSpotLights = (uint32_t)spotLightView.size_hint();
 	m_renderData.numAccumulationFrames += m_renderData.accumulationEnabled;
 
 	Okay::updateBuffer(m_pRenderDataBuffer, &m_renderData, sizeof(RenderData));

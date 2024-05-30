@@ -81,6 +81,45 @@ struct Mesh
     uint bvhNodeStartIdx;
 };
 
+struct DirectionalLight
+{
+    float3 colour;
+    float intensity;
+    float specularStrength;
+    
+    float penumbraSizeModifier;
+    
+    float3 direction;
+};
+
+struct PointLight
+{
+    float3 colour;
+    float intensity;
+    float specularStrength;
+    
+    float2 attenuation;
+    
+    float penumbraRadius;
+    
+    float3 position;
+};
+
+struct SpotLight
+{
+    float3 colour;
+    float intensity;
+    float specularStrength;
+    
+    float2 attenuation;
+    
+    float penumbraRadius;
+    float maxAngle;
+    
+    float3 position;
+    float3 direction;
+};
+
 struct PS_Input
 {
     float4 svPos : SV_Position;

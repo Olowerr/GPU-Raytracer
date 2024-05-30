@@ -16,6 +16,11 @@ struct Transform
 			glm::toMat4(glm::quat(glm::radians(rotation))) *
 			glm::scale(glm::mat4(1.f), scale);
 	}
+
+	inline glm::mat3 getRotationMatrix() const	{ return glm::toMat3(glm::quat(glm::radians(rotation))); }
+	inline glm::vec3 getForwardVec() const		{ return glm::normalize(getRotationMatrix()[2]); }
+	inline glm::vec3 getRightVec() const		{ return glm::normalize(getRotationMatrix()[0]); }
+	inline glm::vec3 getUpVec() const			{ return glm::normalize(getRotationMatrix()[1]); }
 };
 
 struct MaterialColour3
@@ -48,6 +53,57 @@ struct Material
 
 	float transparency = 0.f;
 	float indexOfRefraction = 1.f;
+};
+
+struct DirectionalLight
+{
+	glm::vec3 colour = glm::vec3(1.f);
+	float intensity = 1.f;
+	float specularStrength = 1.f;
+
+	float penumbraSizeModifier = 0.01f; // Rename?
+};
+
+struct PointLight
+{
+	glm::vec3 colour = glm::vec3(1.f);
+	float intensity = 1.f;
+	float specularStrength = 1.f;
+
+	glm::vec2 attenuation = glm::vec2(1.f);
+
+	float penumbraRadius = 1.f; // Rename?
+};
+
+struct SpotLight
+{
+	glm::vec3 colour = glm::vec3(1.f);
+	float intensity = 1.f;
+	float specularStrength = 1.f;
+	
+	glm::vec2 attenuation = glm::vec2(1.f);
+
+	float penumbraRadius = 1.f; // Rename?
+	float maxAngle = 90.f;
+};
+
+struct GPU_DirectionalLight
+{
+	DirectionalLight light;
+	glm::vec3 direction;
+};
+
+struct GPU_PointLight
+{
+	PointLight light;
+	glm::vec3 position;
+};
+
+struct GPU_SpotLight
+{
+	SpotLight light;
+	glm::vec3 position;
+	glm::vec3 direction;
 };
 
 struct Sphere

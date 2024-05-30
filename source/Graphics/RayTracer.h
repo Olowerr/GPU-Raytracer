@@ -52,6 +52,11 @@ private: // DX11
 		uint32_t numSpheres = 0u;
 		uint32_t numMeshes = 0u;
 
+		uint32_t numDirLights = 0u;
+		uint32_t numPointLights = 0u;
+		uint32_t numSpotLights = 0u;
+		float pad0 = 0.f;
+
 		glm::uvec2 textureDims{};
 		glm::vec2 viewPlaneDims{};
 
@@ -60,9 +65,9 @@ private: // DX11
 		glm::vec3 cameraPosition{};
 		float cameraNearZ = 0.f;
 
-		glm::vec3 cameraUpDir;
+		glm::vec3 cameraUpDir = glm::vec3(0.f);
 		float dofStrength = 0.f;
-		glm::vec3 cameraRightDir;
+		glm::vec3 cameraRightDir = glm::vec3(0.f);
 		float dofDistance = 0.f;
 	};
 
@@ -79,6 +84,9 @@ private: // DX11
 private: // Scene GPU Data
 	GPUStorage m_meshData;
 	GPUStorage m_spheres;
+	GPUStorage m_directionalLights;
+	GPUStorage m_pointLights;
+	GPUStorage m_spotLights;
 };
 
 inline void RayTracer::setScene(const Scene& scene) { m_pScene = &scene; }

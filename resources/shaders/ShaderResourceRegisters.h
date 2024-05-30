@@ -1,7 +1,7 @@
 
 #define NUM_U_REGISTERS 2u
 #define NUM_B_REGISTERS 1u
-#define NUM_T_REGISTERS 7u
+#define NUM_T_REGISTERS 10u
 
 
 // ---  CPU Slots ---
@@ -14,6 +14,9 @@
 
 #define RT_SPHERE_DATA_SLOT 5
 #define RT_MESH_ENTITY_DATA_SLOT 6
+#define RT_DIRECTIONAL_LIGHT_DATA_SLOT 7
+#define RT_POINT_LIGHT_DATA_SLOT 8
+#define RT_SPOT_LIGHT_DATA_SLOT 9
 
 // b register
 #define RT_RENDER_DATA_SLOT 0
@@ -34,6 +37,9 @@
 
 #define RT_SPHERE_DATA_GPU_REG t5
 #define RT_MESH_ENTITY_DATA_GPU_REG t6
+#define RT_DIRECTIONAL_LIGHT_DATA_GPU_REG t7
+#define RT_POINT_LIGHT_DATA_GPU_REG t8
+#define RT_SPOT_LIGHT_DATA_GPU_REG t9
 
 // b register
 #define RT_RENDER_DATA_GPU_REG b0
