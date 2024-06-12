@@ -238,18 +238,19 @@ void RayTracer::updateBuffers()
 
 	auto spotLightView = reg.view<SpotLight, Transform>();
 	m_spotLights.update((uint32_t)spotLightView.size_hint(), [&](char* pMappedBufferData)
+	{
+		GPU_SpotLight* pGPUData = nullptr;
+		for (entt::entity entity : spotLightView)
 		{
-			GPU_SpotLight* pGPUData = nullptr;
-			for (entt::entity entity : spotLightView)
-			{
-				pGPUData = (GPU_SpotLight*)pMappedBufferData;
+			pGPUData = (GPU_SpotLight*)pMappedBufferData;
 
-				auto [spotLight, transform] = spotLightView[entity];
-				pGPUData->light = spotLight;
-				pGPUData->position = transform.position;
-				pGPUData->direction = transform.getForwardVec();
-			}
-		});
+			auto [spotLight, transform] = spotLightView[entity];
+			pGPUData->light = spotLight;
+			pGPUData->light.maxAngle = glm::radians(pGPUData->light.maxAngle);
+			pGPUData->position = transform.position;
+			pGPUData->direction = transform.getForwardVec();
+		}
+	});
 
 
 	

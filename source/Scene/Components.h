@@ -70,7 +70,7 @@ struct PointLight
 	float intensity = 1.f;
 	float specularStrength = 1.f;
 
-	glm::vec2 attenuation = glm::vec2(1.f);
+	glm::vec2 attenuation = glm::vec2(0.01f, 0.f);
 
 	float penumbraRadius = 1.f; // Rename?
 };
@@ -81,7 +81,7 @@ struct SpotLight
 	float intensity = 1.f;
 	float specularStrength = 1.f;
 	
-	glm::vec2 attenuation = glm::vec2(1.f);
+	glm::vec2 attenuation = glm::vec2(0.01f, 0.f);
 
 	float penumbraRadius = 1.f; // Rename?
 	float maxAngle = 90.f;

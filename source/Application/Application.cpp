@@ -32,7 +32,7 @@ Application::Application()
 	m_resourceManager.importFile("resources/textures/wood/whnfeb2_2K_Specular.jpg");
 	m_resourceManager.importFile("resources/textures/wood/whnfeb2_2K_Normal.jpg");
 
-	//m_resourceManager.importFile("resources/meshes/revolver.fbx");
+	m_resourceManager.importFile("resources/meshes/revolver.fbx");
 	m_resourceManager.importFile("resources/textures/rev/rev_albedo.png");
 	m_resourceManager.importFile("resources/textures/rev/rev_roughness.png");
 	m_resourceManager.importFile("resources/textures/rev/rev_metallic.png");
@@ -80,18 +80,18 @@ void Application::run()
 		mat.normalMapIdx = 3u;
 	}
 	
-	//{
-	//	Entity ent = m_scene.createEntity();
-	//	
-	//	MeshComponent& meshComp = ent.addComponent<MeshComponent>();
-	//	meshComp.meshID = 1;
-	//
-	//	Material& mat = meshComp.material;
-	//	mat.albedo.textureId = 4u;
-	//	mat.roughness.textureId = 5u;
-	//	mat.metallic.textureId = 6u;
-	//	mat.normalMapIdx = 7u;
-	//}
+	{
+		Entity ent = m_scene.createEntity();
+		
+		MeshComponent& meshComp = ent.addComponent<MeshComponent>();
+		meshComp.meshID = 1;
+	
+		Material& mat = meshComp.material;
+		mat.albedo.textureId = 4u;
+		mat.roughness.textureId = 5u;
+		mat.metallic.textureId = 6u;
+		mat.normalMapIdx = 7u;
+	}
 
 #if 1
 	glm::vec3 colours[3] =

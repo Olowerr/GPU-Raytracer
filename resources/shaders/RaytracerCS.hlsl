@@ -3,7 +3,7 @@
 #include "ShaderResourceRegisters.h"
 
 // ---- Defines and constants
-#define NUM_BOUNCES (10)
+#define NUM_BOUNCES (5)
 
 
 // ---- Structs
@@ -64,14 +64,6 @@ struct LightEvaluation
     float intensity;
     float specularStrengthModifier;
     float2 attentuation;
-    
-    float3 worldPosition;
-    float3 normal;
-    float3 viewDirection;
-    
-    float3 materialAlbedoColour;
-    float materialSpecular;
-    float specularFactor;
 };
 
 // ---- Resources
@@ -383,25 +375,27 @@ Payload findClosestHit(Ray ray)
     return payload;
 }
 
-float3 calculateLightning(LightEvaluation evaluationData)
+float3 calculateLightning(LightEvaluation evaluationData, float distanceToHit, float3 hitPoint, float3 normal, float3 viewDir, float3 matAlbedo, float matSpecular, float specularFactor)
 {
     Ray lightRay;
-    lightRay.origin = evaluationData.worldPosition + evaluationData.normal * 0.001f;
+    lightRay.origin = hitPoint;
     lightRay.direction = evaluationData.direction;
 
     Payload lightPayload = findClosestHit(lightRay);
 
-    if (lightPayload.hit)
+    if (lightPayload.hit && length(lightPayload.worldPosition - hitPoint) < distanceToHit)
         return float3(0.f, 0.f, 0.f);
     
-    float3 lightReflection = reflect(-lightRay.direction, evaluationData.normal);
-    float lightDotNormal = clampedDot(lightRay.direction, evaluationData.normal);
-    float lightReflectDotView = clampedDot(lightReflection, evaluationData.viewDirection);
+    float3 lightReflection = reflect(-lightRay.direction, normal);
+    float lightDotNormal = clampedDot(lightRay.direction, normal);
+    float lightReflectDotView = clampedDot(lightReflection, viewDir);
             
-    float3 diffuse = evaluationData.materialAlbedoColour * lightDotNormal;
-    float3 specular = float3(1.f, 1.f, 1.f) * pow(lightReflectDotView, max(100.f * smoothstep(0.f, 1.f, evaluationData.materialSpecular), 1.f));
+    float3 diffuse = matAlbedo * lightDotNormal;
+    float3 specular = float3(1.f, 1.f, 1.f) * pow(lightReflectDotView, max(100.f * smoothstep(0.f, 1.f, matSpecular), 1.f));
     
-    return lerp(diffuse, specular * evaluationData.specularStrengthModifier, evaluationData.specularFactor) * evaluationData.colour * evaluationData.intensity;
+    float attenuation = 1.f / (1.f + evaluationData.attentuation.x * distanceToHit + evaluationData.attentuation.y * distanceToHit * distanceToHit);
+    
+    return lerp(diffuse, specular * evaluationData.specularStrengthModifier, specularFactor) * evaluationData.colour * evaluationData.intensity * attenuation;
 }
 
 // ---- Main part of shader
@@ -479,37 +473,17 @@ void main(uint3 DTid : SV_DispatchThreadID)
             chill with transparency for now
         */
         float roughnessFactor = material.roughness.colour >= randomFloat(seed); 
-        float metallicFactor = (material.metallic.colour * (1 - material.roughness.colour)) >= randomFloat(seed);
+        float metallicFactor = (material.metallic.colour * (1.f - material.roughness.colour)) >= randomFloat(seed);
         float specularFactor = (material.specular.colour * (1.f - material.roughness.colour)) >= randomFloat(seed);
         
         float3 bounceDir = findReflectDirection(ray.direction, hitData.worldNormal, material.roughness.colour * (1.f - specularFactor), seed);
         float3 hitPoint = hitData.worldPosition + bounceDir * 0.001f;
         
         float3 phongLight = float3(0.f, 0.f, 0.f);
-        //{
-        //    static const float3 SUN_COLOUR = float3(1.f, 1.f, 1.f);
-        //    static const float3 SUN_DIR = normalize(float3(1.f, 1.f, 1.f));
-        //    static const float SUN_STRENGTH = 1.f;
-        //    
-        //    const float3 lightReflection = reflect(-SUN_DIR, hitData.worldNormal);
-        //    const float lightDotNormal = clampedDot(SUN_DIR, hitData.worldNormal);
-        //    const float lightReflectDotView= clampedDot(lightReflection, -ray.direction);
-        //    
-        //    float3 diffuse = material.albedo.colour * lightDotNormal;
-        //    float3 specular = float3(1.f, 1.f, 1.f) * pow(lightReflectDotView, max(100.f * smoothstep(0.f, 1.f, material.specular.colour), 1.f));
-        //    
-        //    Ray toLightRay;
-        //    toLightRay.origin = hitPoint;
-        //    toLightRay.direction = normalize(float3(1.f, 1.f, 1.f) + getRandomVector(seed) * 0.01f);
-        //    Payload lightPayLoad = findClosestHit(toLightRay);
-        //    
-        //    phongLight = lerp(diffuse, specular * 10, specularFactor) * SUN_COLOUR * SUN_STRENGTH * !lightPayLoad.hit;
-        //}
-        
+
         for (uint d = 0u; d < renderData.numDirLights; d++)
         {
             DirectionalLight dirLight = directionalLights[d];
-            dirLight.direction *= -1.f;
             
             LightEvaluation evaluationData;
             evaluationData.direction = normalize(dirLight.direction + getRandomVector(seed) * dirLight.penumbraSizeModifier);
@@ -517,23 +491,16 @@ void main(uint3 DTid : SV_DispatchThreadID)
             evaluationData.intensity = dirLight.intensity;
             evaluationData.specularStrengthModifier = dirLight.specularStrength;
             evaluationData.attentuation = float2(0.f, 0.f);
+            float distanceToHit = 1.f;
             
-            evaluationData.worldPosition = hitData.worldPosition;
-            evaluationData.normal = hitData.worldNormal;
-            evaluationData.viewDirection = -ray.direction;
-            
-            evaluationData.materialAlbedoColour = material.albedo.colour;
-            evaluationData.materialSpecular = material.specular.colour;
-            evaluationData.specularFactor = specularFactor;
-            
-            phongLight += calculateLightning(evaluationData);
+            phongLight += calculateLightning(evaluationData, distanceToHit, hitPoint, hitData.worldNormal, -ray.direction, material.albedo.colour, material.specular.colour, specularFactor);
         }
         
         for (uint p = 0u; p < renderData.numPointLights; p++)
         {
             PointLight pointLight = pointLights[p];
             
-            float3 hitToLight = pointLight.position - hitData.worldPosition;
+            float3 hitToLight = pointLight.position - hitPoint;
             hitToLight += getRandomVector(seed) * randomFloat(seed) * pointLight.penumbraRadius;
             hitToLight = normalize(hitToLight);
             
@@ -544,37 +511,35 @@ void main(uint3 DTid : SV_DispatchThreadID)
             evaluationData.specularStrengthModifier = pointLight.specularStrength;
             evaluationData.attentuation = pointLight.attenuation;
             
-            evaluationData.worldPosition = hitData.worldPosition;
-            evaluationData.normal = hitData.worldNormal;
-            evaluationData.viewDirection = -ray.direction;
+            float distanceToHit = length(hitPoint - pointLight.position);
             
-            evaluationData.materialAlbedoColour = material.albedo.colour;
-            evaluationData.materialSpecular = material.specular.colour;
-            evaluationData.specularFactor = specularFactor;
-            
-            phongLight += calculateLightning(evaluationData);
+            phongLight += calculateLightning(evaluationData, distanceToHit, hitPoint, hitData.worldNormal, -ray.direction, material.albedo.colour, material.specular.colour, specularFactor);
         }
             
         for (uint s = 0u; s < renderData.numSpotLights; s++)
         {
-            DirectionalLight dirLight = directionalLights[s];
+            SpotLight spotLight = spotLights[s];
+         
+            float3 randVec = getRandomVector(seed) * spotLight.penumbraRadius;
+            spotLight.position += randVec;
+
+            float3 lightToHit = normalize(hitPoint - spotLight.position);
+            float3 lightDir = normalize(-spotLight.direction);
+            
+            float cosTheta = dot(lightDir, lightToHit);
+            if (cosTheta < cos(spotLight.maxAngle))
+                continue;
             
             LightEvaluation evaluationData;
-            evaluationData.direction = normalize(dirLight.direction + getRandomVector(seed) * dirLight.penumbraSizeModifier);
-            evaluationData.colour = dirLight.colour;
-            evaluationData.intensity = dirLight.intensity;
-            evaluationData.specularStrengthModifier = dirLight.specularStrength;
-            evaluationData.attentuation = float2(0.f, 0.f);
+            evaluationData.direction = normalize(-lightToHit);
+            evaluationData.colour = spotLight.colour;
+            evaluationData.intensity = spotLight.intensity;
+            evaluationData.specularStrengthModifier = spotLight.specularStrength;
+            evaluationData.attentuation = spotLight.attenuation;
             
-            evaluationData.worldPosition = hitData.worldPosition;
-            evaluationData.normal = hitData.worldNormal;
-            evaluationData.viewDirection = -ray.direction;
+            float distanceToHit = length(hitPoint - spotLight.position);
             
-            evaluationData.materialAlbedoColour = material.albedo.colour;
-            evaluationData.materialSpecular = material.specular.colour;
-            evaluationData.specularFactor = specularFactor;
-            
-            phongLight += calculateLightning(evaluationData);
+            phongLight += calculateLightning(evaluationData, distanceToHit, hitPoint, hitData.worldNormal, -ray.direction, material.albedo.colour, material.specular.colour, specularFactor);
         }
 
         /*
