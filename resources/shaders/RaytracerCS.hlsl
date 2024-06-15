@@ -26,7 +26,7 @@ struct RenderData
     uint numDirLights;
     uint numPointLights;
     uint numSpotLights;
-    float pad0;
+    uint debugMode;
     
     uint2 textureDims;
     float2 viewPlaneDims;
@@ -40,6 +40,9 @@ struct RenderData
     float dofStrength;
     float3 cameraRightDir;
     float dofDistance;
+    
+    uint debugMaxCount;
+    float3 pad0;
 };
 
 struct AtlasTextureDesc
@@ -69,7 +72,8 @@ struct LightEvaluation
 // ---- Resources
 
 // From GPUResourceManager
-StructuredBuffer<Triangle> triangleData : register(RM_TRIANGLE_DATA_GPU_REG);
+StructuredBuffer<Triangle> trianglePosData : register(RM_TRIANGLE_POS_GPU_REG);
+StructuredBuffer<TriangleInfo> triangleInfoData : register(RM_TRIANGLE_INFO_GPU_REG);
 StructuredBuffer<Node> bvhNodes : register(RM_BVH_TREE_GPU_REG);
 StructuredBuffer<AtlasTextureDesc> textureDescs : register(RM_TEXTURE_ATLAS_DESC_GPU_REG);
 Texture2D<unorm float4> textureAtlas : register(RM_TEXTURE_ATLAS_GPU_REG);
@@ -219,7 +223,7 @@ float3 sampleNormalMap(uint textureIdx, float2 meshUVs, float3 normal, float3 ta
     return normalize(mul(sampledNormal, tbn));
 }
 
-Payload findClosestHit(Ray ray)
+Payload findClosestHit(Ray ray, inout uint bbCheckCount, inout uint triCheckCount)
 {
     Payload payload;
     
@@ -248,7 +252,7 @@ Payload findClosestHit(Ray ray)
 
     uint triHitIdx = UINT_MAX;
     float3 hitBaryUVCoords = float3(0.f, 0.f, 0.f);
-    
+        
     // TODO: Rewrite the upcoming loop to reduce nesting
     for (uint j = 0; j < renderData.numMeshes; j++)
     {
@@ -267,21 +271,25 @@ Payload findClosestHit(Ray ray)
             currentNodeIdx = stack[--stackSize];
             
             Node node = bvhNodes[currentNodeIdx];
-            if (!Collision::RayAndAABB(localRay, node.boundingBox))
+            
+            bbCheckCount += 1;
+            if (Collision::RayAndAABBDist(localRay, node.boundingBox) >= closestHitDistance)
                 continue; // Missed AABB
             
             if (node.childIdxs[0] == UINT_MAX) // Is leaf?
             {
                 for (i = node.triStart; i < node.triEnd; i++)
                 {
-                    Triangle tri = triangleData[i];
+                    Triangle tri = trianglePosData[i];
             
-                    Vertex p0 = tri.verticies[0];
-                    Vertex p1 = tri.verticies[1];
-                    Vertex p2 = tri.verticies[2];
+                    float3 p0 = tri.position[0];
+                    float3 p1 = tri.position[1];
+                    float3 p2 = tri.position[2];
             
                     float2 baryUVCoords = float2(0.f, 0.f);
-                    float distanceToHit = Collision::RayAndTriangle(localRay, p0.position, p1.position, p2.position, baryUVCoords);
+                    
+                    triCheckCount += 1;
+                    float distanceToHit = Collision::RayAndTriangle(localRay, p0, p1, p2, baryUVCoords);
                     
                     if (distanceToHit <= 0.f)
                     {
@@ -345,10 +353,10 @@ Payload findClosestHit(Ray ray)
         case 1: // Mesh
             payload.material = meshData[hitIdx].material;
 
-            Triangle tri = triangleData[triHitIdx];
-            Vertex p0 = tri.verticies[0];
-            Vertex p1 = tri.verticies[1];
-            Vertex p2 = tri.verticies[2];
+            TriangleInfo tri = triangleInfoData[triHitIdx];
+            VertexInfo p0 = tri.vertexInfo[0];
+            VertexInfo p1 = tri.vertexInfo[1];
+            VertexInfo p2 = tri.vertexInfo[2];
         
             float2 lerpedUV = barycentricInterpolation(hitBaryUVCoords, p0.uv, p1.uv, p2.uv);
             float3 normal = mul(float4(barycentricInterpolation(hitBaryUVCoords, p0.normal, p1.normal, p2.normal), 0.f), meshData[hitIdx].transformMatrix).xyz;
@@ -375,13 +383,13 @@ Payload findClosestHit(Ray ray)
     return payload;
 }
 
-float3 calculateLightning(LightEvaluation evaluationData, float distanceToHit, float3 hitPoint, float3 normal, float3 viewDir, float3 matAlbedo, float matSpecular, float specularFactor)
+float3 calculateLightning(LightEvaluation evaluationData, float distanceToHit, float3 hitPoint, float3 normal, float3 viewDir, float3 matAlbedo, float matSpecular, float specularFactor, inout uint bbCheckCount, inout uint triCheckCount)
 {
     Ray lightRay;
     lightRay.origin = hitPoint;
     lightRay.direction = evaluationData.direction;
 
-    Payload lightPayload = findClosestHit(lightRay);
+    Payload lightPayload = findClosestHit(lightRay, bbCheckCount, triCheckCount);
 
     if (lightPayload.hit && length(lightPayload.worldPosition - hitPoint) < distanceToHit)
         return float3(0.f, 0.f, 0.f);
@@ -450,9 +458,12 @@ void main(uint3 DTid : SV_DispatchThreadID)
     Payload hitData;
     Material material;
     
+    uint bbCheckCount = 0;
+    uint triCheckCount = 0;
+    
     for (uint i = 0; i <= NUM_BOUNCES; i++)
     {
-        hitData = findClosestHit(ray);
+        hitData = findClosestHit(ray, bbCheckCount, triCheckCount);
         if (!hitData.hit)
         {
             light += getEnvironmentLight(ray.direction) * contribution;
@@ -493,7 +504,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
             evaluationData.attentuation = float2(0.f, 0.f);
             float distanceToHit = 1.f;
             
-            phongLight += calculateLightning(evaluationData, distanceToHit, hitPoint, hitData.worldNormal, -ray.direction, material.albedo.colour, material.specular.colour, specularFactor);
+            phongLight += calculateLightning(evaluationData, distanceToHit, hitPoint, hitData.worldNormal, -ray.direction, material.albedo.colour, material.specular.colour, specularFactor, bbCheckCount, triCheckCount);
         }
         
         for (uint p = 0u; p < renderData.numPointLights; p++)
@@ -513,7 +524,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
             
             float distanceToHit = length(hitPoint - pointLight.position);
             
-            phongLight += calculateLightning(evaluationData, distanceToHit, hitPoint, hitData.worldNormal, -ray.direction, material.albedo.colour, material.specular.colour, specularFactor);
+            phongLight += calculateLightning(evaluationData, distanceToHit, hitPoint, hitData.worldNormal, -ray.direction, material.albedo.colour, material.specular.colour, specularFactor, bbCheckCount, triCheckCount);
         }
             
         for (uint s = 0u; s < renderData.numSpotLights; s++)
@@ -539,7 +550,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
             
             float distanceToHit = length(hitPoint - spotLight.position);
             
-            phongLight += calculateLightning(evaluationData, distanceToHit, hitPoint, hitData.worldNormal, -ray.direction, material.albedo.colour, material.specular.colour, specularFactor);
+            phongLight += calculateLightning(evaluationData, distanceToHit, hitPoint, hitData.worldNormal, -ray.direction, material.albedo.colour, material.specular.colour, specularFactor, bbCheckCount, triCheckCount);
         }
 
         /*
@@ -569,6 +580,12 @@ void main(uint3 DTid : SV_DispatchThreadID)
         ray.direction = bounceDir;
     }
     
+    uint debugModeMaxCount = renderData.debugMaxCount;
+    if (renderData.debugMode == 1)
+        light = bbCheckCount > debugModeMaxCount ? float3(1.f, 0.f, 0.f) : float3(1.f, 1.f, 1.f) * (bbCheckCount / (float)debugModeMaxCount);
+    else if (renderData.debugMode == 2)
+        light = triCheckCount > debugModeMaxCount ? float3(1.f, 0.f, 0.f) : float3(1.f, 1.f, 1.f) * (triCheckCount / (float)debugModeMaxCount);
+    
     float4 result;
     if (renderData.accumulationEnabled == 1)
     {
@@ -583,5 +600,4 @@ void main(uint3 DTid : SV_DispatchThreadID)
     float gamma = 2.f;
     //result = pow(result, float4(gamma, gamma, gamma, 0.f));
     resultBuffer[DTid.xy] = result;
-
 }

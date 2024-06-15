@@ -93,7 +93,7 @@ void Application::run()
 		mat.normalMapIdx = 7u;
 	}
 
-#if 1
+#if 0
 	glm::vec3 colours[3] =
 	{
 		{0.05f, 0.05f, 0.95f},
@@ -322,8 +322,37 @@ void Application::updateImGui()
 	{
 		ImGui::PushItemWidth(-120.f);
 
-		ImGui::Text("FPS: %.3f", 1.f / ImGui::GetIO().DeltaTime);
-		ImGui::Text("MS: %.3f", ImGui::GetIO().DeltaTime * 1000.f);
+		static float avgTimer = 0.f;
+		static uint32_t frameCount = 0;
+
+		static float avgFpsValue = 0.f;
+		static float avgMsValue = 0.f;
+
+		static float avgFpsDisplayValue = 0.f;
+		static float avgMsDisplayValue = 0.f;
+
+		float dt = ImGui::GetIO().DeltaTime;
+		
+		avgTimer += dt;
+		frameCount++;
+
+		float fps = 1.f / dt;
+		float ms = dt * 1000.f;
+
+		avgFpsValue += fps;
+		avgMsValue += ms;
+
+		if (avgTimer >= 1.f)
+		{
+			avgFpsDisplayValue = avgFpsValue / (float)frameCount;
+			avgMsDisplayValue = avgMsValue / (float)frameCount;
+
+			avgTimer = avgFpsValue = avgMsValue = 0.f;
+			frameCount = 0;
+		}
+
+		ImGui::Text("FPS: %.3f (%.3f)", avgFpsDisplayValue, fps);
+		ImGui::Text("MS: %.3f (%.3f)", avgMsDisplayValue, ms);
 
 		ImGui::Separator();
 
@@ -361,6 +390,22 @@ void Application::updateImGui()
 		if (ImGui::Button("Rebuild BVH tree"))
 		{
 			m_gpuResourceManager.loadMeshAndBvhData();
+		}
+
+		static int debugDisplayMode = RayTracer::DebugDisplayMode::None;
+		int oldModeValue = debugDisplayMode;
+
+		ImGui::Text("Debug Display Mode");
+		ImGui::RadioButton("None", &debugDisplayMode, RayTracer::DebugDisplayMode::None);
+		ImGui::RadioButton("BB Check Count", &debugDisplayMode, RayTracer::DebugDisplayMode::BBCheckCount);
+		ImGui::RadioButton("Tri Check Count", &debugDisplayMode, RayTracer::DebugDisplayMode::TriCheckCount);
+
+		bool changedMaxCount = ImGui::DragInt("Debug Check Max Count", (int*)&m_rayTracer.getDebugMaxCount(), 0.1f, 0, 100000);
+
+		if (debugDisplayMode != oldModeValue || changedMaxCount)
+		{
+			m_rayTracer.setDebugMode(RayTracer::DebugDisplayMode(debugDisplayMode));
+			m_rayTracer.resetAccumulation();
 		}
 
 		ImGui::Separator();

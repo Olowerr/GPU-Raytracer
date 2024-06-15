@@ -50,14 +50,16 @@ public:
 
 	void bindResources() const;
 
-	inline const GPUStorage& getTriangleData() const;
+	inline const GPUStorage& getTrianglesPos() const;
+	inline const GPUStorage& getTrianglesInfo() const;
 
 	uint32_t getGlobalNodeIdx(const MeshComponent& meshComp, uint32_t localNodeIdx) const;
 
 private:
 	const ResourceManager* m_pResourceManager;
 
-	GPUStorage m_triangleData;
+	GPUStorage m_trianglePositions;
+	GPUStorage m_triangleInfo;
 
 	GPUStorage m_bvhTree;
 	uint32_t m_maxBvhLeafTriangles;
@@ -84,4 +86,5 @@ inline const ResourceManager& GPUResourceManager::getResourceManager() const		{ 
 inline const std::vector<MeshDesc>& GPUResourceManager::getMeshDescriptors() const	{ return m_meshDescs; }
 inline const std::vector<GPUNode>& GPUResourceManager::getBvhTreeNodes() const		{ return m_bvhTreeNodes; }
 
-inline const GPUStorage& GPUResourceManager::getTriangleData() const { return m_triangleData; }
+inline const GPUStorage& GPUResourceManager::getTrianglesPos() const { return m_trianglePositions; }
+inline const GPUStorage& GPUResourceManager::getTrianglesInfo() const { return m_triangleInfo; }

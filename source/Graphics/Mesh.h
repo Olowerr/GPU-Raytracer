@@ -21,37 +21,42 @@ public:
 		:m_name(name), m_boundingBox(meshData.boundingBox)
 	{
 		const uint32_t numVerticies = (uint32_t)meshData.positions.size();
-		m_triangles.resize(numVerticies / 3);
+		m_trianglesPos.resize(numVerticies / 3);
+		m_trianglesInfo.resize(numVerticies / 3);
 
 		for (uint32_t i = 0; i < numVerticies; i++)
 		{
 			const uint32_t triangleIdx = i / 3;
 			const uint32_t localVertexIdx = i % 3;
 
-			Okay::Vertex& localVertex = m_triangles[triangleIdx].verticies[localVertexIdx];
+			m_trianglesPos[triangleIdx].position[localVertexIdx] = meshData.positions[i];
 
-			localVertex.position = meshData.positions[i];
-			localVertex.normal = meshData.normals[i];
-			localVertex.uv = meshData.uvs[i];
-			localVertex.tangent = meshData.tangents[i];
-			localVertex.bitangent = meshData.bitangents[i];
+			Okay::VertexInfo& localVertexInfo = m_trianglesInfo[triangleIdx].vertexInfo[localVertexIdx];
+			localVertexInfo.normal = meshData.normals[i];
+			localVertexInfo.uv = meshData.uvs[i];
+			localVertexInfo.tangent = meshData.tangents[i];
+			localVertexInfo.bitangent = meshData.bitangents[i];
 			
 			// Ensure all UVs are between [0, 1]
-			localVertex.uv -= glm::floor(localVertex.uv);
+			localVertexInfo.uv -= glm::floor(localVertexInfo.uv);
 		}
 	}
 
 	~Mesh() = default;
 
-	inline const std::vector<Okay::Triangle>& getTriangles() const;	
+	inline const std::vector<Okay::Triangle>& getTrianglesPos() const;
+	inline const std::vector<Okay::TriangleInfo>& getTrianglesInfo() const;
 	inline const Okay::AABB& getBoundingBox() const;
 
 private:
 	std::string m_name;
 
-	std::vector<Okay::Triangle> m_triangles;
+	std::vector<Okay::Triangle> m_trianglesPos;
+	std::vector<Okay::TriangleInfo> m_trianglesInfo;
 	Okay::AABB m_boundingBox;
 };
 
-inline const std::vector<Okay::Triangle>& Mesh::getTriangles() const	{ return m_triangles; }
+inline const std::vector<Okay::Triangle>& Mesh::getTrianglesPos() const			{ return m_trianglesPos; }
+inline const std::vector<Okay::TriangleInfo>& Mesh::getTrianglesInfo() const	{ return m_trianglesInfo; }
+
 inline const Okay::AABB& Mesh::getBoundingBox() const	{ return m_boundingBox; }

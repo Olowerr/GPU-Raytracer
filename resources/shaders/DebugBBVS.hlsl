@@ -10,7 +10,7 @@ struct Node
     uint parentIdx;
 };
 
-StructuredBuffer<float3> lineData : register(RM_TRIANGLE_DATA_GPU_REG);
+StructuredBuffer<float3> lineData : register(RM_TRIANGLE_POS_GPU_REG);
 StructuredBuffer<Node> bvhNodes : register(RM_BVH_TREE_GPU_REG);
 
 cbuffer RenderDataBuffer : register(RZ_RENDER_DATA_GPU_REG)

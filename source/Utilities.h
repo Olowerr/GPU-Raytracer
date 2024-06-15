@@ -65,18 +65,22 @@ namespace Okay
 		}
 	};
 
-	struct Vertex
+	struct Triangle // Rename?
 	{
-		glm::vec3 position = glm::vec3(0.f);
+		glm::vec3 position[3];
+	};
+
+	struct VertexInfo
+	{
 		glm::vec3 normal = glm::vec3(0.f);
 		glm::vec2 uv = glm::vec2(0.f);
 		glm::vec3 tangent = glm::vec3(0.f);
 		glm::vec3 bitangent = glm::vec3(0.f);
 	};
 
-	struct Triangle
+	struct TriangleInfo
 	{
-		Vertex verticies[3]{};
+		VertexInfo vertexInfo[3];
 	};
 
 	struct Plane

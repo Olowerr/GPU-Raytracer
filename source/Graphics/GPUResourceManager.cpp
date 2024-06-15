@@ -31,7 +31,8 @@ void GPUResourceManager::shutdown()
 {
 	m_pResourceManager = nullptr;
 
-	m_triangleData.shutdown();
+	m_trianglePositions.shutdown();
+	m_triangleInfo.shutdown();
 	m_bvhTree.shutdown();
 
 	DX11_RELEASE(m_pTextureAtlasSRV);
@@ -74,16 +75,17 @@ void GPUResourceManager::bindResources() const
 {
 	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
 
-	ID3D11ShaderResourceView* srvs[5u]{};
-	srvs[RM_TRIANGLE_DATA_SLOT]			= m_triangleData.getSRV();
+	ID3D11ShaderResourceView* srvs[6u]{};
+	srvs[RM_TRIANGLE_POS_SLOT]			= m_trianglePositions.getSRV();
+	srvs[RM_TRIANGLE_INFO_SLOT]			= m_triangleInfo.getSRV();
 	srvs[RM_TEXTURE_ATLAS_DESC_SLOT]	= m_textureAtlasDesc.getSRV();
 	srvs[RM_TEXTURE_ATLAS_SLOT]			= m_pTextureAtlasSRV;
 	srvs[RM_BVH_TREE_SLOT]				= m_bvhTree.getSRV();
 	srvs[RM_ENVIRONMENT_MAP_SLOT]		= m_pEnvironmentMapSRV;
 
-	pDevCon->VSSetShaderResources(RM_TRIANGLE_DATA_SLOT, 5u, srvs);
-	pDevCon->PSSetShaderResources(RM_TRIANGLE_DATA_SLOT, 5u, srvs);
-	pDevCon->CSSetShaderResources(RM_TRIANGLE_DATA_SLOT, 5u, srvs);
+	pDevCon->VSSetShaderResources(RM_TRIANGLE_POS_SLOT, 6u, srvs);
+	pDevCon->PSSetShaderResources(RM_TRIANGLE_POS_SLOT, 6u, srvs);
+	pDevCon->CSSetShaderResources(RM_TRIANGLE_POS_SLOT, 6u, srvs);
 }
 
 void GPUResourceManager::loadResources(std::string_view environmentMapPath)
@@ -118,12 +120,14 @@ void GPUResourceManager::loadMeshAndBvhData()
 	uint32_t numTotalTriangles = 0u;
 	for (uint32_t i = 0; i < numMeshes; i++)
 	{
-		numTotalTriangles += (uint32_t)meshes[i].getTriangles().size();
+		numTotalTriangles += (uint32_t)meshes[i].getTrianglesPos().size();
 	}
 
 	uint32_t triBufferCurStartIdx = 0;
-	std::vector<Okay::Triangle> gpuTriangles;
-	gpuTriangles.reserve(numTotalTriangles);
+	std::vector<Okay::Triangle> gpuTrianglePositions;
+	std::vector<Okay::TriangleInfo> gpuTriangleInfo;
+	gpuTrianglePositions.reserve(numTotalTriangles);
+	gpuTriangleInfo.reserve(numTotalTriangles);
 
 	m_bvhTreeNodes.clear();
 	m_bvhTreeNodes.shrink_to_fit();
@@ -132,7 +136,8 @@ void GPUResourceManager::loadMeshAndBvhData()
 	for (uint32_t i = 0; i < numMeshes; i++)
 	{
 		const Mesh& mesh = meshes[i];
-		const std::vector<Okay::Triangle>& meshTris = mesh.getTriangles();
+		const std::vector<Okay::Triangle>& meshTriPos = mesh.getTrianglesPos();
+		const std::vector<Okay::TriangleInfo>& meshTriInfo = mesh.getTrianglesInfo();
 
 		bvhBuilder.buildTree(mesh);
 		const std::vector<BvhNode>& nodes = bvhBuilder.getTree();
@@ -166,19 +171,24 @@ void GPUResourceManager::loadMeshAndBvhData()
 
 			for (uint32_t j = 0; j < numTriIndicies; j++)
 			{
-				gpuTriangles.emplace_back(meshTris[bvhNode.triIndicies[j]]);
+				const Okay::Triangle& triPos = meshTriPos[bvhNode.triIndicies[j]];
+				const Okay::TriangleInfo& triInfo = meshTriInfo[bvhNode.triIndicies[j]];
+
+				gpuTrianglePositions.emplace_back(triPos);
+				gpuTriangleInfo.emplace_back(triInfo);
 			}
 		}
 
 		m_meshDescs[i].numBvhNodes = numNodes;
 		m_meshDescs[i].bvhTreeStartIdx = gpuNodesPrevSize;
 		m_meshDescs[i].startIdx = triBufferCurStartIdx;
-		m_meshDescs[i].endIdx = triBufferCurStartIdx + (uint32_t)meshTris.size();
+		m_meshDescs[i].endIdx = triBufferCurStartIdx + (uint32_t)meshTriPos.size();
 
-		triBufferCurStartIdx += (uint32_t)meshTris.size();
+		triBufferCurStartIdx += (uint32_t)meshTriPos.size();
 	}
 
-	m_triangleData.initiate(sizeof(Okay::Triangle), numTotalTriangles, gpuTriangles.data());
+	m_trianglePositions.initiate(sizeof(Okay::Triangle), numTotalTriangles, gpuTrianglePositions.data());
+	m_triangleInfo.initiate(sizeof(Okay::TriangleInfo), numTotalTriangles, gpuTriangleInfo.data());
 	m_bvhTree.initiate(sizeof(GPUNode), (uint32_t)m_bvhTreeNodes.size(), m_bvhTreeNodes.data());
 }
 

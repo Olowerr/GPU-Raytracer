@@ -13,7 +13,7 @@ void BvhBuilder::buildTree(const Mesh& mesh)
 {
 	reset();
 
-	m_pMeshTris = &mesh.getTriangles();
+	m_pMeshTris = &mesh.getTrianglesPos();
 	size_t numTotalTriangles = m_pMeshTris->size();
 	// Assert numTotalTriangles?
 
@@ -109,16 +109,16 @@ float BvhBuilder::evaluateSAH(BvhNode& node, uint32_t axis, float pos)
 		if (middle[axis] < pos)
 		{
 			leftCount++;
-			leftBox.growTo(triangle.verticies[0].position);
-			leftBox.growTo(triangle.verticies[1].position);
-			leftBox.growTo(triangle.verticies[2].position);
+			leftBox.growTo(triangle.position[0]);
+			leftBox.growTo(triangle.position[1]);
+			leftBox.growTo(triangle.position[2]);
 		}
 		else
 		{
 			rightCount++;
-			rightBox.growTo(triangle.verticies[0].position);
-			rightBox.growTo(triangle.verticies[1].position);
-			rightBox.growTo(triangle.verticies[2].position);
+			rightBox.growTo(triangle.position[0]);
+			rightBox.growTo(triangle.position[1]);
+			rightBox.growTo(triangle.position[2]);
 		}
 	}
 	float cost = leftCount * leftBox.getArea() + rightCount * rightBox.getArea();
@@ -278,7 +278,7 @@ void BvhBuilder::findAABB(BvhNode& node)
 		const Okay::Triangle& currentTri = (*m_pMeshTris)[node.triIndicies[i]];
 		for (uint32_t k = 0; k < 3u; k++)
 		{
-			const glm::vec3& point = currentTri.verticies[k].position;
+			const glm::vec3& point = currentTri.position[k];
 
 			node.boundingBox.min = glm::min(point, node.boundingBox.min);
 			node.boundingBox.max = glm::max(point, node.boundingBox.max);

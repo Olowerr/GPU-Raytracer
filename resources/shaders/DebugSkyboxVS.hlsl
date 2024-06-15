@@ -2,7 +2,7 @@
 #include "GPU-Utilities.hlsli"
 #include "ShaderResourceRegisters.h"
 
-StructuredBuffer<Triangle> triangleData : register(RM_TRIANGLE_DATA_GPU_REG);
+StructuredBuffer<Triangle> triangleData : register(RM_TRIANGLE_POS_GPU_REG);
 
 cbuffer RenderDataBuffer : register(RZ_RENDER_DATA_GPU_REG)
 {
@@ -27,7 +27,7 @@ struct Output
 Output main(uint vertIdx : SV_VertexID)
 {
     Triangle tri = triangleData[vertIdx / 3u];
-    float3 pos = tri.verticies[vertIdx % 3u].position;
+    float3 pos = tri.position[vertIdx % 3u];
     
     Output output;
     output.localPos = pos;

@@ -15,6 +15,14 @@ class ResourceManager;
 class RayTracer
 {
 public:
+	enum DebugDisplayMode : uint32_t
+	{
+		None = 0,
+		BBCheckCount = 1,
+		TriCheckCount= 2,
+	};
+
+public:
 	RayTracer();
 	RayTracer(const RenderTexture& target, const GPUResourceManager& pGpuResourceManager);
 	~RayTracer();
@@ -36,6 +44,9 @@ public:
 
 	void onResize();
 
+	inline void setDebugMode(DebugDisplayMode mode);
+	inline uint32_t& getDebugMaxCount();
+
 private: // Scene & Resources
 	const Scene* m_pScene;
 	const GPUResourceManager* m_pGpuResourceManager;
@@ -55,7 +66,7 @@ private: // DX11
 		uint32_t numDirLights = 0u;
 		uint32_t numPointLights = 0u;
 		uint32_t numSpotLights = 0u;
-		float pad0 = 0.f;
+		DebugDisplayMode debugMode = DebugDisplayMode::None;
 
 		glm::uvec2 textureDims{};
 		glm::vec2 viewPlaneDims{};
@@ -69,6 +80,9 @@ private: // DX11
 		float dofStrength = 0.f;
 		glm::vec3 cameraRightDir = glm::vec3(0.f);
 		float dofDistance = 0.f;
+
+		uint32_t debugMaxCount = 500;
+		glm::vec3 pad0;
 	};
 
 	void updateBuffers();
@@ -80,6 +94,7 @@ private: // DX11
 	ID3D11Buffer* m_pRenderDataBuffer;
 
 	ID3D11ComputeShader* m_pMainRaytracingCS;
+
 
 private: // Scene GPU Data
 	GPUStorage m_meshData;
@@ -109,3 +124,6 @@ inline uint32_t RayTracer::getNumAccumulationFrames() const { return m_renderDat
 
 inline float& RayTracer::getDOFStrength() { return m_renderData.dofStrength; }
 inline float& RayTracer::getDOFDistance() { return m_renderData.dofDistance; }
+
+inline void RayTracer::setDebugMode(RayTracer::DebugDisplayMode mode) { m_renderData.debugMode = mode; }
+inline uint32_t& RayTracer::getDebugMaxCount() { return m_renderData.debugMaxCount; }

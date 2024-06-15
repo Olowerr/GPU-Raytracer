@@ -53,18 +53,22 @@ struct Sphere
     float radius;
 };
 
-struct Vertex
+struct Triangle
 {
-    float3 position;
+    float3 position[3];
+};
+
+struct VertexInfo
+{
     float3 normal;
     float2 uv;
     float3 tangent;
     float3 bitangent;
 };
 
-struct Triangle
+struct TriangleInfo
 {
-    Vertex verticies[3];
+    VertexInfo vertexInfo[3];
 };
 
 struct Mesh
@@ -290,5 +294,22 @@ namespace Collision
         // If tmax is less than 0, the AABB is behind the ray, so no intersection.
         // If tmin is greater than tmax, there is no intersection.
         return tmax >= 0 && tmin <= tmax;
+    }
+    
+    // Sebastian Lague Way
+    float RayAndAABBDist(Ray ray, AABB aabb)
+    {
+        float3 inverseRayDir = 1.f / ray.direction;
+        
+        float3 tMin = (aabb.min - ray.origin) * inverseRayDir;
+        float3 tMax = (aabb.max - ray.origin) * inverseRayDir;
+        float3 t1 = min(tMin, tMax);
+        float3 t2 = max(tMin, tMax);
+
+        float distFar = min(min(t2.x, t2.y), t2.z);
+        float distNear = max(max(t1.x, t1.y), t1.z);
+
+        bool didHit = distFar >= distNear && distFar > 0.f;
+        return didHit ? distNear : FLT_MAX;
     }
 }
