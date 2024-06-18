@@ -156,10 +156,7 @@ void GPUResourceManager::loadMeshAndBvhData()
 			const uint32_t numTriIndicies = (uint32_t)bvhNode.triIndicies.size();
 
 			gpuNode.boundingBox = bvhNode.boundingBox;
-
-			gpuNode.childIdxs[0] = tryOffsetIdx(bvhNode.childIdxs[0], gpuNodesPrevSize);
-			gpuNode.childIdxs[1] = tryOffsetIdx(bvhNode.childIdxs[1], gpuNodesPrevSize);
-			gpuNode.parentIdx = tryOffsetIdx(bvhNode.parentIdx, gpuNodesPrevSize);
+			gpuNode.firstChildIdx = tryOffsetIdx(bvhNode.firstChildIdx, gpuNodesPrevSize);
 
 			if (!bvhNode.isLeaf())
 				continue;

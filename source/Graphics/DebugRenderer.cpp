@@ -421,10 +421,10 @@ void DebugRenderer::executeDrawMode(uint32_t nodeIdx, NodeFunction pFunc, Args..
 		const GPUNode& selectedNode = gpuNodes[nodeIdx];
 
 		(this->*pFunc)(nodeIdx, std::forward<Args>(args)...);
-		if (selectedNode.childIdxs[0] != Okay::INVALID_UINT)
+		if (selectedNode.firstChildIdx != Okay::INVALID_UINT)
 		{
-			(this->*pFunc)(selectedNode.childIdxs[0], std::forward<Args>(args)...);
-			(this->*pFunc)(selectedNode.childIdxs[1], std::forward<Args>(args)...);
+			(this->*pFunc)(selectedNode.firstChildIdx, std::forward<Args>(args)...);
+			(this->*pFunc)(selectedNode.firstChildIdx + 1, std::forward<Args>(args)...);
 		}
 		break;
 	}
@@ -439,10 +439,10 @@ void DebugRenderer::executeDrawMode(uint32_t nodeIdx, NodeFunction pFunc, Args..
 			const GPUNode& currentNode = gpuNodes[currentIdx];
 			nodes.pop();
 
-			if (currentNode.childIdxs[0] != Okay::INVALID_UINT)
+			if (currentNode.firstChildIdx != Okay::INVALID_UINT)
 			{
-				nodes.push(currentNode.childIdxs[0]);
-				nodes.push(currentNode.childIdxs[1]);
+				nodes.push(currentNode.firstChildIdx);
+				nodes.push(currentNode.firstChildIdx + 1);
 			}
 
 			(this->*pFunc)(currentIdx, std::forward<Args>(args)...);

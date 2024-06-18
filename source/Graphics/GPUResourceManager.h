@@ -22,9 +22,9 @@ struct MeshDesc
 struct GPUNode
 {
 	Okay::AABB boundingBox;
-	uint32_t triStart = Okay::INVALID_UINT, triEnd = Okay::INVALID_UINT;
-	uint32_t childIdxs[2]{ Okay::INVALID_UINT, Okay::INVALID_UINT };
-	uint32_t parentIdx = Okay::INVALID_UINT;
+	uint32_t triStart = Okay::INVALID_UINT;
+	uint32_t triEnd = Okay::INVALID_UINT;
+	uint32_t firstChildIdx = Okay::INVALID_UINT;
 };
 
 class GPUResourceManager

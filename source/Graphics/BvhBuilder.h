@@ -9,19 +9,14 @@ struct BvhNode
 		:triIndicies(std::move(other.triIndicies))
 	{
 		boundingBox = other.boundingBox;
-		childIdxs[0] = other.childIdxs[0];
-		childIdxs[1] = other.childIdxs[1];
-		depth = other.depth;
-		parentIdx = other.parentIdx;
+		firstChildIdx = other.firstChildIdx;
 	}
 
-	inline bool isLeaf() const { return childIdxs[0] == Okay::INVALID_UINT; }
+	inline bool isLeaf() const { return firstChildIdx == Okay::INVALID_UINT; }
 
 	Okay::AABB boundingBox;
 	std::vector<uint32_t> triIndicies;
-	uint32_t childIdxs[2] = { Okay::INVALID_UINT, Okay::INVALID_UINT };
-	uint32_t depth = Okay::INVALID_UINT; // rmv?
-	uint32_t parentIdx = Okay::INVALID_UINT;
+	uint32_t firstChildIdx = Okay::INVALID_UINT;
 };
 
 constexpr uint32_t ads = sizeof(std::vector<uint32_t>);

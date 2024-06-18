@@ -56,8 +56,7 @@ struct Node
     AABB boundingBox;
     uint triStart;
     uint triEnd;
-    uint childIdxs[2];
-    uint parentIdx;
+    uint firstChildIdx;
 };
 
 struct LightEvaluation
@@ -276,7 +275,7 @@ Payload findClosestHit(Ray ray, inout uint bbCheckCount, inout uint triCheckCoun
             if (Collision::RayAndAABBDist(localRay, node.boundingBox) >= closestHitDistance)
                 continue; // Missed AABB
             
-            if (node.childIdxs[0] == UINT_MAX) // Is leaf?
+            if (node.firstChildIdx == UINT_MAX) // Is leaf?
             {
                 for (i = node.triStart; i < node.triEnd; i++)
                 {
@@ -315,8 +314,8 @@ Payload findClosestHit(Ray ray, inout uint bbCheckCount, inout uint triCheckCoun
             }
             else
             {
-                stack[stackSize++] = node.childIdxs[0];
-                stack[stackSize++] = node.childIdxs[1];
+                stack[stackSize++] = node.firstChildIdx;
+                stack[stackSize++] = node.firstChildIdx + 1;
             }
         }
     }
