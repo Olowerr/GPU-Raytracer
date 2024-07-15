@@ -153,6 +153,32 @@ void Application::run()
 	}
 }
 
+void Application::loadMeshesAsEntities(std::string_view filePath, std::string_view texturesPath, float scale)
+{
+	std::vector<ResourceManager::ObjectDecription> objectDescriptions;
+	if (!m_resourceManager.importAssets(filePath, objectDescriptions, texturesPath, scale))
+	{
+		printf("Failed loading file: %s\n", filePath.data());
+		return;
+	}
+
+	for (uint32_t i = 0; i < (uint32_t)objectDescriptions.size(); i++)
+	{
+		ResourceManager::ObjectDecription& objectDesc = objectDescriptions[i];
+
+		Entity entity = m_scene.createEntity();
+		MeshComponent& meshComp = entity.addComponent<MeshComponent>();
+		Material& material = meshComp.material;
+
+		meshComp.meshID = objectDesc.meshId;
+		material.albedo.textureId = objectDesc.albedoTextureId;
+		material.roughness.textureId = objectDesc.rougnessTextureId;
+		material.metallic.textureId = objectDesc.metallicTextureId;
+		material.specular.textureId = objectDesc.specularTextureId;
+		material.normalMapIdx = objectDesc.normalTextureId;
+	}
+}
+
 void Application::displayComponents(Entity entity)
 {
 	bool resetAcu = false;

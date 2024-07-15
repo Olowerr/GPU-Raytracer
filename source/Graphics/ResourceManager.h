@@ -11,10 +11,27 @@
 class ResourceManager
 {
 public:
+	struct ObjectDecription
+	{
+		std::string name;
+		AssetID meshId;
+		AssetID albedoTextureId;
+		AssetID rougnessTextureId;
+		AssetID metallicTextureId;
+		AssetID specularTextureId;
+		AssetID normalTextureId;
+	};
+
+public:
 	ResourceManager() = default;
 	~ResourceManager() = default;
 
 	AssetID importFile(std::string_view filePath);
+	AssetID loadMesh(std::string_view path);
+	AssetID loadTexture(std::string_view path);
+	AssetID findOrLoadTexture(std::string_view path);
+
+	bool importAssets(std::string_view filePath, std::vector<ObjectDecription>& outObjects, std::string_view texturePath = "", float scale = 1.f);
 
 	template<typename Asset, typename... Args>
 	inline Asset& addAsset(Args&&... args);
@@ -26,6 +43,9 @@ public:
 	inline const Asset& getAsset(AssetID id) const;
 
 	template<typename Asset>
+	inline AssetID getAssetID(std::string_view name);
+
+	template<typename Asset>
 	inline uint32_t getCount() const;
 
 	template<typename Asset>
@@ -35,8 +55,6 @@ private:
 	std::vector<Mesh> m_meshes;
 	std::vector<Texture> m_textures;
 
-	AssetID loadMesh(std::string_view path);
-	AssetID loadTexture(std::string_view path);
 
 	template<typename Asset>
 	inline std::vector<Asset>& getAssets();
@@ -76,6 +94,25 @@ inline const Asset& ResourceManager::getAsset(AssetID id) const
 
 	OKAY_ASSERT((uint32_t)id < (uint32_t)assets.size());
 	return assets[id];
+}
+
+template<typename Asset>
+inline AssetID ResourceManager::getAssetID(std::string_view name)
+{
+	STATIC_ASSERT_ASSET_TYPE();
+	std::vector<Asset>& assets = getAssets<Asset>();
+
+	for (uint32_t i = 0; i < (uint32_t)assets.size(); i++)
+	{
+		const Asset& asset = assets[i];
+
+		if (asset.getName() == name)
+		{
+			return AssetID(i);
+		}
+	}
+
+	return AssetID();
 }
 
 template<typename Asset>

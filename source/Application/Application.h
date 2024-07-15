@@ -17,6 +17,8 @@ public:
 	void run();
 
 private:
+	void loadMeshesAsEntities(std::string_view filePath, std::string_view texturesPath = "", float scale = 1.f);
+
 	Window m_window;
 	RayTracer m_rayTracer;
 	Scene m_scene;

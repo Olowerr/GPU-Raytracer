@@ -43,6 +43,23 @@ namespace Okay
 		return path.substr(path.find_last_of('.'));
 	}
 
+	static std::string_view getFileName(std::string_view path)
+	{
+		size_t slashPos = path.find_last_of("/");
+
+		if (slashPos == std::string::npos)
+			slashPos = path.find_last_of("\\");
+
+		if (slashPos == std::string::npos)
+			slashPos = 1;
+		else
+			slashPos++;
+
+		// Can exclude file ending by passing in this as 2nd argument to substr()
+		size_t dot = path.find_last_of(".") - slashPos;
+		return path.substr(slashPos);
+	}
+
 	struct AABB
 	{
 		AABB() = default;
