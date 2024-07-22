@@ -460,8 +460,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
         hitData = findClosestHit(ray, bbCheckCount, triCheckCount);
         if (!hitData.hit)
         {
-            light += getEnvironmentLight(ray.direction) * contribution;
-            //light += getNightLight(ray.direction) * contribution;
+            //light += getEnvironmentLight(ray.direction) * contribution;
             break;
         }
         
