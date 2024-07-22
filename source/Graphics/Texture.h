@@ -2,6 +2,11 @@
 #include "DirectX/DX11.h"
 #include "Utilities.h"
 
+/*
+	Textures are not primarily responsible for allocating/deallocating its data.
+	They'll only deallocate its old data during move.
+*/
+
 class Texture
 {
 public:
@@ -10,8 +15,27 @@ public:
 	{
 		OKAY_ASSERT(pTextureData);
 	}
-
 	~Texture() = default;
+
+	Texture(const Texture& other) = default;
+
+	Texture& operator=(Texture&& other) noexcept
+	{
+		OKAY_DELETE_ARRAY(m_pTextureData);
+
+		m_pTextureData = other.m_pTextureData;
+		other.m_pTextureData = nullptr;
+
+		m_width = other.m_width;
+		m_height = other.m_height;
+
+		other.m_width = other.m_height = 0u;
+
+		m_name = other.m_name;
+		other.m_name = "";
+
+		return *this;
+	}
 
 	inline const std::string& getName() const;
 	inline uint32_t getWidth() const;

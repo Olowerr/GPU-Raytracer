@@ -184,5 +184,7 @@
     <None Include="resources\shaders\DebugBBPS.hlsl" />
     <None Include="resources\shaders\DebugSkyboxPS.hlsl" />
     <None Include="resources\shaders\DebugSkyboxVS.hlsl" />
+    <None Include="resources\shaders\Scale\ScaleVS.hlsl" />
+    <None Include="resources\shaders\Scale\ScalePS.hlsl" />
   </ItemGroup>
 </Project>

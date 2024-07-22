@@ -1,5 +1,7 @@
 #include "DX11.h"
 #include "Utilities.h"
+#include "Graphics/Texture.h"
+#include "RenderTexture.h"
 
 #include <d3dcompiler.h>
 
@@ -9,6 +11,9 @@ namespace Okay
 	{
 		ID3D11Device* pDevice = nullptr;
 		ID3D11DeviceContext* pDeviceContext = nullptr;
+
+		ID3D11VertexShader* pScaleVS = nullptr;
+		ID3D11PixelShader* pScalePS = nullptr;
 	};
 
 	static DX11 dx11;
@@ -25,12 +30,24 @@ namespace Okay
 			&featureLevel, 1u, D3D11_SDK_VERSION, &dx11.pDevice, nullptr, &dx11.pDeviceContext);
 
 		OKAY_ASSERT(SUCCEEDED(hr));
+
+		// Initiate scale shaders & sampelr
+		bool success = false;
+
+		success = createShader(SHADER_PATH "Scale/ScaleVS.hlsl", &dx11.pScaleVS);
+		OKAY_ASSERT(success);
+		
+		success = createShader(SHADER_PATH "Scale/ScalePS.hlsl", &dx11.pScalePS);
+		OKAY_ASSERT(success);
 	}
 
 	void shutdownDX11()
 	{
 		DX11_RELEASE(dx11.pDevice);
 		DX11_RELEASE(dx11.pDeviceContext);
+
+		DX11_RELEASE(dx11.pScaleVS);
+		DX11_RELEASE(dx11.pScalePS);
 	}
 
 	ID3D11Device* getDevice()
@@ -138,16 +155,13 @@ namespace Okay
 		dx11.pDeviceContext->Unmap(pBuffer, 0u);
 	}
 
-	bool createSRVFromTextureData(ID3D11ShaderResourceView** ppSRV, const unsigned char* pTextureData, uint32_t width, uint32_t height)
+	bool createSRVFromTextureData(ID3D11ShaderResourceView** ppSRV, const Texture& texture)
 	{
 		OKAY_ASSERT(ppSRV);
-		OKAY_ASSERT(pTextureData);
-		OKAY_ASSERT(width);
-		OKAY_ASSERT(height);
 
 		D3D11_TEXTURE2D_DESC desc{};
-		desc.Width = width;
-		desc.Height = height;
+		desc.Width = texture.getWidth();
+		desc.Height = texture.getHeight();
 		
 		desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
@@ -162,8 +176,8 @@ namespace Okay
 		desc.MiscFlags = 0u;
 
 		D3D11_SUBRESOURCE_DATA inData{};
-		inData.pSysMem = pTextureData;
-		inData.SysMemPitch = width * 4u;
+		inData.pSysMem = texture.getTextureData();
+		inData.SysMemPitch = desc.Width * 4u;
 		inData.SysMemSlicePitch = 0u;
 
 		ID3D11Texture2D* pTexture = nullptr;
@@ -179,6 +193,124 @@ namespace Okay
 		return success;
 	}
 
+	void getCPUTextureData(ID3D11Texture2D* pSourceTexture, void** ppOutData)
+	{
+		OKAY_ASSERT(pSourceTexture);
+		OKAY_ASSERT(ppOutData);
+
+		D3D11_TEXTURE2D_DESC desc{};
+		pSourceTexture->GetDesc(&desc);
+		desc.Usage = D3D11_USAGE_STAGING;
+		desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+		desc.BindFlags = 0u;
+
+		ID3D11Texture2D* stagingBuffer = nullptr;
+		bool success = SUCCEEDED(dx11.pDevice->CreateTexture2D(&desc, nullptr, &stagingBuffer));
+		OKAY_ASSERT(success);
+
+		dx11.pDeviceContext->CopyResource(stagingBuffer, pSourceTexture);
+
+		D3D11_MAPPED_SUBRESOURCE sub{};
+		dx11.pDeviceContext->Map(stagingBuffer, 0u, D3D11_MAP_READ, 0u, &sub);
+
+		uint32_t byteSize = sub.RowPitch * desc.Height;
+		(*ppOutData) = new unsigned char[byteSize] {};
+
+		// Need to copy row by row to account for potential padding between rows
+		// https://learn.microsoft.com/en-us/windows/win32/api/d3d11/ns-d3d11-d3d11_mapped_subresource#remarks
+		for (uint32_t y = 0; y < desc.Height; y++)
+		{
+			uint32_t targetOffset = y * desc.Width * 4;
+			uint32_t sourceOffset = y * sub.RowPitch;
+			memcpy((unsigned char*)(*ppOutData) + targetOffset, (unsigned char*)sub.pData + sourceOffset, sub.RowPitch);
+		}
+
+		dx11.pDeviceContext->Unmap(stagingBuffer, 0u);
+		DX11_RELEASE(stagingBuffer);
+	}
+
+	void scaleTexture(Texture& texture, uint32_t newWidth, uint32_t newHeight) // Move to ResourceManager?
+	{
+		if (texture.getWidth() == newWidth && texture.getHeight() == newHeight)
+			return;
+
+		ID3D11ShaderResourceView* pSRV = nullptr;
+		bool success = createSRVFromTextureData(&pSRV, texture);
+		OKAY_ASSERT(success);
+
+		dx11.pDeviceContext->ClearState();
+
+		D3D11_VIEWPORT viewport{};
+		viewport.TopLeftX = 0.f;
+		viewport.TopLeftY = 0.f;
+		viewport.Width = (float)newWidth;
+		viewport.Height = (float)newHeight;
+		viewport.MinDepth = 0.f;
+		viewport.MaxDepth = 1.f;
+
+		RenderTexture target(newWidth, newHeight, TextureFormat::F_8X4, TextureFlags::RENDER);
+
+		dx11.pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		dx11.pDeviceContext->VSSetShader(dx11.pScaleVS, nullptr, 0u);
+		dx11.pDeviceContext->RSSetViewports(1u, &viewport);
+		dx11.pDeviceContext->PSSetShader(dx11.pScalePS, nullptr, 0u);
+		dx11.pDeviceContext->PSSetShaderResources(0u, 1u, &pSRV);
+		dx11.pDeviceContext->OMSetRenderTargets(1u, target.getRTV(), nullptr);
+
+		dx11.pDeviceContext->Draw(6u, 0u);
+
+		DX11_RELEASE(pSRV);
+
+		unsigned char* pNewTextureData = nullptr;
+		getCPUTextureData(*target.getBuffer(), (void**)&pNewTextureData);
+
+		texture = std::move(Texture(pNewTextureData, newWidth, newHeight, texture.getName()));
+	}
+
+	void createTextureArray(ID3D11ShaderResourceView** ppSRV, const std::vector<Texture>& textures, uint32_t width, uint32_t height)
+	{
+		OKAY_ASSERT(ppSRV);
+		OKAY_ASSERT(textures.size());
+		OKAY_ASSERT(width);
+		OKAY_ASSERT(height);
+
+		D3D11_TEXTURE2D_DESC desc{};
+		desc.Width = width;
+		desc.Height = height;
+
+		desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+		desc.MipLevels = 1u;
+
+		desc.Usage = D3D11_USAGE_IMMUTABLE;
+		desc.CPUAccessFlags = 0u;
+		desc.SampleDesc.Count = 1u;
+		desc.SampleDesc.Quality = 0u;
+
+		desc.ArraySize = (uint32_t)textures.size();
+		desc.MiscFlags = 0u;
+
+		std::vector<D3D11_SUBRESOURCE_DATA> textureDatas(desc.ArraySize);
+
+		for (uint32_t i = 0; i < desc.ArraySize; i++)
+		{
+			D3D11_SUBRESOURCE_DATA& resourceData = textureDatas[i];
+
+			resourceData.pSysMem = textures[i].getTextureData();
+			resourceData.SysMemPitch = desc.Width * 4u;
+			resourceData.SysMemSlicePitch = 0u;
+		}
+
+		ID3D11Texture2D* pTextureArray = nullptr;
+		bool success = false;
+
+		success = SUCCEEDED(dx11.pDevice->CreateTexture2D(&desc, textureDatas.data(), &pTextureArray));
+		OKAY_ASSERT(success);
+
+		success = SUCCEEDED(dx11.pDevice->CreateShaderResourceView(pTextureArray, nullptr, ppSRV));
+		DX11_RELEASE(pTextureArray);
+		OKAY_ASSERT(success);
+	}
 
 	class IncludeReader : public ID3DInclude
 	{

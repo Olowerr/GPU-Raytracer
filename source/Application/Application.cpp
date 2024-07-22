@@ -5,6 +5,7 @@
 #include "Scene/Entity.h"
 #include "Input.h"
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb/stb_image_write.h"
 
 #include "glm/gtx/quaternion.hpp"
@@ -26,17 +27,17 @@ Application::Application()
 
 	m_target.initiate(1600u, 900u, TextureFormat::F_8X4);
 
-	m_resourceManager.importFile("resources/meshes/cube.fbx");
-	m_resourceManager.importFile("resources/textures/wood/whnfeb2_2K_Albedo.jpg");
-	m_resourceManager.importFile("resources/textures/wood/whnfeb2_2K_Roughness.jpg");
-	m_resourceManager.importFile("resources/textures/wood/whnfeb2_2K_Specular.jpg");
-	m_resourceManager.importFile("resources/textures/wood/whnfeb2_2K_Normal.jpg");
+	m_resourceManager.loadMesh("resources/meshes/cube.fbx");
+	m_resourceManager.loadTexture("resources/textures/wood/whnfeb2_2K_Albedo.jpg");
+	m_resourceManager.loadTexture("resources/textures/wood/whnfeb2_2K_Roughness.jpg");
+	m_resourceManager.loadTexture("resources/textures/wood/whnfeb2_2K_Specular.jpg");
+	m_resourceManager.loadTexture("resources/textures/wood/whnfeb2_2K_Normal.jpg");
 
-	m_resourceManager.importFile("resources/meshes/revolver.fbx");
-	m_resourceManager.importFile("resources/textures/rev/rev_albedo.png");
-	m_resourceManager.importFile("resources/textures/rev/rev_roughness.png");
-	m_resourceManager.importFile("resources/textures/rev/rev_metallic.png");
-	m_resourceManager.importFile("resources/textures/rev/rev_normalMap.png");
+	m_resourceManager.loadMesh("resources/meshes/revolver.fbx");
+	m_resourceManager.loadTexture("resources/textures/rev/rev_albedo.png");
+	m_resourceManager.loadTexture("resources/textures/rev/rev_roughness.png");
+	m_resourceManager.loadTexture("resources/textures/rev/rev_metallic.png");
+	m_resourceManager.loadTexture("resources/textures/rev/rev_normalMap.png");
 
 	m_gpuResourceManager.initiate(m_resourceManager);
 	m_gpuResourceManager.loadResources("resources/environmentMaps/Skybox2.jpg");
@@ -69,7 +70,7 @@ void Application::run()
 
 	{
 		Entity ent = m_scene.createEntity();
-		
+
 		MeshComponent& meshComp = ent.addComponent<MeshComponent>();
 		meshComp.meshID = 0;
 
@@ -78,19 +79,6 @@ void Application::run()
 		mat.roughness.textureId = 1u;
 		mat.specular.textureId = 2u;
 		mat.normalMapIdx = 3u;
-	}
-	
-	{
-		Entity ent = m_scene.createEntity();
-		
-		MeshComponent& meshComp = ent.addComponent<MeshComponent>();
-		meshComp.meshID = 1;
-	
-		Material& mat = meshComp.material;
-		mat.albedo.textureId = 4u;
-		mat.roughness.textureId = 5u;
-		mat.metallic.textureId = 6u;
-		mat.normalMapIdx = 7u;
 	}
 
 #if 0
@@ -269,7 +257,7 @@ void Application::displayComponents(Entity entity)
 
 		if (ImGui::ColorEdit3("Colour", glm::value_ptr(pDirLight->colour)))										resetAcu = true;
 		if (ImGui::DragFloat("Intensity", &pDirLight->intensity, 0.01f, 0.f, 10.f))								resetAcu = true;
-		if (ImGui::DragFloat("Specular Strength", &pDirLight->specularStrength, 0.f, 10.f))						resetAcu = true;
+		if (ImGui::DragFloat("Specular Strength", &pDirLight->specularStrength, 0.01f, 0.f, 10.f))						resetAcu = true;
 		if (ImGui::DragFloat("Penumbra size factor", &pDirLight->penumbraSizeModifier, 0.001f, 0.f, 10.f))		resetAcu = true;
 
 		if (deleted)
@@ -635,23 +623,11 @@ void Application::saveScreenshot()
 
 	D3D11_TEXTURE2D_DESC desc{};
 	sourceBuffer->GetDesc(&desc);
-	desc.Usage = D3D11_USAGE_STAGING;
-	desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-	desc.BindFlags = 0u;
 
-	ID3D11Texture2D* stagingBuffer = nullptr;
-	Okay::getDevice()->CreateTexture2D(&desc, nullptr, &stagingBuffer);
-	if (!stagingBuffer)
-		return;
+	void* textureData = nullptr;
+	Okay::getCPUTextureData(sourceBuffer, &textureData);
 
-	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
-	pDevCon->CopyResource(stagingBuffer, sourceBuffer);
+	stbi_write_png("render.png", (int)desc.Width, (int)desc.Height, 4, textureData, desc.Width * 4);
 
-	D3D11_MAPPED_SUBRESOURCE sub{};
-	pDevCon->Map(stagingBuffer, 0u, D3D11_MAP_READ, 0u, &sub);
-
-	stbi_write_png("render.png", (int)desc.Width, (int)desc.Height, 4, sub.pData, (int)sub.RowPitch);
-
-	pDevCon->Unmap(stagingBuffer, 0u);
-	DX11_RELEASE(stagingBuffer);
+	OKAY_DELETE_ARRAY(textureData);
 }

@@ -8,11 +8,9 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb/stb_image_write.h"
 
 GPUResourceManager::GPUResourceManager()
-	:m_pResourceManager(nullptr), m_pTextureAtlasSRV(nullptr), m_pEnvironmentMapSRV(nullptr),
+	:m_pResourceManager(nullptr), m_pEnvironmentMapSRV(nullptr), m_pTextures(nullptr),
 	m_maxBvhLeafTriangles(0u), m_maxBvhDepth(0u)
 {
 }
@@ -35,8 +33,7 @@ void GPUResourceManager::shutdown()
 	m_triangleInfo.shutdown();
 	m_bvhTree.shutdown();
 
-	DX11_RELEASE(m_pTextureAtlasSRV);
-	m_textureAtlasDesc.shutdown();
+	DX11_RELEASE(m_pTextures);
 
 	DX11_RELEASE(m_pEnvironmentMapSRV);
 }
@@ -49,6 +46,24 @@ void GPUResourceManager::initiate(const ResourceManager& resourceManager)
 
 	m_maxBvhLeafTriangles = 30u;
 	m_maxBvhDepth = 30u;
+}
+
+void GPUResourceManager::bindResources() const
+{
+	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
+
+	pDevCon->ClearState();
+
+	ID3D11ShaderResourceView* srvs[5u]{};
+	srvs[RM_TRIANGLE_POS_SLOT] = m_trianglePositions.getSRV();
+	srvs[RM_TRIANGLE_INFO_SLOT] = m_triangleInfo.getSRV();
+	srvs[RM_TEXTURES_SLOT] = m_pTextures;
+	srvs[RM_BVH_TREE_SLOT] = m_bvhTree.getSRV();
+	srvs[RM_ENVIRONMENT_MAP_SLOT] = m_pEnvironmentMapSRV;
+
+	pDevCon->VSSetShaderResources(RM_TRIANGLE_POS_SLOT, sizeof(srvs) / sizeof(srvs[0]), srvs);
+	pDevCon->PSSetShaderResources(RM_TRIANGLE_POS_SLOT, sizeof(srvs) / sizeof(srvs[0]), srvs);
+	pDevCon->CSSetShaderResources(RM_TRIANGLE_POS_SLOT, sizeof(srvs) / sizeof(srvs[0]), srvs);
 
 	{ // Basic Sampler
 		D3D11_SAMPLER_DESC simpDesc{};
@@ -69,23 +84,6 @@ void GPUResourceManager::initiate(const ResourceManager& resourceManager)
 		Okay::getDeviceContext()->CSSetSamplers(0u, 1u, &pSimp);
 		DX11_RELEASE(pSimp);
 	}
-}
-
-void GPUResourceManager::bindResources() const
-{
-	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
-
-	ID3D11ShaderResourceView* srvs[6u]{};
-	srvs[RM_TRIANGLE_POS_SLOT]			= m_trianglePositions.getSRV();
-	srvs[RM_TRIANGLE_INFO_SLOT]			= m_triangleInfo.getSRV();
-	srvs[RM_TEXTURE_ATLAS_DESC_SLOT]	= m_textureAtlasDesc.getSRV();
-	srvs[RM_TEXTURE_ATLAS_SLOT]			= m_pTextureAtlasSRV;
-	srvs[RM_BVH_TREE_SLOT]				= m_bvhTree.getSRV();
-	srvs[RM_ENVIRONMENT_MAP_SLOT]		= m_pEnvironmentMapSRV;
-
-	pDevCon->VSSetShaderResources(RM_TRIANGLE_POS_SLOT, 6u, srvs);
-	pDevCon->PSSetShaderResources(RM_TRIANGLE_POS_SLOT, 6u, srvs);
-	pDevCon->CSSetShaderResources(RM_TRIANGLE_POS_SLOT, 6u, srvs);
 }
 
 void GPUResourceManager::loadResources(std::string_view environmentMapPath)
@@ -191,88 +189,36 @@ void GPUResourceManager::loadMeshAndBvhData()
 
 void GPUResourceManager::loadTextureData()
 {
-	static const uint32_t CHANNELS = STBI_rgb_alpha;
-	static const uint32_t SPACING = 0u;
-
 	const std::vector<Texture>& textures = m_pResourceManager->getAll<Texture>();
-	const uint32_t numTextures = (uint32_t)textures.size();
+	uint32_t numTextures = (uint32_t)textures.size();
+
 	if (!numTextures)
 		return;
 
-	std::vector<uint32_t> xPositions;
-	xPositions.resize(numTextures, 0u);
-
-	/*
-	* TODO: Outline the textures with the edge colours for n-pixels.
-	* This could remove bleeding between textures or empty areas.
-	* Need to adjust texture atlas width and make sure they UVs still start at the orignal texture positions.
-	* Only need to outline sides of textures with nothing next to it, e.g. no outline needed for top side.
-	* Can maybe rework SPACING into OUTLINE_THICKNESS or something, don't think SPACING will be necessary after this change.
-	*/
-
-	uint32_t totWidth = 0u, maxHeight = 0u;
-	for (uint32_t i = 0; i < numTextures; i++)
+	uint32_t totArea = 0;
+	for (const Texture& texture : textures)
 	{
-		totWidth += textures[i].getWidth() + (i > 0u ? SPACING : 0u);
-		if (textures[i].getHeight() > maxHeight)
-			maxHeight = textures[i].getHeight();
-
-		if (i > 0)
-			xPositions[i] = xPositions[i - 1] + textures[i - 1].getWidth() + SPACING;
+		totArea += texture.getWidth() * texture.getHeight();
 	}
 
-	unsigned char* pResultData = new unsigned char[totWidth * maxHeight * CHANNELS]{};
-	const uint32_t rowPitch = totWidth * CHANNELS;
+	uint32_t newSize = uint32_t(glm::sqrt(totArea / textures.size()));
 
-	unsigned char* coursor = nullptr;
-	for (uint32_t i = 0; i < numTextures; i++)
+	std::vector<Texture> scaledTextures;
+	scaledTextures.reserve(numTextures);
+
+	for (const Texture& texture : textures)
 	{
-		for (uint32_t y = 0; y < textures[i].getHeight(); y++)
-		{
-			coursor = pResultData + xPositions[i] * CHANNELS + y * rowPitch;
-			memcpy(coursor, textures[i].getTextureData() + y * textures[i].getWidth() * CHANNELS, textures[i].getWidth() * CHANNELS);
-		}
-		stbi_image_free(textures[i].getTextureData());
+		scaledTextures.emplace_back(texture.getTextureData(), texture.getWidth(), texture.getHeight(), "");
+		Okay::scaleTexture(scaledTextures.back(), newSize, newSize);
 	}
 
-	// For debugging
-	//stbi_write_png("TextureAtlas.png", totWidth, maxHeight, 4, pResultData, rowPitch);
+	Okay::createTextureArray(&m_pTextures, scaledTextures, newSize, newSize);
 
-	bool success = Okay::createSRVFromTextureData(&m_pTextureAtlasSRV, pResultData, totWidth, maxHeight);
-	delete[] pResultData;
-	OKAY_ASSERT(success);
-
-	/*
-	* Need for each texture:
-	* UV offset
-	* Ratio between texture size and atlas size
-	*
-	* In Shader:
-	* Find ratio & offset based on TextureIdx
-	* Multiply UV Coordinate by ratio and apply offset
-	*/
-
-	glm::vec2 inverseAtlasDims = 1.f / glm::vec2((float)totWidth, (float)maxHeight);
-
-	using Vec2Pair = std::pair<glm::vec2, glm::vec2>;
-	m_textureAtlasDesc.initiate(sizeof(Vec2Pair), numTextures, nullptr);
-
-	m_textureAtlasDesc.update(0u, [&](char* pMappedBufferData)
+	for (const Texture& scaledTexture : scaledTextures)
 	{
-		Vec2Pair* writeLocation = (Vec2Pair*)pMappedBufferData;
-
-		for (size_t i = 0; i < numTextures; i++)
-		{
-			glm::vec2 textureDims((float)textures[i].getWidth(), (float)textures[i].getHeight());
-			glm::vec2 texturePos((float)xPositions[i], 0.f); // All textures on line until fancier atlas generation
-
-			// Defines ratio (first) and offset (second) of each individual texture in the textureAtlas
-			writeLocation->first = textureDims * inverseAtlasDims;
-			writeLocation->second = texturePos * inverseAtlasDims;
-
-			writeLocation += 1u;
-		}
-	});
+		unsigned char* pTextureData = scaledTexture.getTextureData();
+		OKAY_DELETE_ARRAY(pTextureData);
+	}
 }
 
 void GPUResourceManager::loadEnvironmentMap(std::string_view path)

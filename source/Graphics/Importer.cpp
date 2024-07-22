@@ -24,6 +24,9 @@ namespace Importer
 		outData.tangents.resize(numVerticies);
 		outData.bitangents.resize(numVerticies);
 
+		bool hasUV = pAiMesh->HasTextureCoords(0u);
+		bool hasTangent = pAiMesh->HasTangentsAndBitangents();
+
 		for (uint32_t i = 0; i < pAiMesh->mNumFaces; i++)
 		{
 			uint32_t vertex0Idx = i * 3;
@@ -33,9 +36,9 @@ namespace Importer
 			{
 				glm::vec3 position = assimpToGlmVec3(pAiMesh->mVertices[aiIndices[j]]) * scale;
 				glm::vec3 normal = assimpToGlmVec3(pAiMesh->mNormals[aiIndices[j]]);
-				glm::vec2 uv = assimpToGlmVec3(pAiMesh->mTextureCoords[0][aiIndices[j]]);
-				glm::vec3 tangent = assimpToGlmVec3(pAiMesh->mTangents[aiIndices[j]]);
-				glm::vec3 bitangent = assimpToGlmVec3(pAiMesh->mBitangents[aiIndices[j]]);
+				glm::vec2 uv = hasUV ? assimpToGlmVec3(pAiMesh->mTextureCoords[0][aiIndices[j]]) : glm::vec2(0.f);
+				glm::vec3 tangent = hasTangent ? assimpToGlmVec3(pAiMesh->mTangents[aiIndices[j]]) : glm::vec3(0.f);
+				glm::vec3 bitangent = hasTangent ? assimpToGlmVec3(pAiMesh->mBitangents[aiIndices[j]]) : glm::vec3(0.f);
 
 				uint32_t vertexIdx = vertex0Idx + j;
 
@@ -75,22 +78,22 @@ namespace Importer
 	{
 		Assimp::Importer importer;
 
-		const aiScene* pScene = importer.ReadFile(filePath.data(),
+		const aiScene* pAiScene = importer.ReadFile(filePath.data(),
 			aiProcess_Triangulate | aiProcess_ConvertToLeftHanded | aiProcess_CalcTangentSpace); // aiProcess_OptimizeMeshes
 
-		if (!pScene)
+		if (!pAiScene)
 			return false;
 
-		outObjects.resize(pScene->mNumMeshes);
+		outObjects.resize(pAiScene->mNumMeshes);
 
-		for (uint32_t i = 0u; i < pScene->mNumMeshes; i++)
+		for (uint32_t i = 0; i < pAiScene->mNumMeshes; i++)
 		{
-			aiMesh* pAiMesh = pScene->mMeshes[i];
+			aiMesh* pAiMesh = pAiScene->mMeshes[i];
 
 			ObjectDecriptionStr& objectDesc = outObjects[i];
 			objectDesc.name = pAiMesh->mName.C_Str();
 			
-			aiMaterial* pAiMaterial = pScene->mMaterials[pAiMesh->mMaterialIndex];
+			aiMaterial* pAiMaterial = pAiScene->mMaterials[pAiMesh->mMaterialIndex];
 			aiString textureStr;
 			
 			if (pAiMaterial->GetTexture(aiTextureType_DIFFUSE, 0u, &textureStr) == aiReturn_SUCCESS)
@@ -106,6 +109,8 @@ namespace Importer
 				objectDesc.specularTexturePath = textureStr.C_Str();
 			
 			if (pAiMaterial->GetTexture(aiTextureType_NORMALS, 0u, &textureStr) == aiReturn_SUCCESS)
+				objectDesc.normalTexturePath = textureStr.C_Str();
+			else if (pAiMaterial->GetTexture(aiTextureType_DISPLACEMENT, 0u, &textureStr) == aiReturn_SUCCESS)
 				objectDesc.normalTexturePath = textureStr.C_Str();
 
 			aiMeshToMeshData(pAiMesh, objectDesc.meshData, scale);

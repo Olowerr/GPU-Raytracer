@@ -74,8 +74,7 @@ struct LightEvaluation
 StructuredBuffer<Triangle> trianglePosData : register(RM_TRIANGLE_POS_GPU_REG);
 StructuredBuffer<TriangleInfo> triangleInfoData : register(RM_TRIANGLE_INFO_GPU_REG);
 StructuredBuffer<Node> bvhNodes : register(RM_BVH_TREE_GPU_REG);
-StructuredBuffer<AtlasTextureDesc> textureDescs : register(RM_TEXTURE_ATLAS_DESC_GPU_REG);
-Texture2D<unorm float4> textureAtlas : register(RM_TEXTURE_ATLAS_GPU_REG);
+Texture2DArray<unorm float4> textures : register(RM_TEXTURES_GPU_REG);
 TextureCube environmentMap : register(RM_ENVIRONMENT_MAP_GPU_REG);
 
 SamplerState simp : register(s0);
@@ -176,11 +175,7 @@ bool isValidIdx(uint idx)
 
 float3 sampleTexture(uint textureIdx, float2 meshUVs)
 {
-    AtlasTextureDesc texDesc = textureDescs[textureIdx];
-    meshUVs *= texDesc.uvRatio;
-    meshUVs += texDesc.uvOffset;
-    
-    return textureAtlas.SampleLevel(simp, meshUVs, 0.f).rgb;
+    return textures.SampleLevel(simp, float3(meshUVs, (float)textureIdx), 0.f).rgb;
 }
 
 void findMaterialTextureColours(inout Material material, float2 meshUVs)
@@ -501,7 +496,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
             evaluationData.intensity = dirLight.intensity;
             evaluationData.specularStrengthModifier = dirLight.specularStrength;
             evaluationData.attentuation = float2(0.f, 0.f);
-            float distanceToHit = 1.f;
+            float distanceToHit = FLT_MAX;
             
             phongLight += calculateLightning(evaluationData, distanceToHit, hitPoint, hitData.worldNormal, -ray.direction, material.albedo.colour, material.specular.colour, specularFactor, bbCheckCount, triCheckCount);
         }
@@ -585,6 +580,9 @@ void main(uint3 DTid : SV_DispatchThreadID)
     else if (renderData.debugMode == 2)
         light = triCheckCount > debugModeMaxCount ? float3(1.f, 0.f, 0.f) : float3(1.f, 1.f, 1.f) * (triCheckCount / (float)debugModeMaxCount);
     
+    float gamma = 2.f;
+    light = pow(light, float3(gamma, gamma, gamma));
+    
     float4 result;
     if (renderData.accumulationEnabled == 1)
     {
@@ -596,7 +594,5 @@ void main(uint3 DTid : SV_DispatchThreadID)
         result = float4(saturate(light), 1.f);
     }
     
-    float gamma = 2.f;
-    //result = pow(result, float4(gamma, gamma, gamma, 0.f));
     resultBuffer[DTid.xy] = result;
 }

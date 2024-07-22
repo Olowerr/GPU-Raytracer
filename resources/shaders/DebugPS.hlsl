@@ -9,8 +9,7 @@ struct AtlasTextureDesc
 
 SamplerState simp : register(s0);
 
-Texture2D<unorm float4> textureAtlas : register(RM_TEXTURE_ATLAS_GPU_REG);
-StructuredBuffer<AtlasTextureDesc> textureDescs : register(RM_TEXTURE_ATLAS_DESC_GPU_REG);
+Texture2DArray<unorm float4> textures : register(RM_TEXTURES_GPU_REG);
 
 cbuffer RenderDataBuffer : register(RZ_RENDER_DATA_GPU_REG)
 {
@@ -26,11 +25,7 @@ cbuffer RenderDataBuffer : register(RZ_RENDER_DATA_GPU_REG)
 
 float3 sampleTexture(uint textureIdx, float2 meshUVs)
 {
-    AtlasTextureDesc texDesc = textureDescs[textureIdx];
-    meshUVs *= texDesc.uvRatio;
-    meshUVs += texDesc.uvOffset;
-    
-    return textureAtlas.SampleLevel(simp, meshUVs, 0.f).rgb;
+    return textures.SampleLevel(simp, float3(meshUVs, (float) textureIdx), 0.f).rgb;
 }
 
 float4 main(PS_Input inputData) : SV_TARGET

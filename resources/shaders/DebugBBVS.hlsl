@@ -6,8 +6,7 @@ struct Node
     AABB boundingBox;
     uint triStart;
     uint triEnd;
-    uint childIdxs[2];
-    uint parentIdx;
+    uint firstChildIdx;
 };
 
 StructuredBuffer<float3> lineData : register(RM_TRIANGLE_POS_GPU_REG);

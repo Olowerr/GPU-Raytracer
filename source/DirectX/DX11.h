@@ -1,6 +1,9 @@
 #pragma once
 #include <d3d11.h>
 #include <string>
+#include <vector>
+
+class Texture;
 
 namespace Okay
 {
@@ -24,5 +27,11 @@ namespace Okay
 	void updateBuffer(ID3D11Buffer* pBuffer, const void* pData, size_t byteWidth);
 
 	// Assumes 4 channels consisting of 1 byte per channel
-	bool createSRVFromTextureData(ID3D11ShaderResourceView** ppSRV, const unsigned char* pTextureData, uint32_t width, uint32_t height);
+	bool createSRVFromTextureData(ID3D11ShaderResourceView** ppSRV, const Texture& texture);
+
+	void getCPUTextureData(ID3D11Texture2D* pSourceTexture, void** ppOutData);
+
+	void scaleTexture(Texture& texture, uint32_t newWidth, uint32_t newHeight);
+
+	void createTextureArray(ID3D11ShaderResourceView** ppSRV, const std::vector<Texture>& textures, uint32_t width, uint32_t height);
 }

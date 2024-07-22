@@ -36,9 +36,6 @@ public:
 			localVertexInfo.uv = meshData.uvs[i];
 			localVertexInfo.tangent = meshData.tangents[i];
 			localVertexInfo.bitangent = meshData.bitangents[i];
-			
-			// Ensure all UVs are between [0, 1]
-			localVertexInfo.uv -= glm::floor(localVertexInfo.uv);
 		}
 	}
 

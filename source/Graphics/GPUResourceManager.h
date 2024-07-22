@@ -67,8 +67,7 @@ private:
 	std::vector<GPUNode> m_bvhTreeNodes;
 
 	// The order of m_textureAtlasData & m_meshDescs matches the respective std::vector in ResourceManager.
-	ID3D11ShaderResourceView* m_pTextureAtlasSRV;
-	GPUStorage m_textureAtlasDesc;
+	ID3D11ShaderResourceView* m_pTextures;
 
 	ID3D11ShaderResourceView* m_pEnvironmentMapSRV;
 

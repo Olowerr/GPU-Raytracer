@@ -26,7 +26,6 @@ public:
 	ResourceManager() = default;
 	~ResourceManager() = default;
 
-	AssetID importFile(std::string_view filePath);
 	AssetID loadMesh(std::string_view path);
 	AssetID loadTexture(std::string_view path);
 	AssetID findOrLoadTexture(std::string_view path);
