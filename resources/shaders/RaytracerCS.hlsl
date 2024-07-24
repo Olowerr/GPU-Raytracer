@@ -385,8 +385,11 @@ float3 calculateLightning(LightEvaluation evaluationData, float distanceToHit, f
 
     Payload lightPayload = findClosestHit(lightRay, bbCheckCount, triCheckCount);
 
+    float shadow = 1.f;
     if (lightPayload.hit && length(lightPayload.worldPosition - hitPoint) < distanceToHit)
-        return float3(0.f, 0.f, 0.f);
+        shadow = lightPayload.material.transparency;
+    else
+        shadow = 1.f;
     
     float3 lightReflection = reflect(-lightRay.direction, normal);
     float lightDotNormal = clampedDot(lightRay.direction, normal);
@@ -397,7 +400,9 @@ float3 calculateLightning(LightEvaluation evaluationData, float distanceToHit, f
     
     float attenuation = 1.f / (1.f + evaluationData.attentuation.x * distanceToHit + evaluationData.attentuation.y * distanceToHit * distanceToHit);
     
-    return lerp(diffuse, specular * evaluationData.specularStrengthModifier, specularFactor) * evaluationData.colour * evaluationData.intensity * attenuation;
+    float3 strength = evaluationData.colour * evaluationData.intensity * attenuation * shadow;
+    
+    return lerp(diffuse, specular * evaluationData.specularStrengthModifier, specularFactor) * strength;
 }
 
 // ---- Main part of shader
@@ -460,27 +465,21 @@ void main(uint3 DTid : SV_DispatchThreadID)
         hitData = findClosestHit(ray, bbCheckCount, triCheckCount);
         if (!hitData.hit)
         {
-            //light += getEnvironmentLight(ray.direction) * contribution;
+            light += getEnvironmentLight(ray.direction) * contribution;
             break;
         }
         
         material = hitData.material;
 
-        /*
-            roughness defines if diffuse or perfect reflection entirely, still use randomFloat < value thing I think
-                float roughnessFactor = material.roughness.colour >= RandomFloat(seed)
-        
-            metal * (1- roughness) lerps between albedo and specular (white) (0 -> albedo, 1 -> specular)
-                float metalFactor = material.metallic.color >= RandomFloat(seed)
-                float metalFactor = (metal * (1- roughness)) >= RandomFloat(seed)
-        
-            chill with transparency for now
-        */
         float roughnessFactor = material.roughness.colour >= randomFloat(seed); 
         float metallicFactor = (material.metallic.colour * (1.f - material.roughness.colour)) >= randomFloat(seed);
         float specularFactor = (material.specular.colour * (1.f - material.roughness.colour)) >= randomFloat(seed);
+        float transparencyFactor = material.transparency >= randomFloat(seed);
         
-        float3 bounceDir = findReflectDirection(ray.direction, hitData.worldNormal, material.roughness.colour * (1.f - specularFactor), seed);
+        float3 reflectDir = findReflectDirection(ray.direction, hitData.worldNormal, material.roughness.colour * (1.f - specularFactor), seed);
+        float3 refractDir = findTransparencyBounce(ray.direction, hitData.worldNormal, material.indexOfRefraction, seed);
+        
+        float3 bounceDir = normalize(lerp(reflectDir, refractDir, transparencyFactor));
         float3 hitPoint = hitData.worldPosition + bounceDir * 0.001f;
         
         float3 phongLight = float3(0.f, 0.f, 0.f);
@@ -504,10 +503,19 @@ void main(uint3 DTid : SV_DispatchThreadID)
         {
             PointLight pointLight = pointLights[p];
             
-            float3 hitToLight = pointLight.position - hitPoint;
-            hitToLight += getRandomVector(seed) * randomFloat(seed) * pointLight.penumbraRadius;
-            hitToLight = normalize(hitToLight);
+            Sphere lightSphere;
+            lightSphere.position = pointLight.position;
+            lightSphere.radius = pointLight.penumbraRadius;
             
+            Ray lightRay;
+            lightRay.origin = hitPoint;
+            lightRay.direction = bounceDir;
+            
+            if (!Collision::RayAndSphere(lightRay, lightSphere))
+                continue;
+            
+            float3 hitToLight = normalize((pointLight.position + getRandomVector(seed) * pointLight.penumbraRadius) - hitPoint);
+
             LightEvaluation evaluationData;
             evaluationData.direction = hitToLight;
             evaluationData.colour = pointLight.colour;
@@ -523,19 +531,27 @@ void main(uint3 DTid : SV_DispatchThreadID)
         for (uint s = 0u; s < renderData.numSpotLights; s++)
         {
             SpotLight spotLight = spotLights[s];
-         
-            float3 randVec = getRandomVector(seed) * spotLight.penumbraRadius;
-            spotLight.position += randVec;
 
-            float3 lightToHit = normalize(hitPoint - spotLight.position);
-            float3 lightDir = normalize(-spotLight.direction);
+            Sphere lightSphere;
+            lightSphere.position = spotLight.position;
+            lightSphere.radius = spotLight.penumbraRadius;
             
-            float cosTheta = dot(lightDir, lightToHit);
-            if (cosTheta < cos(spotLight.maxAngle))
+            Ray lightRay;
+            lightRay.origin = hitPoint;
+            lightRay.direction = bounceDir;
+         
+            if (!Collision::RayAndSphere(lightRay, lightSphere))
+                continue;
+            
+            float3 lightDir = normalize(spotLight.direction);
+            float3 hitToLight = normalize((spotLight.position + getRandomVector(seed) * spotLight.penumbraRadius) - hitPoint);
+            
+            float cosTheta = dot(lightDir, hitToLight);
+            if (cosTheta < cos(spotLight.maxAngle * 0.5f))
                 continue;
             
             LightEvaluation evaluationData;
-            evaluationData.direction = normalize(-lightToHit);
+            evaluationData.direction = hitToLight;
             evaluationData.colour = spotLight.colour;
             evaluationData.intensity = spotLight.intensity;
             evaluationData.specularStrengthModifier = spotLight.specularStrength;
@@ -545,28 +561,9 @@ void main(uint3 DTid : SV_DispatchThreadID)
             
             phongLight += calculateLightning(evaluationData, distanceToHit, hitPoint, hitData.worldNormal, -ray.direction, material.albedo.colour, material.specular.colour, specularFactor, bbCheckCount, triCheckCount);
         }
-
-        /*
-            Fix normal maps
-            Change specularColour to a float1, only controls the specular pow exponent (maybe still 0-1 & multiply with some value like 300? then can still use textures)
-            Fix entity components for the 3 light types (directional, point, spot)
-            Fix metal calculations
-            Fix transparency calculations
-        
-        
-        
-        maybe change so there are normal (diffuse) bounces & specular bounces.
-        where normal/diffuse bounces will just bounce off in bounceDir and calculate lighing like normal
-        and specular bounces will do the specular pow calculations?
-        but how do we determine when which bounce is gonna happen?
-        maybe just use roughnessFactor as it is, and let specular.colour be the exponent like normal?   
-        not sure what to do with lightPayLoad in that version tho... do we cast it on diffuse bounces too, or only specular ones..?
-        only on specular doesn't make sense, since then diffuse materials have no shadows? but then we need to do light calcs for diffuse and we're just back at square one?
-        
-        */
         
         contribution *= lerp(material.albedo.colour, float3(1.f, 1.f, 1.f), metallicFactor);
-        light += material.emissionColour * material.emissionPower * contribution;
+        light += material.emissionColour * material.emissionPower * contribution * (1.f - transparencyFactor);
         light += phongLight * contribution;
        
         ray.origin = hitPoint;

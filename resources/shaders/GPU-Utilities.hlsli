@@ -244,7 +244,7 @@ namespace Collision
 
 	    // ray parallel with triangle
         if (determinant < EPSILON && determinant > -EPSILON)
-            return false;
+            return -1.f;
 
         float inverseDet = 1.f / determinant;
 
