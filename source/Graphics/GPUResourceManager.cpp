@@ -44,7 +44,7 @@ void GPUResourceManager::initiate(const ResourceManager& resourceManager)
 
 	m_pResourceManager = &resourceManager;
 
-	m_maxBvhLeafTriangles = 30u;
+	m_maxBvhLeafTriangles = 5u;
 	m_maxBvhDepth = 30u;
 }
 

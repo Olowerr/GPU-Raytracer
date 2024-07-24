@@ -28,16 +28,18 @@ Application::Application()
 	m_target.initiate(1600u, 900u, TextureFormat::F_8X4);
 
 	m_resourceManager.loadMesh("resources/meshes/cube.fbx");
-	m_resourceManager.loadTexture("resources/textures/wood/whnfeb2_2K_Albedo.jpg");
-	m_resourceManager.loadTexture("resources/textures/wood/whnfeb2_2K_Roughness.jpg");
-	m_resourceManager.loadTexture("resources/textures/wood/whnfeb2_2K_Specular.jpg");
-	m_resourceManager.loadTexture("resources/textures/wood/whnfeb2_2K_Normal.jpg");
+	//m_resourceManager.loadTexture("resources/textures/wood/whnfeb2_2K_Albedo.jpg");
+	//m_resourceManager.loadTexture("resources/textures/wood/whnfeb2_2K_Roughness.jpg");
+	//m_resourceManager.loadTexture("resources/textures/wood/whnfeb2_2K_Specular.jpg");
+	//m_resourceManager.loadTexture("resources/textures/wood/whnfeb2_2K_Normal.jpg");
 
-	m_resourceManager.loadMesh("resources/meshes/revolver.fbx");
-	m_resourceManager.loadTexture("resources/textures/rev/rev_albedo.png");
-	m_resourceManager.loadTexture("resources/textures/rev/rev_roughness.png");
-	m_resourceManager.loadTexture("resources/textures/rev/rev_metallic.png");
-	m_resourceManager.loadTexture("resources/textures/rev/rev_normalMap.png");
+	//m_resourceManager.loadMesh("resources/meshes/revolver.fbx");
+	//m_resourceManager.loadTexture("resources/textures/rev/rev_albedo.png");
+	//m_resourceManager.loadTexture("resources/textures/rev/rev_roughness.png");
+	//m_resourceManager.loadTexture("resources/textures/rev/rev_metallic.png");
+	//m_resourceManager.loadTexture("resources/textures/rev/rev_normalMap.png");
+
+	loadMeshesAsEntities("resources/meshes/ikea_glass.obj", "", 10.f);
 
 	m_gpuResourceManager.initiate(m_resourceManager);
 	m_gpuResourceManager.loadResources("resources/environmentMaps/Skybox2.jpg");
@@ -238,10 +240,10 @@ void Application::displayComponents(Entity entity)
 		ImGui::Separator();
 
 		ImGui::Text("Material");
-		
+
 		if (ImGui::ColorEdit3("Colour", glm::value_ptr(pMaterial->albedo.colour)))					resetAcu = true;
 		if (ImGui::ColorEdit3("Emission Colour", glm::value_ptr(pMaterial->emissionColour)))		resetAcu = true;
-		if (ImGui::DragFloat("Emission Power", &pMaterial->emissionPower, 0.01f))					resetAcu = true;
+		if (ImGui::DragFloat("Emission Power", &pMaterial->emissionPower, 0.01f, 0.f, FLT_MAX))		resetAcu = true;
 		if (ImGui::DragFloat("Roughness", &pMaterial->roughness.colour, 0.01f, 0.f, 1.f))			resetAcu = true;
 		if (ImGui::DragFloat("Metallic", &pMaterial->metallic.colour, 0.01f, 0.f, 1.f))				resetAcu = true;
 		if (ImGui::DragFloat("Specular", &pMaterial->specular.colour, 0.01f, 0.f, 1.f))				resetAcu = true;
@@ -256,9 +258,9 @@ void Application::displayComponents(Entity entity)
 		bool deleted = ImGui::Button("X");
 
 		if (ImGui::ColorEdit3("Colour", glm::value_ptr(pDirLight->colour)))										resetAcu = true;
-		if (ImGui::DragFloat("Intensity", &pDirLight->intensity, 0.01f, 0.f, 10.f))								resetAcu = true;
-		if (ImGui::DragFloat("Specular Strength", &pDirLight->specularStrength, 0.01f, 0.f, 10.f))						resetAcu = true;
-		if (ImGui::DragFloat("Penumbra size factor", &pDirLight->penumbraSizeModifier, 0.001f, 0.f, 10.f))		resetAcu = true;
+		if (ImGui::DragFloat("Intensity", &pDirLight->intensity, 0.01f, 0.f, FLT_MAX))							resetAcu = true;
+		if (ImGui::DragFloat("Specular Strength", &pDirLight->specularStrength, 0.01f, 0.f, FLT_MAX))			resetAcu = true;
+		if (ImGui::DragFloat("Penumbra size factor", &pDirLight->penumbraSizeModifier, 0.001f, 0.f, FLT_MAX))	resetAcu = true;
 
 		if (deleted)
 		{
@@ -274,10 +276,10 @@ void Application::displayComponents(Entity entity)
 		bool deleted = ImGui::Button("X");
 
 		if (ImGui::ColorEdit3("Colour", glm::value_ptr(pPointLight->colour)))								resetAcu = true;
-		if (ImGui::DragFloat("Intensity", &pPointLight->intensity, 0.01f, 0.f, 10.f))						resetAcu = true;
-		if (ImGui::DragFloat("Specular Strength", &pPointLight->specularStrength, 0.01f, 0.f, 10.f))		resetAcu = true;
+		if (ImGui::DragFloat("Intensity", &pPointLight->intensity, 0.01f, 0.f, FLT_MAX))					resetAcu = true;
+		if (ImGui::DragFloat("Specular Strength", &pPointLight->specularStrength, 0.01f, 0.f, FLT_MAX))		resetAcu = true;
 		if (ImGui::DragFloat2("Attenuation", glm::value_ptr(pPointLight->attenuation), 0.01f, 0.f, 1.f))	resetAcu = true;
-		if (ImGui::DragFloat("Penumbra radius", &pPointLight->penumbraRadius, 0.01f, 0.f, 10.f))			resetAcu = true;
+		if (ImGui::DragFloat("Penumbra radius", &pPointLight->penumbraRadius, 0.01f, 0.f, FLT_MAX))			resetAcu = true;
 
 		if (deleted)
 		{
@@ -285,7 +287,7 @@ void Application::displayComponents(Entity entity)
 			resetAcu = true;
 		}
 	}
-	
+
 	if (SpotLight* pSpotLight = entity.tryGetComponent<SpotLight>())
 	{
 		ImGui::Text("Spot Light");
@@ -293,10 +295,10 @@ void Application::displayComponents(Entity entity)
 		bool deleted = ImGui::Button("X");
 
 		if (ImGui::ColorEdit3("Colour", glm::value_ptr(pSpotLight->colour)))								resetAcu = true;
-		if (ImGui::DragFloat("Intensity", &pSpotLight->intensity, 0.01f, 0.f, 10.f))						resetAcu = true;
-		if (ImGui::DragFloat("Specular Strength", &pSpotLight->specularStrength, 0.01f, 0.f, 10.f))			resetAcu = true;
+		if (ImGui::DragFloat("Intensity", &pSpotLight->intensity, 0.01f, 0.f, FLT_MAX))						resetAcu = true;
+		if (ImGui::DragFloat("Specular Strength", &pSpotLight->specularStrength, 0.01f, 0.f, FLT_MAX))		resetAcu = true;
 		if (ImGui::DragFloat2("Attenuation", glm::value_ptr(pSpotLight->attenuation), 0.01f, 0.f, 1.f))		resetAcu = true;
-		if (ImGui::DragFloat("Penumbra radius", &pSpotLight->penumbraRadius, 0.01f, 0.f, 10.f))				resetAcu = true;
+		if (ImGui::DragFloat("Penumbra radius", &pSpotLight->penumbraRadius, 0.01f, 0.f, FLT_MAX))			resetAcu = true;
 		if (ImGui::DragFloat("Max angle", &pSpotLight->maxAngle, 0.01f, 0.f, 360.f))						resetAcu = true;
 
 		if (deleted)

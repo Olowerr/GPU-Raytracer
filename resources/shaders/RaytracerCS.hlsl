@@ -383,11 +383,11 @@ float3 calculateLightning(LightEvaluation evaluationData, float distanceToHit, f
     lightRay.origin = hitPoint;
     lightRay.direction = evaluationData.direction;
 
-    Payload lightPayload = findClosestHit(lightRay, bbCheckCount, triCheckCount);
+    Payload shadowPayload = findClosestHit(lightRay, bbCheckCount, triCheckCount);
 
     float shadow = 1.f;
-    if (lightPayload.hit && length(lightPayload.worldPosition - hitPoint) < distanceToHit)
-        shadow = lightPayload.material.transparency;
+    if (shadowPayload.hit && length(shadowPayload.worldPosition - hitPoint) < distanceToHit)
+        shadow = shadowPayload.material.transparency;
     else
         shadow = 1.f;
     
@@ -463,6 +463,30 @@ void main(uint3 DTid : SV_DispatchThreadID)
     for (uint i = 0; i <= NUM_BOUNCES; i++)
     {
         hitData = findClosestHit(ray, bbCheckCount, triCheckCount);
+        
+        if (i)
+        {
+            for (uint p = 0u; p < renderData.numPointLights; p++)
+            {
+                PointLight pointLight = pointLights[p];
+            
+                Sphere lightSphere;
+                lightSphere.position = pointLight.position;
+                lightSphere.radius = pointLight.penumbraRadius;
+            
+                if (Collision::RayAndSphere(ray, lightSphere) < 0.f)
+                    continue;
+                
+                float lightStrengthModifier = 1.f;
+                if (hitData.hit)
+                {
+                    lightStrengthModifier = hitData.material.transparency * clampedDot(ray.direction, -hitData.worldNormal);
+                }
+                
+                light += pointLight.colour * pointLight.intensity * contribution * lightStrengthModifier;
+            }
+        }
+        
         if (!hitData.hit)
         {
             light += getEnvironmentLight(ray.direction) * contribution;
@@ -484,84 +508,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
         
         float3 phongLight = float3(0.f, 0.f, 0.f);
 
-        for (uint d = 0u; d < renderData.numDirLights; d++)
-        {
-            DirectionalLight dirLight = directionalLights[d];
-            
-            LightEvaluation evaluationData;
-            evaluationData.direction = normalize(dirLight.direction + getRandomVector(seed) * dirLight.penumbraSizeModifier);
-            evaluationData.colour = dirLight.colour;
-            evaluationData.intensity = dirLight.intensity;
-            evaluationData.specularStrengthModifier = dirLight.specularStrength;
-            evaluationData.attentuation = float2(0.f, 0.f);
-            float distanceToHit = FLT_MAX;
-            
-            phongLight += calculateLightning(evaluationData, distanceToHit, hitPoint, hitData.worldNormal, -ray.direction, material.albedo.colour, material.specular.colour, specularFactor, bbCheckCount, triCheckCount);
-        }
-        
-        for (uint p = 0u; p < renderData.numPointLights; p++)
-        {
-            PointLight pointLight = pointLights[p];
-            
-            Sphere lightSphere;
-            lightSphere.position = pointLight.position;
-            lightSphere.radius = pointLight.penumbraRadius;
-            
-            Ray lightRay;
-            lightRay.origin = hitPoint;
-            lightRay.direction = bounceDir;
-            
-            if (!Collision::RayAndSphere(lightRay, lightSphere))
-                continue;
-            
-            float3 hitToLight = normalize((pointLight.position + getRandomVector(seed) * pointLight.penumbraRadius) - hitPoint);
 
-            LightEvaluation evaluationData;
-            evaluationData.direction = hitToLight;
-            evaluationData.colour = pointLight.colour;
-            evaluationData.intensity = pointLight.intensity;
-            evaluationData.specularStrengthModifier = pointLight.specularStrength;
-            evaluationData.attentuation = pointLight.attenuation;
-            
-            float distanceToHit = length(hitPoint - pointLight.position);
-            
-            phongLight += calculateLightning(evaluationData, distanceToHit, hitPoint, hitData.worldNormal, -ray.direction, material.albedo.colour, material.specular.colour, specularFactor, bbCheckCount, triCheckCount);
-        }
-            
-        for (uint s = 0u; s < renderData.numSpotLights; s++)
-        {
-            SpotLight spotLight = spotLights[s];
-
-            Sphere lightSphere;
-            lightSphere.position = spotLight.position;
-            lightSphere.radius = spotLight.penumbraRadius;
-            
-            Ray lightRay;
-            lightRay.origin = hitPoint;
-            lightRay.direction = bounceDir;
-         
-            if (!Collision::RayAndSphere(lightRay, lightSphere))
-                continue;
-            
-            float3 lightDir = normalize(spotLight.direction);
-            float3 hitToLight = normalize((spotLight.position + getRandomVector(seed) * spotLight.penumbraRadius) - hitPoint);
-            
-            float cosTheta = dot(lightDir, hitToLight);
-            if (cosTheta < cos(spotLight.maxAngle * 0.5f))
-                continue;
-            
-            LightEvaluation evaluationData;
-            evaluationData.direction = hitToLight;
-            evaluationData.colour = spotLight.colour;
-            evaluationData.intensity = spotLight.intensity;
-            evaluationData.specularStrengthModifier = spotLight.specularStrength;
-            evaluationData.attentuation = spotLight.attenuation;
-            
-            float distanceToHit = length(hitPoint - spotLight.position);
-            
-            phongLight += calculateLightning(evaluationData, distanceToHit, hitPoint, hitData.worldNormal, -ray.direction, material.albedo.colour, material.specular.colour, specularFactor, bbCheckCount, triCheckCount);
-        }
-        
         contribution *= lerp(material.albedo.colour, float3(1.f, 1.f, 1.f), metallicFactor);
         light += material.emissionColour * material.emissionPower * contribution * (1.f - transparencyFactor);
         light += phongLight * contribution;
