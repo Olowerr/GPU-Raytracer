@@ -56,7 +56,7 @@ void Application::createComponentSelection(Entity entity, std::string_view compo
 		return;
 	}
 
-	if (ImGui::Selectable(componentName.data(), false))
+	if (ImGui::Selectable(componentName.data()))
 	{
 		entity.addComponent<ComponentType>();
 	}

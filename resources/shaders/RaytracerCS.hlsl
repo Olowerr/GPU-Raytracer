@@ -377,32 +377,26 @@ Payload findClosestHit(Ray ray, inout uint bbCheckCount, inout uint triCheckCoun
     return payload;
 }
 
-float3 calculateLightning(LightEvaluation evaluationData, float distanceToHit, float3 hitPoint, float3 normal, float3 viewDir, float3 matAlbedo, float matSpecular, float specularFactor, inout uint bbCheckCount, inout uint triCheckCount)
+float3 getLighting(Ray ray, Payload hitPayload, uint bounce, float3 lightPos, float lightRadius, float3 lightColour, float3 lightIntensity)
 {
-    Ray lightRay;
-    lightRay.origin = hitPoint;
-    lightRay.direction = evaluationData.direction;
-
-    Payload shadowPayload = findClosestHit(lightRay, bbCheckCount, triCheckCount);
-
-    float shadow = 1.f;
-    if (shadowPayload.hit && length(shadowPayload.worldPosition - hitPoint) < distanceToHit)
-        shadow = shadowPayload.material.transparency;
-    else
-        shadow = 1.f;
-    
-    float3 lightReflection = reflect(-lightRay.direction, normal);
-    float lightDotNormal = clampedDot(lightRay.direction, normal);
-    float lightReflectDotView = clampedDot(lightReflection, viewDir);
+    Sphere lightSphere;
+    lightSphere.position = lightPos;
+    lightSphere.radius = lightRadius;
             
-    float3 diffuse = matAlbedo * lightDotNormal;
-    float3 specular = float3(1.f, 1.f, 1.f) * pow(lightReflectDotView, max(100.f * smoothstep(0.f, 1.f, matSpecular), 1.f));
-    
-    float attenuation = 1.f / (1.f + evaluationData.attentuation.x * distanceToHit + evaluationData.attentuation.y * distanceToHit * distanceToHit);
-    
-    float3 strength = evaluationData.colour * evaluationData.intensity * attenuation * shadow;
-    
-    return lerp(diffuse, specular * evaluationData.specularStrengthModifier, specularFactor) * strength;
+    if (Collision::RayAndSphere(ray, lightSphere) < 0.f) 
+        return float3(0.f, 0.f, 0.f);
+                
+    float lightStrengthModifier = 1.f;
+    if (hitPayload.hit && bounce)
+    {
+        lightStrengthModifier *= hitPayload.material.transparency * clampedDot(ray.direction, -hitPayload.worldNormal);
+    }
+    else if (!bounce) // Fixes issue where light source was visible through objects
+    {
+        lightStrengthModifier = 0.f;
+    }
+                
+    return lightColour * lightIntensity * lightStrengthModifier;
 }
 
 // ---- Main part of shader
@@ -464,27 +458,45 @@ void main(uint3 DTid : SV_DispatchThreadID)
     {
         hitData = findClosestHit(ray, bbCheckCount, triCheckCount);
         
-        if (i)
+        for (uint p = 0u; p < renderData.numPointLights; p++)
         {
-            for (uint p = 0u; p < renderData.numPointLights; p++)
+            PointLight pointLight = pointLights[p];
+        
+            float3 lightning = getLighting(ray, hitData, i, pointLight.position, pointLight.radius, pointLight.colour, pointLight.intensity);
+            light += lightning * contribution;
+        }
+        
+        for (uint s = 0u; s < renderData.numSpotLights; s++)
+        {
+            SpotLight spotLight = spotLights[s];
+            
+            float3 rayToLight = normalize((spotLight.position + getRandomVector(seed) * 0.01f) - ray.origin);
+            float cosTheta = dot(rayToLight, -spotLight.direction);
+            if (cosTheta < spotLight.maxAngle)
+                continue;
+            
+            float3 lightning = getLighting(ray, hitData, i, spotLight.position, spotLight.radius, spotLight.colour, spotLight.intensity);
+            light += lightning * contribution;
+        }
+        
+        for (uint d = 0u; d < renderData.numDirLights; d++)
+        {
+            DirectionalLight dirLight = directionalLights[d];
+
+            if (clampedDot(ray.direction, -dirLight.direction) < dirLight.effectiveAngle)
+                continue;
+            
+            float lightStrengthModifier = 1.f;
+            if (hitData.hit && i)
             {
-                PointLight pointLight = pointLights[p];
-            
-                Sphere lightSphere;
-                lightSphere.position = pointLight.position;
-                lightSphere.radius = pointLight.penumbraRadius;
-            
-                if (Collision::RayAndSphere(ray, lightSphere) < 0.f)
-                    continue;
-                
-                float lightStrengthModifier = 1.f;
-                if (hitData.hit)
-                {
-                    lightStrengthModifier = hitData.material.transparency * clampedDot(ray.direction, -hitData.worldNormal);
-                }
-                
-                light += pointLight.colour * pointLight.intensity * contribution * lightStrengthModifier;
+                lightStrengthModifier *= hitData.material.transparency * clampedDot(ray.direction, -hitData.worldNormal);
             }
+            else if (!i) // Fixes issue where light source was visible through objects
+            {
+                lightStrengthModifier = 0.f;
+            }
+
+            light += dirLight.colour * dirLight.intensity * contribution * lightStrengthModifier;
         }
         
         if (!hitData.hit)
@@ -495,7 +507,6 @@ void main(uint3 DTid : SV_DispatchThreadID)
         
         material = hitData.material;
 
-        float roughnessFactor = material.roughness.colour >= randomFloat(seed); 
         float metallicFactor = (material.metallic.colour * (1.f - material.roughness.colour)) >= randomFloat(seed);
         float specularFactor = (material.specular.colour * (1.f - material.roughness.colour)) >= randomFloat(seed);
         float transparencyFactor = material.transparency >= randomFloat(seed);
@@ -506,12 +517,8 @@ void main(uint3 DTid : SV_DispatchThreadID)
         float3 bounceDir = normalize(lerp(reflectDir, refractDir, transparencyFactor));
         float3 hitPoint = hitData.worldPosition + bounceDir * 0.001f;
         
-        float3 phongLight = float3(0.f, 0.f, 0.f);
-
-
         contribution *= lerp(material.albedo.colour, float3(1.f, 1.f, 1.f), metallicFactor);
         light += material.emissionColour * material.emissionPower * contribution * (1.f - transparencyFactor);
-        light += phongLight * contribution;
        
         ray.origin = hitPoint;
         ray.direction = bounceDir;

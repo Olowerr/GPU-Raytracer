@@ -59,31 +59,24 @@ struct DirectionalLight
 {
 	glm::vec3 colour = glm::vec3(1.f);
 	float intensity = 1.f;
-	float specularStrength = 1.f;
 
-	float penumbraSizeModifier = 0.01f; // Rename?
+	float effectiveAngle = 2.f;
 };
 
 struct PointLight
 {
 	glm::vec3 colour = glm::vec3(1.f);
 	float intensity = 1.f;
-	float specularStrength = 1.f;
 
-	glm::vec2 attenuation = glm::vec2(0.01f, 0.f);
-
-	float penumbraRadius = 1.f; // Rename?
+	float radius = 1.f;
 };
 
 struct SpotLight
 {
 	glm::vec3 colour = glm::vec3(1.f);
 	float intensity = 1.f;
-	float specularStrength = 1.f;
-	
-	glm::vec2 attenuation = glm::vec2(0.01f, 0.f);
 
-	float penumbraRadius = 1.f; // Rename?
+	float radius = 1.f;
 	float maxAngle = 90.f;
 };
 

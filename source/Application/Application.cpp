@@ -172,6 +172,7 @@ void Application::loadMeshesAsEntities(std::string_view filePath, std::string_vi
 void Application::displayComponents(Entity entity)
 {
 	bool resetAcu = false;
+	int imguiId = 0;
 
 	ImGui::Text("Transform");
 
@@ -190,6 +191,8 @@ void Application::displayComponents(Entity entity)
 
 	if (Sphere* pSphere = entity.tryGetComponent<Sphere>())
 	{
+		ImGui::PushID(imguiId++);
+
 		ImGui::Text("Sphere");
 		ImGui::SameLine();
 		bool deleted = ImGui::Button("X");
@@ -207,10 +210,14 @@ void Application::displayComponents(Entity entity)
 		{
 			pMaterial = &pSphere->material;
 		}
+
+		ImGui::PopID();
 	}
 
 	else if (MeshComponent* pMeshComp = entity.tryGetComponent<MeshComponent>())
 	{
+		ImGui::PushID(imguiId++);
+
 		ImGui::Text("Mesh");
 		ImGui::SameLine();
 		bool deleted = ImGui::Button("X");
@@ -233,10 +240,14 @@ void Application::displayComponents(Entity entity)
 		{
 			pMaterial = &pMeshComp->material;
 		}
+		
+		ImGui::PopID();
 	}
 
 	if (pMaterial)
 	{
+		ImGui::PushID(imguiId++);
+
 		ImGui::Separator();
 
 		ImGui::Text("Material");
@@ -249,63 +260,71 @@ void Application::displayComponents(Entity entity)
 		if (ImGui::DragFloat("Specular", &pMaterial->specular.colour, 0.01f, 0.f, 1.f))				resetAcu = true;
 		if (ImGui::DragFloat("Transparency", &pMaterial->transparency, 0.01f, 0.f, 1.f))			resetAcu = true;
 		if (ImGui::DragFloat("Refraction Idx", &pMaterial->indexOfRefraction, 0.01f, 1.f, 5.f))		resetAcu = true;
+
+		ImGui::PopID();
 	}
 
 	if (DirectionalLight* pDirLight = entity.tryGetComponent<DirectionalLight>())
 	{
+		ImGui::PushID(imguiId++);
+
 		ImGui::Text("Directional Light");
 		ImGui::SameLine();
 		bool deleted = ImGui::Button("X");
 
-		if (ImGui::ColorEdit3("Colour", glm::value_ptr(pDirLight->colour)))										resetAcu = true;
-		if (ImGui::DragFloat("Intensity", &pDirLight->intensity, 0.01f, 0.f, FLT_MAX))							resetAcu = true;
-		if (ImGui::DragFloat("Specular Strength", &pDirLight->specularStrength, 0.01f, 0.f, FLT_MAX))			resetAcu = true;
-		if (ImGui::DragFloat("Penumbra size factor", &pDirLight->penumbraSizeModifier, 0.001f, 0.f, FLT_MAX))	resetAcu = true;
+		if (ImGui::ColorEdit3("Colour", glm::value_ptr(pDirLight->colour)))								resetAcu = true;
+		if (ImGui::DragFloat("Intensity", &pDirLight->intensity, 0.01f, 0.f, FLT_MAX))					resetAcu = true;
+		if (ImGui::DragFloat("Effective Angle", &pDirLight->effectiveAngle, 0.001f, 0.f, FLT_MAX))		resetAcu = true;
 
 		if (deleted)
 		{
 			entity.removeComponent<DirectionalLight>();
 			resetAcu = true;
 		}
+
+		ImGui::PopID();
 	}
 
 	if (PointLight* pPointLight = entity.tryGetComponent<PointLight>())
 	{
+		ImGui::PushID(imguiId++);
+
 		ImGui::Text("Point Light");
 		ImGui::SameLine();
 		bool deleted = ImGui::Button("X");
 
-		if (ImGui::ColorEdit3("Colour", glm::value_ptr(pPointLight->colour)))								resetAcu = true;
-		if (ImGui::DragFloat("Intensity", &pPointLight->intensity, 0.01f, 0.f, FLT_MAX))					resetAcu = true;
-		if (ImGui::DragFloat("Specular Strength", &pPointLight->specularStrength, 0.01f, 0.f, FLT_MAX))		resetAcu = true;
-		if (ImGui::DragFloat2("Attenuation", glm::value_ptr(pPointLight->attenuation), 0.01f, 0.f, 1.f))	resetAcu = true;
-		if (ImGui::DragFloat("Penumbra radius", &pPointLight->penumbraRadius, 0.01f, 0.f, FLT_MAX))			resetAcu = true;
+		if (ImGui::ColorEdit3("Colour", glm::value_ptr(pPointLight->colour)))				resetAcu = true;
+		if (ImGui::DragFloat("Intensity", &pPointLight->intensity, 0.01f, 0.f, FLT_MAX))	resetAcu = true;
+		if (ImGui::DragFloat("Radius", &pPointLight->radius, 0.01f, 0.f, FLT_MAX))			resetAcu = true;
 
 		if (deleted)
 		{
 			entity.removeComponent<PointLight>();
 			resetAcu = true;
 		}
+
+		ImGui::PopID();
 	}
 
 	if (SpotLight* pSpotLight = entity.tryGetComponent<SpotLight>())
 	{
+		ImGui::PushID(imguiId++);
+
 		ImGui::Text("Spot Light");
 		ImGui::SameLine();
 		bool deleted = ImGui::Button("X");
 
-		if (ImGui::ColorEdit3("Colour", glm::value_ptr(pSpotLight->colour)))								resetAcu = true;
-		if (ImGui::DragFloat("Intensity", &pSpotLight->intensity, 0.01f, 0.f, FLT_MAX))						resetAcu = true;
-		if (ImGui::DragFloat("Specular Strength", &pSpotLight->specularStrength, 0.01f, 0.f, FLT_MAX))		resetAcu = true;
-		if (ImGui::DragFloat2("Attenuation", glm::value_ptr(pSpotLight->attenuation), 0.01f, 0.f, 1.f))		resetAcu = true;
-		if (ImGui::DragFloat("Penumbra radius", &pSpotLight->penumbraRadius, 0.01f, 0.f, FLT_MAX))			resetAcu = true;
-		if (ImGui::DragFloat("Max angle", &pSpotLight->maxAngle, 0.01f, 0.f, 360.f))						resetAcu = true;
+		if (ImGui::ColorEdit3("Colour", glm::value_ptr(pSpotLight->colour)))			resetAcu = true;
+		if (ImGui::DragFloat("Intensity", &pSpotLight->intensity, 0.01f, 0.f, FLT_MAX))	resetAcu = true;
+		if (ImGui::DragFloat("Max angle", &pSpotLight->maxAngle, 0.01f, 0.f, 360.f))	resetAcu = true;
 
 		if (deleted)
 		{
 			entity.removeComponent<SpotLight>();
 			resetAcu = true;
 		}
+
+		ImGui::PopID();
 	}
 
 	if (resetAcu)
@@ -507,7 +526,7 @@ void Application::updateImGui()
 
 		ImGui::Separator();
 
-		auto transformView = m_scene.getRegistry().view<Transform>();
+		auto transformView = m_scene.getRegistry().view<Transform>(entt::exclude<Camera>);
 		for (entt::entity entity : transformView)
 		{
 			if (ImGui::Selectable(std::to_string((uint32_t)entity).c_str(), entity == (entt::entity)m_selectedEntity.getID()))

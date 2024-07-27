@@ -89,9 +89,8 @@ struct DirectionalLight
 {
     float3 colour;
     float intensity;
-    float specularStrength;
     
-    float penumbraSizeModifier;
+    float effectiveAngle;
     
     float3 direction;
 };
@@ -100,11 +99,8 @@ struct PointLight
 {
     float3 colour;
     float intensity;
-    float specularStrength;
     
-    float2 attenuation;
-    
-    float penumbraRadius;
+    float radius;
     
     float3 position;
 };
@@ -113,11 +109,8 @@ struct SpotLight
 {
     float3 colour;
     float intensity;
-    float specularStrength;
     
-    float2 attenuation;
-    
-    float penumbraRadius;
+    float radius;
     float maxAngle;
     
     float3 position;

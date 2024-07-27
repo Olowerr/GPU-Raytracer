@@ -218,6 +218,7 @@ void RayTracer::updateBuffers()
 
 				auto [dirLight, transform] = dirLightView[entity];
 				pGPUData->light = dirLight;
+				pGPUData->light.effectiveAngle = glm::cos(glm::radians(dirLight.effectiveAngle));
 				pGPUData->direction = transform.getForwardVec();
 			}
 		});
@@ -246,7 +247,7 @@ void RayTracer::updateBuffers()
 
 			auto [spotLight, transform] = spotLightView[entity];
 			pGPUData->light = spotLight;
-			pGPUData->light.maxAngle = glm::radians(pGPUData->light.maxAngle);
+			pGPUData->light.maxAngle = glm::cos(glm::radians(spotLight.maxAngle));
 			pGPUData->position = transform.position;
 			pGPUData->direction = transform.getForwardVec();
 		}
