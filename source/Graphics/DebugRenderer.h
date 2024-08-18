@@ -4,7 +4,7 @@
 #include "Scene/Entity.h"
 #include "Scene/Components.h"
 #include "GPUStorage.h"
-#include "GPUResourceManager.h"
+#include "RayTracer.h"
 #include "DirectX/RenderTexture.h"
 
 #include "glm/glm.hpp"
@@ -26,11 +26,11 @@ public:
 
 public:
 	DebugRenderer();
-	DebugRenderer(const RenderTexture& target, const GPUResourceManager& pGpuResourceManager);
+	DebugRenderer(const RenderTexture& target, const RayTracer& rayTracer);
 	~DebugRenderer();
 
 	void shutdown();
-	void initiate(const RenderTexture& target, const GPUResourceManager& pGpuResourceManager);
+	void initiate(const RenderTexture& target, const RayTracer& rayTracer);
 
 	inline void setScene(const Scene& pScene);
 	void reloadShaders();
@@ -45,7 +45,7 @@ public:
 
 private: // Scene & Resources
 	const Scene* m_pScene;
-	const GPUResourceManager* m_pGpuResourceManager;
+	const RayTracer* m_pRayTracer;
 	const ResourceManager* m_pResourceManager;
 
 	BvhNodeDrawMode m_bvhDrawMode;

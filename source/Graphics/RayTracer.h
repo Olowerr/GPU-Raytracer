@@ -9,8 +9,24 @@
 #include "glm/glm.hpp"
 
 class Scene;
-class GPUResourceManager;
 class ResourceManager;
+
+// Defines the start & end triangle index for a mesh in the vertex buffer, as well as the index of the root node in m_bvhTree
+struct MeshDesc
+{
+	uint32_t startIdx;
+	uint32_t endIdx;
+	uint32_t bvhTreeStartIdx;
+	uint32_t numBvhNodes;
+};
+
+struct GPUNode
+{
+	Okay::AABB boundingBox;
+	uint32_t triStart = Okay::INVALID_UINT;
+	uint32_t triEnd = Okay::INVALID_UINT;
+	uint32_t firstChildIdx = Okay::INVALID_UINT;
+};
 
 class RayTracer
 {
@@ -24,11 +40,24 @@ public:
 
 public:
 	RayTracer();
-	RayTracer(const RenderTexture& target, const GPUResourceManager& pGpuResourceManager);
+	RayTracer(const RenderTexture& target, const ResourceManager& resourceManager, std::string_view environmentMapPath = "");
 	~RayTracer();
 
 	void shutdown();
-	void initiate(const RenderTexture& target, const GPUResourceManager& pGpuResourceManager);
+	void initiate(const RenderTexture& target, const ResourceManager& resourceManager, std::string_view environmentMapPath = "");
+
+	void loadMeshAndBvhData();
+
+	inline const std::vector<MeshDesc>& getMeshDescriptors() const;
+	inline const std::vector<GPUNode>& getBvhTreeNodes() const;
+
+	inline uint32_t& getMaxBvhLeafTriangles();
+	inline uint32_t& getMaxBvhDepth();
+
+	inline const GPUStorage& getTrianglesPos() const;
+	inline const GPUStorage& getTrianglesInfo() const;
+
+	uint32_t getGlobalNodeIdx(const MeshComponent& meshComp, uint32_t localNodeIdx) const;
 
 	inline void setScene(const Scene& pScene);
 	void render();
@@ -49,12 +78,13 @@ public:
 
 private: // Scene & Resources
 	const Scene* m_pScene;
-	const GPUResourceManager* m_pGpuResourceManager;
 	const ResourceManager* m_pResourceManager;
 
 	void calculateProjectionData();
+	void loadTextureData();
+	void loadEnvironmentMap(std::string_view path);
 
-private: // DX11
+private: // Main DX11
 	struct RenderData // Aligned 16
 	{
 		uint32_t accumulationEnabled = 1u;
@@ -95,8 +125,25 @@ private: // DX11
 
 	ID3D11ComputeShader* m_pMainRaytracingCS;
 
+private: // DX11 Resources
+	GPUStorage m_trianglePositions;
+	GPUStorage m_triangleInfo;
 
-private: // Scene GPU Data
+	GPUStorage m_bvhTree;
+	uint32_t m_maxBvhLeafTriangles;
+	uint32_t m_maxBvhDepth;
+	std::vector<GPUNode> m_bvhTreeNodes;
+
+	// The order of m_textureAtlasData & m_meshDescs matches the respective std::vector in ResourceManager.
+	ID3D11ShaderResourceView* m_pTextures;
+
+	ID3D11ShaderResourceView* m_pEnvironmentMapSRV;
+
+	std::vector<MeshDesc> m_meshDescs;
+
+	void bindResources() const;
+
+private: // Scene Entities GPU Data
 	GPUStorage m_meshData;
 	GPUStorage m_spheres;
 	GPUStorage m_directionalLights;
@@ -127,3 +174,18 @@ inline float& RayTracer::getDOFDistance() { return m_renderData.dofDistance; }
 
 inline void RayTracer::setDebugMode(RayTracer::DebugDisplayMode mode) { m_renderData.debugMode = mode; }
 inline uint32_t& RayTracer::getDebugMaxCount() { return m_renderData.debugMaxCount; }
+
+inline uint32_t& RayTracer::getMaxBvhLeafTriangles() { return m_maxBvhLeafTriangles; }
+inline uint32_t& RayTracer::getMaxBvhDepth() { return m_maxBvhDepth; }
+
+inline const std::vector<MeshDesc>& RayTracer::getMeshDescriptors() const { return m_meshDescs; }
+inline const std::vector<GPUNode>& RayTracer::getBvhTreeNodes() const { return m_bvhTreeNodes; }
+
+inline const GPUStorage& RayTracer::getTrianglesPos() const { return m_trianglePositions; }
+inline const GPUStorage& RayTracer::getTrianglesInfo() const { return m_triangleInfo; }
+
+inline uint32_t RayTracer::getGlobalNodeIdx(const MeshComponent& meshComp, uint32_t localNodeIdx) const
+{
+	const MeshDesc& desc = m_meshDescs[meshComp.meshID];
+	return desc.bvhTreeStartIdx + localNodeIdx;
+}

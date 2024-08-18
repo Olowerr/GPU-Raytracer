@@ -202,6 +202,7 @@ SET ERRORLEVEL=0</Command>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalIncludeDirectories>$(SolutionDir)deps\include\;$(SolutionDir)source\;$(SolutionDir)resources\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -225,6 +226,7 @@ SET ERRORLEVEL=0</Command>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalIncludeDirectories>$(SolutionDir)deps\include\;$(SolutionDir)source\;$(SolutionDir)resources\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -250,6 +252,7 @@ SET ERRORLEVEL=0</Command>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalIncludeDirectories>$(SolutionDir)deps\include\;$(SolutionDir)source\;$(SolutionDir)resources\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -278,7 +281,6 @@ SET ERRORLEVEL=0</Command>
     <ClCompile Include="deps\include\imgui\imgui_tables.cpp" />
     <ClCompile Include="deps\include\imgui\imgui_widgets.cpp" />
     <ClCompile Include="source\Application\Application.cpp" />
-    <ClCompile Include="source\Graphics\GPUResourceManager.cpp" />
     <ClCompile Include="source\Graphics\GPUStorage.cpp" />
     <ClCompile Include="source\Graphics\Importer.cpp" />
     <ClCompile Include="source\Graphics\DebugRenderer.cpp" />
@@ -304,7 +306,6 @@ SET ERRORLEVEL=0</Command>
     <ClInclude Include="source\Application\ImGuiHelper.h" />
     <ClInclude Include="source\Application\Input.h" />
     <ClInclude Include="source\Application\KeyCodes.h" />
-    <ClInclude Include="source\Graphics\GPUResourceManager.h" />
     <ClInclude Include="source\Graphics\GPUStorage.h" />
     <ClInclude Include="source\Graphics\Importer.h" />
     <ClInclude Include="source\Graphics\Mesh.h" />

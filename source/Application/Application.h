@@ -3,7 +3,6 @@
 #include "Graphics/RayTracer.h"
 #include "Graphics/DebugRenderer.h"
 #include "Graphics/ResourceManager.h"
-#include "Graphics/GPUResourceManager.h"
 #include "Scene/Scene.h"
 
 #include "ImGuiHelper.h"
@@ -23,7 +22,6 @@ private:
 	RayTracer m_rayTracer;
 	Scene m_scene;
 	ResourceManager m_resourceManager;
-	GPUResourceManager m_gpuResourceManager;
 	RenderTexture m_target;
 
 	DebugRenderer m_debugRenderer;

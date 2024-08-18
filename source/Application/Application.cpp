@@ -41,13 +41,10 @@ Application::Application()
 
 	loadMeshesAsEntities("resources/meshes/ikea_glass.obj", "", 10.f);
 
-	m_gpuResourceManager.initiate(m_resourceManager);
-	m_gpuResourceManager.loadResources("resources/environmentMaps/Skybox2.jpg");
-
-	m_rayTracer.initiate(m_target, m_gpuResourceManager);
+	m_rayTracer.initiate(m_target, m_resourceManager, "resources/environmentMaps/Skybox2.jpg");
 	m_rayTracer.setScene(m_scene);
 
-	m_debugRenderer.initiate(m_target, m_gpuResourceManager);
+	m_debugRenderer.initiate(m_target, m_rayTracer);
 	m_debugRenderer.setScene(m_scene);
 }
 
@@ -419,12 +416,12 @@ void Application::updateImGui()
 
 		ImGui::Separator();
 
-		ImGui::DragInt("BVH Max triangles", (int*)&m_gpuResourceManager.getMaxBvhLeafTriangles(), 1, 1, Okay::INVALID_UINT / 2);
-		ImGui::DragInt("BVH Max depth", (int*)&m_gpuResourceManager.getMaxBvhDepth(), 0.3f, 1, Okay::INVALID_UINT / 2);
+		ImGui::DragInt("BVH Max triangles", (int*)&m_rayTracer.getMaxBvhLeafTriangles(), 1, 1, Okay::INVALID_UINT / 2);
+		ImGui::DragInt("BVH Max depth", (int*)&m_rayTracer.getMaxBvhDepth(), 0.3f, 1, Okay::INVALID_UINT / 2);
 
 		if (ImGui::Button("Rebuild BVH tree"))
 		{
-			m_gpuResourceManager.loadMeshAndBvhData();
+			m_rayTracer.loadMeshAndBvhData();
 		}
 
 		static int debugDisplayMode = RayTracer::DebugDisplayMode::None;
@@ -462,7 +459,7 @@ void Application::updateImGui()
 			}
 
 			const MeshComponent* pMeshComp = m_debugSelectedEntity ? m_debugSelectedEntity.tryGetComponent<MeshComponent>() : nullptr;
-			uint32_t nodeCap = pMeshComp ? m_gpuResourceManager.getMeshDescriptors()[pMeshComp->meshID].numBvhNodes : 1u;
+			uint32_t nodeCap = pMeshComp ? m_rayTracer.getMeshDescriptors()[pMeshComp->meshID].numBvhNodes : 1u;
 			
 			ImGui::BeginDisabled(!pMeshComp);
 			ImGui::DragInt("Node Idx", (int*)&m_debugSelectedNodeIdx, 0.1f, 0, nodeCap - 1);

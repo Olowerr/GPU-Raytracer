@@ -10,14 +10,14 @@
 constexpr glm::vec3 BVH_NODE_COLOUR = glm::vec3(0.9f, 0.7f, 0.5f);
 
 DebugRenderer::DebugRenderer()
-	:m_pScene(nullptr), m_pGpuResourceManager(nullptr), m_pResourceManager(nullptr),
+	:m_pScene(nullptr), m_pRayTracer(nullptr), m_pResourceManager(nullptr),
 	m_pVS(nullptr), m_pPS(nullptr), m_viewport(), m_pRenderDataBuffer(nullptr), 
 	m_pBvhNodeBuffer(nullptr), m_bvhNodeNumVerticies(0u), m_renderBvhTree(false),
 	m_pBoundingBoxVS(nullptr), m_pBoundingBoxPS(nullptr), m_pDoubleSideRS(nullptr)
 {
 }
 
-DebugRenderer::DebugRenderer(const RenderTexture& target, const GPUResourceManager& pGpuResourceManager)
+DebugRenderer::DebugRenderer(const RenderTexture& target, const RayTracer& pGpuResourceManager)
 {
 	initiate(target, pGpuResourceManager);
 }
@@ -30,7 +30,7 @@ DebugRenderer::~DebugRenderer()
 void DebugRenderer::shutdown()
 {
 	m_pScene = nullptr;
-	m_pGpuResourceManager = nullptr;
+	m_pRayTracer = nullptr;
 	m_pResourceManager = nullptr;
 
 	m_sphereTriData.shutdown();
@@ -49,11 +49,11 @@ void DebugRenderer::shutdown()
 	DX11_RELEASE(m_pLessEqualDSS);
 }
 
-void DebugRenderer::initiate(const RenderTexture& target, const GPUResourceManager& pGpuResourceManager)
+void DebugRenderer::initiate(const RenderTexture& target, const RayTracer& rayTracer)
 {
 	shutdown();
 	m_pTargetTexture = &target;
-	m_pGpuResourceManager = &pGpuResourceManager;
+	m_pRayTracer = &rayTracer;
 
 	bool success = false;
 	ID3D11Device* pDevice = Okay::getDevice();
@@ -194,7 +194,7 @@ void DebugRenderer::render(bool includeObjects)
 {
 	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
 
-	m_pGpuResourceManager->bindResources();
+	//m_pRayTracer->bindResources();
 	bindGeometryPipeline();
 	updateCameraData();
 
@@ -242,10 +242,10 @@ void DebugRenderer::render(bool includeObjects)
 		pDevCon->Draw(sphereNumVerticies, 0u);
 	}
 
-	ID3D11ShaderResourceView* pOrigTriangleBuffer = m_pGpuResourceManager->getTrianglesPos().getSRV();
+	ID3D11ShaderResourceView* pOrigTriangleBuffer = m_pRayTracer->getTrianglesPos().getSRV();
 	pDevCon->VSSetShaderResources(RM_TRIANGLE_POS_SLOT, 1u, &pOrigTriangleBuffer);
 
-	const std::vector<MeshDesc>& meshDescs = m_pGpuResourceManager->getMeshDescriptors();
+	const std::vector<MeshDesc>& meshDescs = m_pRayTracer->getMeshDescriptors();
 	auto meshView = reg.view<MeshComponent, Transform>();
 	for (entt::entity entity : meshView) // Draw Meshes
 	{
@@ -296,11 +296,11 @@ void DebugRenderer::renderNodeBBs(Entity entity, uint32_t localNodeIdx)
 	const Transform& transformComp = entity.getComponent<Transform>();
 	m_renderData.objectWorldMatrix = glm::transpose(transformComp.calculateMatrix());
 
-	const MeshDesc& meshDesc = m_pGpuResourceManager->getMeshDescriptors()[pMeshComp->meshID];
-	uint32_t globalNodeIdx = m_pGpuResourceManager->getGlobalNodeIdx(*pMeshComp, localNodeIdx);
+	const MeshDesc& meshDesc = m_pRayTracer->getMeshDescriptors()[pMeshComp->meshID];
+	uint32_t globalNodeIdx = m_pRayTracer->getGlobalNodeIdx(*pMeshComp, localNodeIdx);
 	executeDrawMode(globalNodeIdx, &DebugRenderer::drawNodeBoundingBox, globalNodeIdx, meshDesc);
 
-	ID3D11ShaderResourceView* pOrigTriangleSRV = m_pGpuResourceManager->getTrianglesPos().getSRV();
+	ID3D11ShaderResourceView* pOrigTriangleSRV = m_pRayTracer->getTrianglesPos().getSRV();
 	pDevCon->VSSetShaderResources(RM_TRIANGLE_POS_SLOT, 1u, &pOrigTriangleSRV);
 }
 
@@ -319,7 +319,7 @@ void DebugRenderer::renderNodeGeometry(Entity entity, uint32_t localNodeIdx)
 	bindGeometryPipeline(false);
 	updateCameraData();
 
-	ID3D11ShaderResourceView* pTriangleBufferSRV = m_pGpuResourceManager->getTrianglesPos().getSRV();
+	ID3D11ShaderResourceView* pTriangleBufferSRV = m_pRayTracer->getTrianglesPos().getSRV();
 
 	const Transform& transformComp = entity.getComponent<Transform>();
 	m_renderData.objectWorldMatrix = glm::transpose(transformComp.calculateMatrix());
@@ -328,7 +328,7 @@ void DebugRenderer::renderNodeGeometry(Entity entity, uint32_t localNodeIdx)
 	pDevCon->VSSetShaderResources(RM_TRIANGLE_POS_SLOT, 1u, &pTriangleBufferSRV);
 	pDevCon->RSSetState(m_pDoubleSideRS);
 
-	uint32_t globalNodeIdx = m_pGpuResourceManager->getGlobalNodeIdx(*pMeshComp, localNodeIdx);
+	uint32_t globalNodeIdx = m_pRayTracer->getGlobalNodeIdx(*pMeshComp, localNodeIdx);
 	executeDrawMode(globalNodeIdx, &DebugRenderer::drawNodeGeometry, *pMeshComp);
 
 	pDevCon->RSSetState(nullptr);
@@ -377,7 +377,7 @@ void DebugRenderer::bindGeometryPipeline(bool clearTarget)
 
 void DebugRenderer::drawNodeBoundingBox(uint32_t nodeIdx, uint32_t baseNodeIdx, const MeshDesc& meshDesc)
 {
-	OKAY_ASSERT(nodeIdx < (uint32_t)m_pGpuResourceManager->getBvhTreeNodes().size());
+	OKAY_ASSERT(nodeIdx < (uint32_t)m_pRayTracer->getBvhTreeNodes().size());
 
 	float colourStrength = 1.f - nodeIdx / (float)meshDesc.numBvhNodes;
 	
@@ -391,9 +391,9 @@ void DebugRenderer::drawNodeBoundingBox(uint32_t nodeIdx, uint32_t baseNodeIdx, 
 
 void DebugRenderer::drawNodeGeometry(uint32_t nodeIdx, const MeshComponent& meshComp)
 {
-	OKAY_ASSERT(nodeIdx < (uint32_t)m_pGpuResourceManager->getBvhTreeNodes().size());
+	OKAY_ASSERT(nodeIdx < (uint32_t)m_pRayTracer->getBvhTreeNodes().size());
 
-	const GPUNode& node = m_pGpuResourceManager->getBvhTreeNodes()[nodeIdx];
+	const GPUNode& node = m_pRayTracer->getBvhTreeNodes()[nodeIdx];
 
 	m_renderData.vertStartIdx = node.triStart * 3u;
 	m_renderData.albedo.colour = glm::vec3(0.f, 1.f, 0.f);
@@ -407,7 +407,7 @@ void DebugRenderer::drawNodeGeometry(uint32_t nodeIdx, const MeshComponent& mesh
 template<typename NodeFunction, typename... Args>
 void DebugRenderer::executeDrawMode(uint32_t nodeIdx, NodeFunction pFunc, Args... args)
 {
-	const std::vector<GPUNode>& gpuNodes = m_pGpuResourceManager->getBvhTreeNodes();
+	const std::vector<GPUNode>& gpuNodes = m_pRayTracer->getBvhTreeNodes();
 
 	switch (m_bvhDrawMode)
 	{
