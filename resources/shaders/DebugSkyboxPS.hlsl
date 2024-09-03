@@ -1,7 +1,7 @@
 #include "ShaderResourceRegisters.h"
 
 SamplerState simp : register(s0);
-TextureCube environmentMap : register(RM_ENVIRONMENT_MAP_GPU_REG);
+TextureCube environmentMap : register(ENVIRONMENT_MAP_GPU_REG);
 
 struct Input
 {

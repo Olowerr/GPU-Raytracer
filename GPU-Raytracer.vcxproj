@@ -312,7 +312,6 @@ SET ERRORLEVEL=0</Command>
     <ClInclude Include="source\Graphics\DebugRenderer.h" />
     <ClInclude Include="source\Graphics\ResourceManager.h" />
     <ClInclude Include="source\Graphics\Texture.h" />
-    <ClInclude Include="source\Scene\Camera.h" />
     <ClInclude Include="source\Scene\Components.h" />
     <ClInclude Include="source\Scene\Entity.h" />
     <ClInclude Include="source\Scene\Scene.h" />

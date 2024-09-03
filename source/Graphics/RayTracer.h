@@ -28,6 +28,32 @@ struct GPUNode
 	uint32_t firstChildIdx = Okay::INVALID_UINT;
 };
 
+struct EntityAABB
+{
+	EntityAABB(entt::entity entity, Okay::AABB aabb)
+		:entity(entity), aabb(aabb) { }
+
+	entt::entity entity;
+	Okay::AABB aabb;
+};
+
+struct OctTreeNode
+{
+	Okay::AABB boundingBox;
+	std::vector<EntityAABB> entities;
+	uint32_t children[8u]
+	{
+		Okay::INVALID_UINT,
+		Okay::INVALID_UINT,
+		Okay::INVALID_UINT,
+		Okay::INVALID_UINT,
+		Okay::INVALID_UINT,
+		Okay::INVALID_UINT,
+		Okay::INVALID_UINT,
+		Okay::INVALID_UINT,
+	};
+};
+
 class RayTracer
 {
 public:
@@ -46,13 +72,11 @@ public:
 	void shutdown();
 	void initiate(const RenderTexture& target, const ResourceManager& resourceManager, std::string_view environmentMapPath = "");
 
-	void loadMeshAndBvhData();
+	void loadMeshAndBvhData(uint32_t maxDepth, uint32_t maxLeafTriangles);
+	void createOctTree(const Scene& scene, uint32_t maxDepth, uint32_t maxLeafObjects);
 
 	inline const std::vector<MeshDesc>& getMeshDescriptors() const;
 	inline const std::vector<GPUNode>& getBvhTreeNodes() const;
-
-	inline uint32_t& getMaxBvhLeafTriangles();
-	inline uint32_t& getMaxBvhDepth();
 
 	inline const GPUStorage& getTrianglesPos() const;
 	inline const GPUStorage& getTrianglesInfo() const;
@@ -83,6 +107,8 @@ private: // Scene & Resources
 	void calculateProjectionData();
 	void loadTextureData();
 	void loadEnvironmentMap(std::string_view path);
+	void loadOctTree(const std::vector<OctTreeNode>& nodes);
+	void refitOctTreeNode(OctTreeNode& node);
 
 private: // Main DX11
 	struct RenderData // Aligned 16
@@ -130,8 +156,6 @@ private: // DX11 Resources
 	GPUStorage m_triangleInfo;
 
 	GPUStorage m_bvhTree;
-	uint32_t m_maxBvhLeafTriangles;
-	uint32_t m_maxBvhDepth;
 	std::vector<GPUNode> m_bvhTreeNodes;
 
 	// The order of m_textureAtlasData & m_meshDescs matches the respective std::vector in ResourceManager.
@@ -140,6 +164,9 @@ private: // DX11 Resources
 	ID3D11ShaderResourceView* m_pEnvironmentMapSRV;
 
 	std::vector<MeshDesc> m_meshDescs;
+	std::vector<GPU_MeshComponent> m_gpuMeshes;
+
+	GPUStorage m_octTree;
 
 	void bindResources() const;
 
@@ -174,9 +201,6 @@ inline float& RayTracer::getDOFDistance() { return m_renderData.dofDistance; }
 
 inline void RayTracer::setDebugMode(RayTracer::DebugDisplayMode mode) { m_renderData.debugMode = mode; }
 inline uint32_t& RayTracer::getDebugMaxCount() { return m_renderData.debugMaxCount; }
-
-inline uint32_t& RayTracer::getMaxBvhLeafTriangles() { return m_maxBvhLeafTriangles; }
-inline uint32_t& RayTracer::getMaxBvhDepth() { return m_maxBvhDepth; }
 
 inline const std::vector<MeshDesc>& RayTracer::getMeshDescriptors() const { return m_meshDescs; }
 inline const std::vector<GPUNode>& RayTracer::getBvhTreeNodes() const { return m_bvhTreeNodes; }

@@ -9,9 +9,9 @@ struct AtlasTextureDesc
 
 SamplerState simp : register(s0);
 
-Texture2DArray<unorm float4> textures : register(RM_TEXTURES_GPU_REG);
+Texture2DArray<unorm float4> textures : register(TEXTURES_GPU_REG);
 
-cbuffer RenderDataBuffer : register(RZ_RENDER_DATA_GPU_REG)
+cbuffer RenderDataBuffer : register(DBG_RENDER_DATA_GPU_REG)
 {
     float4x4 camViewProjMatrix;
     float4x4 objectWorldMatrix;

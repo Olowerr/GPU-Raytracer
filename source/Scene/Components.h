@@ -42,7 +42,7 @@ struct MaterialColour1
 struct Material
 {
 	MaterialColour3 albedo;
-	MaterialColour1 roughness;
+	MaterialColour1 roughness = MaterialColour1(1.f);
 	MaterialColour1 metallic;
 	MaterialColour1 specular = MaterialColour1(1.f);
 

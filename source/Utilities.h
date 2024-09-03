@@ -66,8 +66,8 @@ namespace Okay
 		AABB(const glm::vec3& min, const glm::vec3& max)
 			:min(min), max(max) { }
 
-		glm::vec3 min = glm::vec3(0.f);
-		glm::vec3 max = glm::vec3(0.f);
+		glm::vec3 min = glm::vec3(FLT_MAX);
+		glm::vec3 max = glm::vec3(-FLT_MAX);
 
 		void growTo(const glm::vec3& point)
 		{
@@ -79,6 +79,14 @@ namespace Okay
 		{
 			glm::vec3 extents = max - min;
 			return extents.x * extents.y + extents.y * extents.z + extents.z * extents.x;
+		}
+
+		static bool intersects(const AABB& a, const AABB& b)
+		{
+			glm::vec3 aToBCenter = glm::abs((b.max + b.min) * 0.5f - (a.max + a.min) * 0.5f);
+			glm::vec3 extentsSum = (a.max - a.min) * 0.5f + (b.max - b.min) * 0.5f;
+
+			return (aToBCenter.x < extentsSum.x) && (aToBCenter.y < extentsSum.y) && (aToBCenter.z < extentsSum.z);
 		}
 	};
 

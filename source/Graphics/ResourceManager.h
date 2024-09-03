@@ -32,9 +32,6 @@ public:
 
 	bool importAssets(std::string_view filePath, std::vector<ObjectDecription>& outObjects, std::string_view texturePath = "", float scale = 1.f);
 
-	template<typename Asset, typename... Args>
-	inline Asset& addAsset(Args&&... args);
-
 	template<typename Asset>
 	inline Asset& getAsset(AssetID id);
 
@@ -68,13 +65,6 @@ static_assert(std::is_same<Asset, Mesh>() || \
 			  "Invalid Asset type")
 
 // Public:
-template<typename Asset, typename ...Args>
-inline Asset& ResourceManager::addAsset(Args && ...args)
-{
-	STATIC_ASSERT_ASSET_TYPE();
-	return getAssets<Asset>().emplace_back(args...);
-}
-
 template<typename Asset>
 inline Asset& ResourceManager::getAsset(AssetID id)
 {

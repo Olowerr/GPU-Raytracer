@@ -3,7 +3,7 @@
 #include "ShaderResourceRegisters.h"
 
 // ---- Defines and constants
-#define NUM_BOUNCES (5)
+#define NUM_BOUNCES (3)
 
 
 // ---- Structs
@@ -45,12 +45,6 @@ struct RenderData
     float3 pad0;
 };
 
-struct AtlasTextureDesc
-{
-    float2 uvRatio;
-    float2 uvOffset;
-};
-
 struct Node
 {
     AABB boundingBox;
@@ -59,47 +53,43 @@ struct Node
     uint firstChildIdx;
 };
 
-struct LightEvaluation
+struct OctTreeNode
 {
-    float3 direction;
-    float3 colour;
-    float intensity;
-    float specularStrengthModifier;
-    float2 attentuation;
+    AABB boundingBox;
+
+    uint meshesStartIdx;
+    uint meshesEndIdx;
+
+    uint spheresStartIdx;
+    uint spheresEndIdx;
+
+    uint children[8u];
 };
 
 // ---- Resources
 
-// From GPUResourceManager
-StructuredBuffer<Triangle> trianglePosData : register(RM_TRIANGLE_POS_GPU_REG);
-StructuredBuffer<TriangleInfo> triangleInfoData : register(RM_TRIANGLE_INFO_GPU_REG);
-StructuredBuffer<Node> bvhNodes : register(RM_BVH_TREE_GPU_REG);
-Texture2DArray<unorm float4> textures : register(RM_TEXTURES_GPU_REG);
-TextureCube environmentMap : register(RM_ENVIRONMENT_MAP_GPU_REG);
+StructuredBuffer<Triangle> trianglePosData : register(TRIANGLE_POS_GPU_REG);
+StructuredBuffer<TriangleInfo> triangleInfoData : register(TRIANGLE_INFO_GPU_REG);
+StructuredBuffer<Node> bvhNodes : register(BVH_TREE_GPU_REG);
+Texture2DArray<unorm float4> textures : register(TEXTURES_GPU_REG);
+TextureCube environmentMap : register(ENVIRONMENT_MAP_GPU_REG);
 
 SamplerState simp : register(s0);
 
-// From RayTracer
-RWTexture2D<unorm float4> resultBuffer : register(RT_RESULT_BUFFER_GPU_REG);
-RWTexture2D<float4> accumulationBuffer : register(RT_ACCUMULATION_BUFFER_GPU_REG);
-StructuredBuffer<Sphere> sphereData : register(RT_SPHERE_DATA_GPU_REG);
-StructuredBuffer<Mesh> meshData : register(RT_MESH_ENTITY_DATA_GPU_REG);
-StructuredBuffer<DirectionalLight> directionalLights : register(RT_DIRECTIONAL_LIGHT_DATA_GPU_REG);
-StructuredBuffer<PointLight> pointLights : register(RT_POINT_LIGHT_DATA_GPU_REG);
-StructuredBuffer<SpotLight> spotLights : register(RT_SPOT_LIGHT_DATA_GPU_REG);
-cbuffer RenderDataBuffer : register(RT_RENDER_DATA_GPU_REG)
+RWTexture2D<unorm float4> resultBuffer : register(RESULT_BUFFER_GPU_REG);
+RWTexture2D<float4> accumulationBuffer : register(ACCUMULATION_BUFFER_GPU_REG);
+StructuredBuffer<Sphere> sphereData : register(SPHERE_DATA_GPU_REG);
+StructuredBuffer<Mesh> meshData : register(MESH_ENTITY_DATA_GPU_REG);
+StructuredBuffer<DirectionalLight> directionalLights : register(DIRECTIONAL_LIGHT_DATA_GPU_REG);
+StructuredBuffer<PointLight> pointLights : register(POINT_LIGHT_DATA_GPU_REG);
+StructuredBuffer<SpotLight> spotLights : register(SPOT_LIGHT_DATA_GPU_REG);
+
+StructuredBuffer<OctTreeNode> octTreeNodes : register(OCT_TREE_GPU_REG);
+
+cbuffer RenderDataBuffer : register(RENDER_DATA_GPU_REG)
 {
     RenderData renderData;
 }
-
-
-/*
-    TODO: Check if seperating triangles into 3 buffers: positions, normals and uv, can be faster than current.
-    That way we don't need to access the normals and uv while doing intersection tests,
-    Meaning the cache can get more positions at once. (is this how it works?)
-    OR use one big buffer, but structure it like: all positions -> all normals -> all uvs
-*/
-
 
 // ---- Functions
 float2 normalToUV(float3 normal)
@@ -238,79 +228,97 @@ Payload findClosestHit(Ray ray, inout uint bbCheckCount, inout uint triCheckCoun
         }
     }
     
-    // TODO: Rewrite the upcoming loop to reduce nesting
-
-    static const uint MAX_STACK_SIZE = 50;
-    half stack[MAX_STACK_SIZE];
-    uint stackSize = 0;
+    static const uint OCT_MAX_STACK_SIZE = 20;
+    half octStack[OCT_MAX_STACK_SIZE];
+    octStack[0] = 0;
+    uint octStackSize = 1;
+    
+    static const uint BVH_MAX_STACK_SIZE = 50;
+    half bvhStack[BVH_MAX_STACK_SIZE];
+    uint bvhStackSize = 0;
 
     uint triHitIdx = UINT_MAX;
     float3 hitBaryUVCoords = float3(0.f, 0.f, 0.f);
-        
-    // TODO: Rewrite the upcoming loop to reduce nesting
-    for (uint j = 0; j < renderData.numMeshes; j++)
+    
+    while (octStackSize > 0)
     {
-        uint currentNodeIdx = meshData[j].bvhNodeStartIdx;
-        stack[0] = currentNodeIdx;
-        stackSize = 1;
+        uint octCurrentNodeIdx = octStack[--octStackSize];
+        OctTreeNode octNode = octTreeNodes[octCurrentNodeIdx];
         
-        float4x4 invTraMatrix = meshData[j].inverseTransformMatrix;
+        if (Collision::RayAndAABBDist(ray, octNode.boundingBox) >= closestHitDistance)
+            continue;
         
-        Ray localRay;
-        localRay.origin = mul(float4(ray.origin, 1.f), invTraMatrix).xyz;
-        localRay.direction = normalize(mul(float4(ray.direction, 0.f), invTraMatrix).xyz);
-        
-        while (stackSize > 0)
+        for (i = octNode.meshesStartIdx; i < octNode.meshesEndIdx; i++)
         {
-            currentNodeIdx = stack[--stackSize];
-            
-            Node node = bvhNodes[currentNodeIdx];
-            
             bbCheckCount += 1;
-            if (Collision::RayAndAABBDist(localRay, node.boundingBox) >= closestHitDistance)
-                continue; // Missed AABB
-            
-            if (node.firstChildIdx == UINT_MAX) // Is leaf?
+            uint currentNodeIdx = meshData[i].bvhNodeStartIdx;
+            bvhStack[0] = currentNodeIdx;
+            bvhStackSize = 1;
+        
+            float4x4 invTraMatrix = meshData[i].inverseTransformMatrix;
+        
+            Ray localRay;
+            localRay.origin = mul(float4(ray.origin, 1.f), invTraMatrix).xyz;
+            localRay.direction = normalize(mul(float4(ray.direction, 0.f), invTraMatrix).xyz);
+        
+            while (bvhStackSize > 0)
             {
-                for (i = node.triStart; i < node.triEnd; i++)
-                {
-                    Triangle tri = trianglePosData[i];
+                currentNodeIdx = bvhStack[--bvhStackSize];
             
+                Node node = bvhNodes[currentNodeIdx];
+            
+                bbCheckCount += 1;
+                if (Collision::RayAndAABBDist(localRay, node.boundingBox) >= closestHitDistance)
+                    continue; // Missed AABB
+            
+                if (node.firstChildIdx != UINT_MAX) // Is not leaf?
+                {
+                    bvhStack[bvhStackSize++] = node.firstChildIdx;
+                    bvhStack[bvhStackSize++] = node.firstChildIdx + 1;
+                    continue;
+                }
+                    
+                for (uint j = node.triStart; j < node.triEnd; j++)
+                {
+                    Triangle tri = trianglePosData[j];
+        
                     float3 p0 = tri.position[0];
                     float3 p1 = tri.position[1];
                     float3 p2 = tri.position[2];
-            
+        
                     float2 baryUVCoords = float2(0.f, 0.f);
-                    
+                
                     triCheckCount += 1;
                     float distanceToHit = Collision::RayAndTriangle(localRay, p0, p1, p2, baryUVCoords);
-                    
+                
                     if (distanceToHit <= 0.f)
-                    {
                         continue;
-                    }
-                    
+                
                     // Convert distanceToHit to worldspace for accurate comparison
-                    float4x4 traMatrix = meshData[j].transformMatrix;
+                    float4x4 traMatrix = meshData[i].transformMatrix;
                     float4 localRayToHit = float4(localRay.direction * distanceToHit, 0.f);
                     distanceToHit = length(mul(localRayToHit, traMatrix).xyz);
-                    
+                
                     if (distanceToHit < closestHitDistance)
                     {
                         closestHitDistance = distanceToHit;
-                        hitIdx = j;
+                        hitIdx = i;
                         hitType = 1;
-                        triHitIdx = i;
-                        
+                        triHitIdx = j;
+                    
                         hitBaryUVCoords.xy = baryUVCoords;
                         hitBaryUVCoords.z = 1.f - (hitBaryUVCoords.x + hitBaryUVCoords.y);
                     }
                 }
             }
-            else
+        }
+        
+        for (uint k = 0; k < 8; k++)
+        {
+            uint childIdx = octNode.children[k];
+            if (isValidIdx(childIdx))
             {
-                stack[stackSize++] = node.firstChildIdx;
-                stack[stackSize++] = node.firstChildIdx + 1;
+                octStack[octStackSize++] = childIdx;
             }
         }
     }
@@ -531,7 +539,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
         light = triCheckCount > debugModeMaxCount ? float3(1.f, 0.f, 0.f) : float3(1.f, 1.f, 1.f) * (triCheckCount / (float)debugModeMaxCount);
     
     float gamma = 2.f;
-    light = pow(light, float3(gamma, gamma, gamma));
+    //light = pow(light, float3(gamma, gamma, gamma));
     
     float4 result;
     if (renderData.accumulationEnabled == 1)

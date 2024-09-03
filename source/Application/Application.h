@@ -24,6 +24,12 @@ private:
 	ResourceManager m_resourceManager;
 	RenderTexture m_target;
 
+	uint32_t m_maxBvhLeafTriangles = 5u;
+	uint32_t m_maxBvhDepth = 10u;
+
+	uint32_t m_maxCullingTreeLeafEntities = 50u;
+	uint32_t m_maxCullingTreeDepth = 2u;
+
 	DebugRenderer m_debugRenderer;
 	bool m_useRasterizer = false;
 	bool m_rasterizerDrawObjects = true;

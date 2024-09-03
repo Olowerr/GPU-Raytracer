@@ -134,9 +134,6 @@
     <ClInclude Include="deps\include\imgui\imstb_truetype.h">
       <Filter>ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="source\Scene\Camera.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="source\Application\Input.h">
       <Filter>Header Files</Filter>
     </ClInclude>

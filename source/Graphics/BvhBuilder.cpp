@@ -38,7 +38,6 @@ void BvhBuilder::buildTree(const Mesh& mesh)
 float BvhBuilder::evaluateSAH(BvhNode& node, uint32_t axis, float pos)
 {
 	Okay::AABB leftBox, rightBox;
-	leftBox = rightBox = Okay::AABB(glm::vec3(FLT_MAX), glm::vec3(-FLT_MAX));
 
 	uint32_t triIndex;
 	uint32_t leftCount = 0, rightCount = 0;
@@ -149,9 +148,7 @@ void BvhBuilder::buildTreeInternal()
 		float splitCost = findBestSplitPlane(*pCurrentNode, axis, splitPos);
 		float parentCost = nodeNumTris * pCurrentNode->boundingBox.getArea();
 		if (splitCost >= parentCost)
-		{
 			continue;
-		}
 
 		leftIndicies.clear();
 		rightIndicies.clear();
@@ -211,9 +208,6 @@ void BvhBuilder::buildTreeInternal()
 
 void BvhBuilder::findAABB(BvhNode& node)
 {
-	node.boundingBox.min = glm::vec3(FLT_MAX);
-	node.boundingBox.max = glm::vec3(-FLT_MAX);
-
 	uint32_t numTriIndicies = (uint32_t)node.triIndicies.size();
 	for (uint32_t i = 0; i < numTriIndicies; i++)
 	{

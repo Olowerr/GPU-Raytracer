@@ -39,7 +39,8 @@ Application::Application()
 	//m_resourceManager.loadTexture("resources/textures/rev/rev_metallic.png");
 	//m_resourceManager.loadTexture("resources/textures/rev/rev_normalMap.png");
 
-	loadMeshesAsEntities("resources/meshes/ikea_glass.obj", "", 10.f);
+	//loadMeshesAsEntities("resources/meshes/ikea_glass.obj", "", 10.f);
+	loadMeshesAsEntities("resources/Sponza/sponza.obj", "resources/Sponza/", 0.07f);
 
 	m_rayTracer.initiate(m_target, m_resourceManager, "resources/environmentMaps/Skybox2.jpg");
 	m_rayTracer.setScene(m_scene);
@@ -60,62 +61,44 @@ Application::~Application()
 
 void Application::run()
 {
-	static ID3D11RenderTargetView* nullRTV = nullptr;
-
 	Entity camera = m_scene.createEntity();
 	camera.addComponent<Camera>(90.f, 0.1f);
 	camera.getComponent<Transform>().position.x = 60.f;
 	camera.getComponent<Transform>().rotation.y = -90.f;
 
-	{
-		Entity ent = m_scene.createEntity();
-
-		MeshComponent& meshComp = ent.addComponent<MeshComponent>();
-		meshComp.meshID = 0;
-
-		Material& mat = meshComp.material;
-		mat.albedo.textureId = 0u;
-		mat.roughness.textureId = 1u;
-		mat.specular.textureId = 2u;
-		mat.normalMapIdx = 3u;
-	}
+	//{
+	//	Entity ent = m_scene.createEntity();
+	//
+	//	MeshComponent& meshComp = ent.addComponent<MeshComponent>();
+	//	meshComp.meshID = 0;
+	//
+	//	Material& mat = meshComp.material;
+	//	mat.albedo.textureId = 0u;
+	//	mat.roughness.textureId = 1u;
+	//	mat.specular.textureId = 2u;
+	//	mat.normalMapIdx = 3u;
+	//}
 
 #if 0
-	glm::vec3 colours[3] =
+
+	uint32_t num = 5000u;
+	glm::vec3 bounds = glm::vec3(500.f, 500.f, 500.f);
+	for (uint32_t i = 0; i < num; i++)
 	{
-		{0.05f, 0.05f, 0.95f},
-		{0.05f, 0.95f, 0.05f},
-		{0.95f, 0.05f, 0.05f},
-	};
-
-	uint32_t num = 10u;
-	float dist = 3.f;
-	float offset = (num - 1u) * 0.5f * dist;
-	for (uint32_t y = 0; y < num; y++)
-	{
-		for (uint32_t x = 0; x < num; x++)
-		{
-			Entity entity = m_scene.createEntity();
-
-			Sphere& sphere = entity.addComponent<Sphere>();
-			sphere.radius = dist * 0.4f;
-			sphere.material.roughness = x / (num - 1.f);
-			sphere.material.metallic = y / (num - 1.f);
-
-			Transform& tra = entity.getComponent<Transform>();
-			tra.position = glm::vec3(x * dist - offset, y * dist - offset, 10.f);
-
-
-			uint32_t id = x + y * num;
-			float t = (float)id / float(num * num);
-			int idx1 = int(t * (3 - 1));
-			int idx2 = (idx1 + 1) % 3;
-			float tBlend = (t * (3 - 1)) - idx1;
-
-			sphere.material.albedo.colour = glm::mix(colours[idx1], colours[idx2], tBlend); // glm::vec3(0.8f, 0.8f, 0.8f);//
-		}
+		Entity ent = m_scene.createEntity();
+		
+		MeshComponent& meshComp = ent.addComponent<MeshComponent>();
+		meshComp.meshID = 0;
+	
+		float x = ((float)rand() / RAND_MAX) * bounds.x - bounds.x * 0.5f;
+		float y = ((float)rand() / RAND_MAX) * bounds.y - bounds.y * 0.5f;
+		float z = ((float)rand() / RAND_MAX) * bounds.z - bounds.z * 0.5f;
+		ent.getComponent<Transform>().position = glm::vec3(x, y, z);
 	}
+
 #endif
+
+	m_rayTracer.createOctTree(m_scene, m_maxCullingTreeDepth, m_maxCullingTreeLeafEntities);
 
 	while (m_window.isOpen())
 	{
@@ -143,11 +126,8 @@ void Application::run()
 void Application::loadMeshesAsEntities(std::string_view filePath, std::string_view texturesPath, float scale)
 {
 	std::vector<ResourceManager::ObjectDecription> objectDescriptions;
-	if (!m_resourceManager.importAssets(filePath, objectDescriptions, texturesPath, scale))
-	{
-		printf("Failed loading file: %s\n", filePath.data());
-		return;
-	}
+	bool success = m_resourceManager.importAssets(filePath, objectDescriptions, texturesPath, scale);
+	OKAY_ASSERT(success);
 
 	for (uint32_t i = 0; i < (uint32_t)objectDescriptions.size(); i++)
 	{
@@ -327,6 +307,7 @@ void Application::displayComponents(Entity entity)
 	if (resetAcu)
 	{
 		m_rayTracer.resetAccumulation();
+		m_rayTracer.createOctTree(m_scene, m_maxCullingTreeDepth, m_maxCullingTreeLeafEntities);
 		m_accumulationTime = 0.f;
 	}
 }
@@ -416,13 +397,26 @@ void Application::updateImGui()
 
 		ImGui::Separator();
 
-		ImGui::DragInt("BVH Max triangles", (int*)&m_rayTracer.getMaxBvhLeafTriangles(), 1, 1, Okay::INVALID_UINT / 2);
-		ImGui::DragInt("BVH Max depth", (int*)&m_rayTracer.getMaxBvhDepth(), 0.3f, 1, Okay::INVALID_UINT / 2);
+		ImGui::DragInt("BVH Max triangles", (int*)&m_maxBvhLeafTriangles, 1, 1, Okay::INVALID_UINT / 2);
+		ImGui::DragInt("BVH Max depth", (int*)&m_maxBvhDepth, 0.3f, 1, Okay::INVALID_UINT / 2);
 
 		if (ImGui::Button("Rebuild BVH tree"))
 		{
-			m_rayTracer.loadMeshAndBvhData();
+			m_rayTracer.loadMeshAndBvhData(m_maxBvhDepth, m_maxBvhLeafTriangles);
 		}
+
+
+		ImGui::Separator();
+
+		ImGui::DragInt("Oct Tree max leaf objects", (int*)&m_maxCullingTreeLeafEntities, 0.1f, 0, INT_MAX);
+		ImGui::DragInt("Oct Tree max depth", (int*)&m_maxCullingTreeDepth, 0.1f, 0, INT_MAX);
+
+		if (ImGui::Button("Rebuild oct tree"))
+		{
+			m_rayTracer.createOctTree(m_scene, m_maxCullingTreeDepth, m_maxCullingTreeLeafEntities);
+		}
+
+		ImGui::Separator();
 
 		static int debugDisplayMode = RayTracer::DebugDisplayMode::None;
 		int oldModeValue = debugDisplayMode;
@@ -434,7 +428,7 @@ void Application::updateImGui()
 
 		bool changedMaxCount = ImGui::DragInt("Debug Check Max Count", (int*)&m_rayTracer.getDebugMaxCount(), 0.1f, 0, 100000);
 
-		if (debugDisplayMode != oldModeValue || changedMaxCount)
+		if ((debugDisplayMode != oldModeValue) || changedMaxCount)
 		{
 			m_rayTracer.setDebugMode(RayTracer::DebugDisplayMode(debugDisplayMode));
 			m_rayTracer.resetAccumulation();
@@ -559,6 +553,7 @@ void Application::updateImGui()
 	if (resetAcu)
 	{
 		m_rayTracer.resetAccumulation();
+		m_rayTracer.createOctTree(m_scene, m_maxCullingTreeDepth, m_maxCullingTreeLeafEntities);
 		m_accumulationTime = 0.f;
 	}
 }
@@ -591,6 +586,7 @@ void Application::updateCamera()
 		if (resetAcu)
 		{
 			m_rayTracer.resetAccumulation();
+			m_rayTracer.createOctTree(m_scene, m_maxCullingTreeDepth, m_maxCullingTreeLeafEntities);
 			m_accumulationTime = 0.f;
 		}
 	}

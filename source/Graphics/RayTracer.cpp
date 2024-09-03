@@ -11,10 +11,31 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
 
+#include <stack>
+#include <chrono>
+
+struct GPU_OctTreeNode
+{
+	GPU_OctTreeNode()
+		: meshesStartIdx(Okay::INVALID_UINT), meshesEndIdx(Okay::INVALID_UINT),
+		spheresStartIdx(Okay::INVALID_UINT), spheresEndIdx(Okay::INVALID_UINT)
+	{
+		memset(children, -1, sizeof(children));
+	}
+	Okay::AABB boundingBox;
+
+	uint32_t meshesStartIdx = Okay::INVALID_UINT;
+	uint32_t meshesEndIdx = Okay::INVALID_UINT;
+
+	uint32_t spheresStartIdx = Okay::INVALID_UINT;
+	uint32_t spheresEndIdx = Okay::INVALID_UINT;
+
+	uint32_t children[8u];
+};
+
 RayTracer::RayTracer()
 	:m_pMainRaytracingCS(nullptr), m_pScene(nullptr), m_renderData(), m_pRenderDataBuffer(nullptr),
-	m_pResourceManager(nullptr), m_pTargetTexture(nullptr), m_pEnvironmentMapSRV(nullptr),
-	m_pTextures(nullptr), m_maxBvhLeafTriangles(0u), m_maxBvhDepth(0u)
+	m_pResourceManager(nullptr), m_pTargetTexture(nullptr), m_pEnvironmentMapSRV(nullptr), m_pTextures(nullptr)
 {
 }
 
@@ -63,9 +84,6 @@ void RayTracer::initiate(const RenderTexture& target, const ResourceManager& res
 
 	m_renderData.textureDims = target.getDimensions();
 
-	m_maxBvhLeafTriangles = 5u;
-	m_maxBvhDepth = 30u;
-
 	ID3D11Device* pDevice = Okay::getDevice();
 	bool success = false;
 	
@@ -90,10 +108,11 @@ void RayTracer::initiate(const RenderTexture& target, const ResourceManager& res
 	m_directionalLights.initiate(sizeof(GPU_DirectionalLight), SRV_START_SIZE, nullptr);
 	m_pointLights.initiate(sizeof(GPU_PointLight), SRV_START_SIZE, nullptr);
 	m_spotLights.initiate(sizeof(GPU_SpotLight), SRV_START_SIZE, nullptr);
+	m_octTree.initiate(sizeof(GPU_OctTreeNode), SRV_START_SIZE, nullptr);
 
 	loadTextureData();
 	loadEnvironmentMap(environmentMapPath);
-	loadMeshAndBvhData();
+	loadMeshAndBvhData(30, 5);
 	bindResources();
 
 	{ // Basic Sampler
@@ -117,8 +136,15 @@ void RayTracer::initiate(const RenderTexture& target, const ResourceManager& res
 	}
 }
 
-void RayTracer::loadMeshAndBvhData()
+void RayTracer::loadMeshAndBvhData(uint32_t maxDepth, uint32_t maxLeafTriangles)
 {
+	std::chrono::time_point<std::chrono::system_clock> bvhTreeTimerStart;
+
+	printf("\nBvh Tree build start\n");
+	printf("maxDepth: %u\nmaxLeafTriangles: %u\n", maxDepth, maxLeafTriangles);
+
+	bvhTreeTimerStart = std::chrono::system_clock::now();
+
 	const std::vector<Mesh>& meshes = m_pResourceManager->getAll<Mesh>();
 	const uint32_t numMeshes = (uint32_t)meshes.size();
 
@@ -146,7 +172,7 @@ void RayTracer::loadMeshAndBvhData()
 
 	m_bvhTreeNodes.clear();
 	m_bvhTreeNodes.shrink_to_fit();
-	BvhBuilder bvhBuilder(m_maxBvhLeafTriangles, m_maxBvhDepth);
+	BvhBuilder bvhBuilder(maxLeafTriangles, maxDepth);
 
 	for (uint32_t i = 0; i < numMeshes; i++)
 	{
@@ -202,6 +228,11 @@ void RayTracer::loadMeshAndBvhData()
 	m_trianglePositions.initiate(sizeof(Okay::Triangle), numTotalTriangles, gpuTrianglePositions.data());
 	m_triangleInfo.initiate(sizeof(Okay::TriangleInfo), numTotalTriangles, gpuTriangleInfo.data());
 	m_bvhTree.initiate(sizeof(GPUNode), (uint32_t)m_bvhTreeNodes.size(), m_bvhTreeNodes.data());
+
+	std::chrono::duration<float> duration = std::chrono::system_clock::now() - bvhTreeTimerStart;
+
+	printf("numNodes: %u\nnumMeshes: %u\n", (uint32_t)m_bvhTreeNodes.size(), numMeshes);
+	printf("Bvh Tree build time: %.3fms\n", duration.count() * 1000.f);
 }
 
 void RayTracer::render()
@@ -217,20 +248,21 @@ void RayTracer::render()
 	static const float CLEAR_COLOUR[4]{ 0.2f, 0.4f, 0.6f, 1.f };
 	pDevCon->ClearUnorderedAccessViewFloat(*m_pTargetTexture->getUAV(), CLEAR_COLOUR);
 
-	ID3D11ShaderResourceView* srvs[5u]{};
+	ID3D11ShaderResourceView* srvs[6u]{};
 	srvs[0] = m_spheres.getSRV();
 	srvs[1] = m_meshData.getSRV();
 	srvs[2] = m_directionalLights.getSRV();
 	srvs[3] = m_pointLights.getSRV();
 	srvs[4] = m_spotLights.getSRV();
-	pDevCon->CSSetShaderResources(RT_SPHERE_DATA_SLOT, 5u, srvs);
+	srvs[5] = m_octTree.getSRV();
+	pDevCon->CSSetShaderResources(SPHERE_DATA_SLOT, 6u, srvs);
 
 
 	// Bind standard resources
 	pDevCon->CSSetShader(m_pMainRaytracingCS, nullptr, 0u);
-	pDevCon->CSSetUnorderedAccessViews(RT_RESULT_BUFFER_SLOT, 1u, m_pTargetTexture->getUAV(), nullptr);
-	pDevCon->CSSetUnorderedAccessViews(RT_ACCUMULATION_BUFFER_SLOT, 1u, m_accumulationTexture.getUAV(), nullptr);
-	pDevCon->CSSetConstantBuffers(RT_RENDER_DATA_SLOT, 1u, &m_pRenderDataBuffer);
+	pDevCon->CSSetUnorderedAccessViews(RESULT_BUFFER_SLOT, 1u, m_pTargetTexture->getUAV(), nullptr);
+	pDevCon->CSSetUnorderedAccessViews(ACCUMULATION_BUFFER_SLOT, 1u, m_accumulationTexture.getUAV(), nullptr);
+	pDevCon->CSSetConstantBuffers(RENDER_DATA_SLOT, 1u, &m_pRenderDataBuffer);
 
 	// Dispatch and unbind
 	pDevCon->Dispatch(m_renderData.textureDims.x / 16u, m_renderData.textureDims.y / 9u, 1u);
@@ -414,48 +446,6 @@ void RayTracer::loadEnvironmentMap(std::string_view path)
 void RayTracer::updateBuffers()
 {
 	const entt::registry& reg = m_pScene->getRegistry();
-	
-	auto sphereView = reg.view<Sphere, Transform>();
-	m_spheres.update((uint32_t)sphereView.size_hint(), [&](char* pMappedBufferData)
-	{
-		for (entt::entity entity : sphereView)
-		{
-			auto [sphere, transform] = sphereView[entity];
-	
-			memcpy(pMappedBufferData, &transform.position, sizeof(glm::vec3));
-			pMappedBufferData += sizeof(glm::vec3);
-	
-			memcpy(pMappedBufferData, &sphere, sizeof(Sphere));
-			pMappedBufferData += sizeof(Sphere);
-		}
-	});
-	
-	auto meshView = reg.view<MeshComponent, Transform>();
-	m_meshData.update((uint32_t)meshView.size_hint(), [&](char* pMappedBufferData)
-	{
-		glm::mat4 transformMatrix{};
-		GPU_MeshComponent* gpuData;
-		for (entt::entity entity : meshView)
-		{
-			gpuData = (GPU_MeshComponent*)pMappedBufferData;
-	
-			auto [meshComp, transform] = meshView[entity];
-			transformMatrix = glm::transpose(transform.calculateMatrix());
-	
-			gpuData->triStart = m_meshDescs[meshComp.meshID].startIdx;
-			gpuData->triEnd = m_meshDescs[meshComp.meshID].endIdx;
-			
-			gpuData->boundingBox = m_pResourceManager->getAsset<Mesh>(meshComp.meshID).getBoundingBox();
-	
-			gpuData->transformMatrix = transformMatrix;
-			gpuData->inverseTransformMatrix = glm::inverse(transformMatrix);
-	
-			gpuData->material = meshComp.material;
-			gpuData->bvhNodeStartIdx = m_meshDescs[meshComp.meshID].bvhTreeStartIdx;
-			
-			pMappedBufferData += sizeof(GPU_MeshComponent);
-		}
-	});
 
 	auto dirLightView = reg.view<DirectionalLight, Transform>();
 	m_directionalLights.update((uint32_t)dirLightView.size_hint(), [&](char* pMappedBufferData)
@@ -505,8 +495,6 @@ void RayTracer::updateBuffers()
 
 	
 	// Render Data
-	m_renderData.numSpheres = (uint32_t)sphereView.size_hint();
-	m_renderData.numMeshes = (uint32_t)meshView.size_hint();
 	m_renderData.numDirLights = (uint32_t)dirLightView.size_hint();
 	m_renderData.numPointLights = (uint32_t)pointLightView.size_hint();
 	m_renderData.numSpotLights = (uint32_t)spotLightView.size_hint();
@@ -522,15 +510,15 @@ void RayTracer::bindResources() const
 	//pDevCon->ClearState();
 
 	ID3D11ShaderResourceView* srvs[5u]{};
-	srvs[RM_TRIANGLE_POS_SLOT] = m_trianglePositions.getSRV();
-	srvs[RM_TRIANGLE_INFO_SLOT] = m_triangleInfo.getSRV();
-	srvs[RM_TEXTURES_SLOT] = m_pTextures;
-	srvs[RM_BVH_TREE_SLOT] = m_bvhTree.getSRV();
-	srvs[RM_ENVIRONMENT_MAP_SLOT] = m_pEnvironmentMapSRV;
+	srvs[TRIANGLE_POS_SLOT] = m_trianglePositions.getSRV();
+	srvs[TRIANGLE_INFO_SLOT] = m_triangleInfo.getSRV();
+	srvs[TEXTURES_SLOT] = m_pTextures;
+	srvs[BVH_TREE_SLOT] = m_bvhTree.getSRV();
+	srvs[ENVIRONMENT_MAP_SLOT] = m_pEnvironmentMapSRV;
 
-	pDevCon->VSSetShaderResources(RM_TRIANGLE_POS_SLOT, sizeof(srvs) / sizeof(srvs[0]), srvs);
-	pDevCon->PSSetShaderResources(RM_TRIANGLE_POS_SLOT, sizeof(srvs) / sizeof(srvs[0]), srvs);
-	pDevCon->CSSetShaderResources(RM_TRIANGLE_POS_SLOT, sizeof(srvs) / sizeof(srvs[0]), srvs);
+	pDevCon->VSSetShaderResources(TRIANGLE_POS_SLOT, sizeof(srvs) / sizeof(srvs[0]), srvs);
+	pDevCon->PSSetShaderResources(TRIANGLE_POS_SLOT, sizeof(srvs) / sizeof(srvs[0]), srvs);
+	pDevCon->CSSetShaderResources(TRIANGLE_POS_SLOT, sizeof(srvs) / sizeof(srvs[0]), srvs);
 }
 
 void RayTracer::onResize()
@@ -540,4 +528,240 @@ void RayTracer::onResize()
 	m_renderData.textureDims = newDims;
 	m_accumulationTexture.resize(newDims.x, newDims.y);
 	resetAccumulation();
+}
+
+void RayTracer::refitOctTreeNode(OctTreeNode& node)
+{
+	node.boundingBox = Okay::AABB();
+	const entt::registry& reg = m_pScene->getRegistry();
+
+	for (const EntityAABB& entityAABB : node.entities)
+	{
+		const MeshComponent* pMeshComp = reg.try_get<MeshComponent>(entityAABB.entity);
+		const Sphere* pSphereComp = reg.try_get<Sphere>(entityAABB.entity);
+
+		if (pMeshComp || pSphereComp)
+		{
+			node.boundingBox.growTo(entityAABB.aabb.min);
+			node.boundingBox.growTo(entityAABB.aabb.max);
+		}
+	}
+}
+
+static std::chrono::time_point<std::chrono::system_clock> octTreeTimerStart;
+
+void RayTracer::createOctTree(const Scene& scene, uint32_t maxDepth, uint32_t maxLeafObjects)
+{
+	printf("\nOct Tree build start\n");
+	printf("maxDepth: %u\n", maxDepth);
+
+	octTreeTimerStart = std::chrono::system_clock::now();
+
+	std::vector<OctTreeNode> nodes;
+	OctTreeNode& root = nodes.emplace_back();
+
+	const entt::registry& reg = scene.getRegistry();
+	auto meshView = reg.view<MeshComponent, Transform>();
+	auto sphereView = reg.view<Sphere, Transform>();
+
+	root.entities.reserve(meshView.size_hint() + sphereView.size_hint());
+
+	for (entt::entity entity : meshView)
+	{
+		auto [meshComponent, transform] = meshView[entity];
+		const Mesh& mesh = m_pResourceManager->getAsset<Mesh>(meshComponent.meshID);
+
+		Okay::AABB meshBB = mesh.getBoundingBox();
+		meshBB.min += transform.position;
+		meshBB.max += transform.position;
+
+		root.boundingBox.growTo(meshBB.min);
+		root.boundingBox.growTo(meshBB.max);
+
+		root.entities.emplace_back(entity, meshBB);
+	}
+
+	for (entt::entity entity : sphereView)
+	{
+		auto [sphereComp, transform] = sphereView[entity];
+
+		Okay::AABB sphereBB = Okay::AABB(glm::vec3(-sphereComp.radius), glm::vec3(sphereComp.radius));
+		sphereBB.min += transform.position;
+		sphereBB.max += transform.position;
+
+		root.boundingBox.growTo(sphereBB.min);
+		root.boundingBox.growTo(sphereBB.max);
+
+		root.entities.emplace_back(entity, sphereBB);
+	}
+
+	const glm::vec3 CHILD_BBS_OFFSETS[8] =
+	{
+		glm::vec3(1.f, -1.f, 1.f),
+		glm::vec3(-1.f, -1.f, 1.f),
+		glm::vec3(1.f, 1.f, 1.f),
+		glm::vec3(-1.f, 1.f, 1.f),
+
+		glm::vec3(1.f, -1.f, -1.f),
+		glm::vec3(-1.f, -1.f, -1.f),
+		glm::vec3(1.f, 1.f, -1.f),
+		glm::vec3(-1.f, 1.f, -1.f),
+	};
+
+	struct OctTreeNodeStack
+	{
+		OctTreeNodeStack() = default;
+		OctTreeNodeStack(uint32_t parentNodeIndex, uint32_t nodeIndex, uint32_t depth)
+			:parentNodeIndex(parentNodeIndex), nodeIndex(nodeIndex), depth(depth)
+		{ }
+
+		uint32_t parentNodeIndex = Okay::INVALID_UINT;
+		uint32_t nodeIndex = Okay::INVALID_UINT;
+		uint32_t depth = Okay::INVALID_UINT;
+	};
+
+	std::stack<OctTreeNodeStack> stack;
+	std::vector<EntityAABB> childEntities;
+	OctTreeNodeStack nodeStackData;
+
+	stack.push(OctTreeNodeStack(Okay::INVALID_UINT, 0u, 0u));
+
+	while (!stack.empty())
+	{
+		nodeStackData = stack.top();
+		stack.pop();
+
+		OctTreeNode* pNode = &nodes[nodeStackData.nodeIndex];
+
+		if (nodeStackData.depth >= maxDepth || pNode->entities.size() <= maxLeafObjects)
+			continue;
+
+		Okay::AABB defaultChildBB = pNode->boundingBox;
+
+		glm::vec3 bbCenter = (defaultChildBB.max + defaultChildBB.min) * 0.5f;
+
+		defaultChildBB.max -= bbCenter;
+		defaultChildBB.min -= bbCenter;
+
+		defaultChildBB.min *= 0.5f;
+		defaultChildBB.max *= 0.5f;
+
+		defaultChildBB.max += bbCenter;
+		defaultChildBB.min += bbCenter;
+
+		glm::vec3 defaultChildBBExtents = (defaultChildBB.max - defaultChildBB.min) * 0.5f;
+
+		for (uint32_t i = 0u; i < 8u; i++)
+		{
+			Okay::AABB childBB = defaultChildBB;
+			for (uint32_t k = 0; k < 3u; k++)
+			{
+				childBB.max[k] += CHILD_BBS_OFFSETS[i][k] * defaultChildBBExtents[k];
+				childBB.min[k] += CHILD_BBS_OFFSETS[i][k] * defaultChildBBExtents[k];
+			}
+
+			childEntities.clear(); // Fixes warning C26800 "Use of a moved from object: 'object'."
+
+			for (int k = (int)pNode->entities.size() - 1; k >= 0; k--)
+			{
+				const EntityAABB& entityAABB = pNode->entities[k];
+
+				if (!Okay::AABB::intersects(childBB, entityAABB.aabb))
+					continue;
+
+				childEntities.emplace_back(entityAABB.entity, entityAABB.aabb);
+				pNode->entities.erase(pNode->entities.begin() + k);
+			}
+
+			if (childEntities.empty())
+				continue;
+
+			OctTreeNode& childNode = nodes.emplace_back();
+			pNode = &nodes[nodeStackData.nodeIndex]; // Re-get the node incase the 'nodes' vector had to reallocate
+
+			pNode->children[i] = uint32_t(nodes.size() - 1);
+
+			childNode.entities = std::move(childEntities);
+			refitOctTreeNode(childNode);
+
+			stack.push(OctTreeNodeStack(nodeStackData.nodeIndex, pNode->children[i], nodeStackData.depth + 1u));
+		}
+	}
+
+	loadOctTree(nodes);
+}
+
+void RayTracer::loadOctTree(const std::vector<OctTreeNode>& nodes)
+{
+	std::vector<GPU_OctTreeNode> gpuNodes;
+	gpuNodes.resize(nodes.size());
+
+	const entt::registry& reg = m_pScene->getRegistry();
+
+	m_gpuMeshes.clear();
+
+	for (uint32_t i = 0; i < (uint32_t)nodes.size(); i++)
+	{
+		const OctTreeNode& node = nodes[i];
+		GPU_OctTreeNode& gpuNode = gpuNodes[i];
+
+		gpuNode.boundingBox = node.boundingBox;
+
+		memcpy(gpuNode.children, node.children, sizeof(node.children));
+
+		uint32_t numMeshes = 0u;
+		for (const EntityAABB& entityAABB : node.entities)
+		{
+			const MeshComponent* pMeshComp = reg.try_get<MeshComponent>(entityAABB.entity);
+			if (!pMeshComp)
+				continue;
+
+			GPU_MeshComponent& gpuMesh = m_gpuMeshes.emplace_back();
+
+			const Transform& transform = reg.get<Transform>(entityAABB.entity);
+
+			gpuMesh.triStart = m_meshDescs[pMeshComp->meshID].startIdx;
+			gpuMesh.triEnd = m_meshDescs[pMeshComp->meshID].endIdx;
+
+			gpuMesh.boundingBox = m_pResourceManager->getAsset<Mesh>(pMeshComp->meshID).getBoundingBox();
+
+			glm::mat4 transformMatrix = glm::transpose(transform.calculateMatrix());
+			gpuMesh.transformMatrix = transformMatrix;
+			gpuMesh.inverseTransformMatrix = glm::inverse(transformMatrix);
+
+			gpuMesh.material = pMeshComp->material;
+			gpuMesh.bvhNodeStartIdx = m_meshDescs[pMeshComp->meshID].bvhTreeStartIdx;
+
+			numMeshes++;
+		}
+
+		//for (entt::entity entity : sphereView)
+		//{
+		//	auto [sphere, transform] = sphereView[entity];
+		//
+		//	memcpy(pMappedBufferData, &transform.position, sizeof(glm::vec3));
+		//	pMappedBufferData += sizeof(glm::vec3);
+		//
+		//	memcpy(pMappedBufferData, &sphere, sizeof(Sphere));
+		//	pMappedBufferData += sizeof(Sphere);
+		//}
+
+		gpuNode.meshesStartIdx = (uint32_t)m_gpuMeshes.size() - numMeshes;
+		gpuNode.meshesEndIdx = gpuNode.meshesStartIdx + numMeshes;
+
+		//gpuNode.spheresStartIdx = (uint32_t)m_gpuMeshes.size();
+		//gpuNode.spheresEndIdx = gpuNode.spheresStartIdx + (uint32_t)node.entities.size();
+	}
+
+	m_meshData.updateRaw((uint32_t)m_gpuMeshes.size(), m_gpuMeshes.data());
+	m_octTree.updateRaw((uint32_t)gpuNodes.size(), gpuNodes.data());
+
+	m_renderData.numMeshes = 0u;// (uint32_t)meshView.size_hint();
+	m_renderData.numSpheres = 0;// (uint32_t)sphereView.size_hint();
+	Okay::updateBuffer(m_pRenderDataBuffer, &m_renderData, sizeof(RenderData));
+
+	std::chrono::duration<float> duration = std::chrono::system_clock::now() - octTreeTimerStart;
+
+	printf("numNodes: %u\nnumEntities: %u\n", (uint32_t)nodes.size(), (uint32_t)reg.alive());
+	printf("Oct Tree build time: %.3fms\n", duration.count() * 1000.f);
 }

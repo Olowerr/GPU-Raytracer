@@ -204,7 +204,7 @@ void DebugRenderer::render(bool includeObjects)
 
 	Okay::updateBuffer(m_pRenderDataBuffer, &m_renderData, sizeof(RenderData));
 	pDevCon->VSSetShader(m_pSkyboxVS, nullptr, 0u);
-	pDevCon->VSSetShaderResources(RM_TRIANGLE_POS_SLOT, 1u, &pCubeTriBuffer);
+	pDevCon->VSSetShaderResources(TRIANGLE_POS_SLOT, 1u, &pCubeTriBuffer);
 	pDevCon->RSSetState(m_noCullRS);
 	pDevCon->PSSetShader(m_pSkyboxPS, nullptr, 0u);
 	pDevCon->OMSetDepthStencilState(m_pLessEqualDSS, 0u);
@@ -221,7 +221,7 @@ void DebugRenderer::render(bool includeObjects)
 	uint32_t sphereNumVerticies = m_sphereTriData.getCapacity() * 3u;
 
 	pDevCon->VSSetShader(m_pVS, nullptr, 0u);
-	pDevCon->VSSetShaderResources(RM_TRIANGLE_POS_SLOT, 1u, &pSphereTriBuffer);
+	pDevCon->VSSetShaderResources(TRIANGLE_POS_SLOT, 1u, &pSphereTriBuffer);
 	pDevCon->PSSetShader(m_pPS, nullptr, 0u);
 
 	const entt::registry& reg = m_pScene->getRegistry();
@@ -243,7 +243,7 @@ void DebugRenderer::render(bool includeObjects)
 	}
 
 	ID3D11ShaderResourceView* pOrigTriangleBuffer = m_pRayTracer->getTrianglesPos().getSRV();
-	pDevCon->VSSetShaderResources(RM_TRIANGLE_POS_SLOT, 1u, &pOrigTriangleBuffer);
+	pDevCon->VSSetShaderResources(TRIANGLE_POS_SLOT, 1u, &pOrigTriangleBuffer);
 
 	const std::vector<MeshDesc>& meshDescs = m_pRayTracer->getMeshDescriptors();
 	auto meshView = reg.view<MeshComponent, Transform>();
@@ -283,13 +283,13 @@ void DebugRenderer::renderNodeBBs(Entity entity, uint32_t localNodeIdx)
 	pDevCon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
 
 	pDevCon->VSSetShader(m_pBoundingBoxVS, nullptr, 0u);
-	pDevCon->VSSetConstantBuffers(RZ_RENDER_DATA_SLOT, 1u, &m_pRenderDataBuffer);
-	pDevCon->VSSetShaderResources(RM_TRIANGLE_POS_SLOT, 1u, &m_pBvhNodeBuffer);
+	pDevCon->VSSetConstantBuffers(DBG_RENDER_DATA_SLOT, 1u, &m_pRenderDataBuffer);
+	pDevCon->VSSetShaderResources(TRIANGLE_POS_SLOT, 1u, &m_pBvhNodeBuffer);
 
 	pDevCon->RSSetViewports(1u, &m_viewport);
 
 	pDevCon->PSSetShader(m_pBoundingBoxPS, nullptr, 0u);
-	pDevCon->PSSetConstantBuffers(RZ_RENDER_DATA_SLOT, 1u, &m_pRenderDataBuffer);
+	pDevCon->PSSetConstantBuffers(DBG_RENDER_DATA_SLOT, 1u, &m_pRenderDataBuffer);
 	
 	pDevCon->OMSetRenderTargets(1u, m_pTargetTexture->getRTV(), nullptr);
 
@@ -301,7 +301,7 @@ void DebugRenderer::renderNodeBBs(Entity entity, uint32_t localNodeIdx)
 	executeDrawMode(globalNodeIdx, &DebugRenderer::drawNodeBoundingBox, globalNodeIdx, meshDesc);
 
 	ID3D11ShaderResourceView* pOrigTriangleSRV = m_pRayTracer->getTrianglesPos().getSRV();
-	pDevCon->VSSetShaderResources(RM_TRIANGLE_POS_SLOT, 1u, &pOrigTriangleSRV);
+	pDevCon->VSSetShaderResources(TRIANGLE_POS_SLOT, 1u, &pOrigTriangleSRV);
 }
 
 void DebugRenderer::renderNodeGeometry(Entity entity, uint32_t localNodeIdx)
@@ -325,7 +325,7 @@ void DebugRenderer::renderNodeGeometry(Entity entity, uint32_t localNodeIdx)
 	m_renderData.objectWorldMatrix = glm::transpose(transformComp.calculateMatrix());
 
 	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
-	pDevCon->VSSetShaderResources(RM_TRIANGLE_POS_SLOT, 1u, &pTriangleBufferSRV);
+	pDevCon->VSSetShaderResources(TRIANGLE_POS_SLOT, 1u, &pTriangleBufferSRV);
 	pDevCon->RSSetState(m_pDoubleSideRS);
 
 	uint32_t globalNodeIdx = m_pRayTracer->getGlobalNodeIdx(*pMeshComp, localNodeIdx);
@@ -371,8 +371,8 @@ void DebugRenderer::bindGeometryPipeline(bool clearTarget)
 	pDevCon->PSSetShader(m_pPS, nullptr, 0u);
 	pDevCon->OMSetRenderTargets(1u, &pTargetRTV, pTargetDSV);
 
-	pDevCon->VSSetConstantBuffers(RZ_RENDER_DATA_SLOT, 1u, &m_pRenderDataBuffer);
-	pDevCon->PSSetConstantBuffers(RZ_RENDER_DATA_SLOT, 1u, &m_pRenderDataBuffer);
+	pDevCon->VSSetConstantBuffers(DBG_RENDER_DATA_SLOT, 1u, &m_pRenderDataBuffer);
+	pDevCon->PSSetConstantBuffers(DBG_RENDER_DATA_SLOT, 1u, &m_pRenderDataBuffer);
 }
 
 void DebugRenderer::drawNodeBoundingBox(uint32_t nodeIdx, uint32_t baseNodeIdx, const MeshDesc& meshDesc)
