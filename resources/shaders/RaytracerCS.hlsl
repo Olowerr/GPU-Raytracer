@@ -10,6 +10,7 @@
 struct Payload
 {
     bool hit;
+    float distance;
     Material material;
     float3 worldPosition;
     float3 worldNormal;
@@ -325,6 +326,7 @@ Payload findClosestHit(Ray ray, inout uint bbCheckCount, inout uint triCheckCoun
     
     payload.hit = hitIdx != UINT_MAX;
     payload.worldPosition = ray.origin + ray.direction * closestHitDistance;
+    payload.distance = closestHitDistance;
     
     // TODO: Make better system
     switch (hitType)
@@ -390,18 +392,19 @@ float3 getLighting(Ray ray, Payload hitPayload, uint bounce, float3 lightPos, fl
     Sphere lightSphere;
     lightSphere.position = lightPos;
     lightSphere.radius = lightRadius;
-            
-    if (Collision::RayAndSphere(ray, lightSphere) < 0.f) 
+           
+    float dist = Collision::RayAndSphere(ray, lightSphere);
+    if (dist < 0.f)
         return float3(0.f, 0.f, 0.f);
                 
     float lightStrengthModifier = 1.f;
-    if (hitPayload.hit && bounce)
+    if (hitPayload.hit && hitPayload.distance > dist)
+    {
+        lightStrengthModifier *= clampedDot(ray.direction, -hitPayload.worldNormal);
+    }
+    else if (hitPayload.hit && hitPayload.distance < dist)
     {
         lightStrengthModifier *= hitPayload.material.transparency * clampedDot(ray.direction, -hitPayload.worldNormal);
-    }
-    else if (!bounce) // Fixes issue where light source was visible through objects
-    {
-        lightStrengthModifier = 0.f;
     }
                 
     return lightColour * lightIntensity * lightStrengthModifier;
