@@ -33,11 +33,13 @@ private:
 	DebugRenderer m_debugRenderer;
 	bool m_useRasterizer = false;
 	bool m_rasterizerDrawObjects = true;
-	bool m_drawNodeBBs = true;
+	bool m_drawBvhNodeBBs = true;
 	bool m_drawNodeGeometry = true;
+	bool m_drawOctNodeBBs = true;
 
 	Entity m_debugSelectedEntity;
-	uint32_t m_debugSelectedNodeIdx;
+	uint32_t m_debugSelectedBvhNodeIdx;
+	uint32_t m_debugSelectedOctNodeIdx;
 
 	void updateImGui();
 	void updateCamera();

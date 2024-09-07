@@ -13,25 +13,7 @@
 
 #include <stack>
 #include <chrono>
-
-struct GPU_OctTreeNode
-{
-	GPU_OctTreeNode()
-		: meshesStartIdx(Okay::INVALID_UINT), meshesEndIdx(Okay::INVALID_UINT),
-		spheresStartIdx(Okay::INVALID_UINT), spheresEndIdx(Okay::INVALID_UINT)
-	{
-		memset(children, -1, sizeof(children));
-	}
-	Okay::AABB boundingBox;
-
-	uint32_t meshesStartIdx = Okay::INVALID_UINT;
-	uint32_t meshesEndIdx = Okay::INVALID_UINT;
-
-	uint32_t spheresStartIdx = Okay::INVALID_UINT;
-	uint32_t spheresEndIdx = Okay::INVALID_UINT;
-
-	uint32_t children[8u];
-};
+#include <DirectXCollision.h>
 
 RayTracer::RayTracer()
 	:m_pMainRaytracingCS(nullptr), m_pScene(nullptr), m_renderData(), m_pRenderDataBuffer(nullptr),
@@ -113,7 +95,6 @@ void RayTracer::initiate(const RenderTexture& target, const ResourceManager& res
 	loadTextureData();
 	loadEnvironmentMap(environmentMapPath);
 	loadMeshAndBvhData(30, 5);
-	bindResources();
 
 	{ // Basic Sampler
 		D3D11_SAMPLER_DESC simpDesc{};
@@ -237,8 +218,6 @@ void RayTracer::loadMeshAndBvhData(uint32_t maxDepth, uint32_t maxLeafTriangles)
 
 void RayTracer::render()
 {
-	bindResources();
-
 	calculateProjectionData();
 	updateBuffers();
 
@@ -248,14 +227,23 @@ void RayTracer::render()
 	static const float CLEAR_COLOUR[4]{ 0.2f, 0.4f, 0.6f, 1.f };
 	pDevCon->ClearUnorderedAccessViewFloat(*m_pTargetTexture->getUAV(), CLEAR_COLOUR);
 
-	ID3D11ShaderResourceView* srvs[6u]{};
-	srvs[0] = m_spheres.getSRV();
-	srvs[1] = m_meshData.getSRV();
-	srvs[2] = m_directionalLights.getSRV();
-	srvs[3] = m_pointLights.getSRV();
-	srvs[4] = m_spotLights.getSRV();
-	srvs[5] = m_octTree.getSRV();
-	pDevCon->CSSetShaderResources(SPHERE_DATA_SLOT, 6u, srvs);
+	ID3D11ShaderResourceView* srvs[NUM_T_REGISTERS]{};
+	srvs[TRIANGLE_POS_SLOT] = m_trianglePositions.getSRV();
+	srvs[TRIANGLE_INFO_SLOT] = m_triangleInfo.getSRV();
+	srvs[TEXTURES_SLOT] = m_pTextures;
+	srvs[BVH_TREE_SLOT] = m_bvhTree.getSRV();
+	srvs[ENVIRONMENT_MAP_SLOT] = m_pEnvironmentMapSRV;
+	srvs[OCT_TREE_CPU_SLOT] = m_octTree.getSRV();
+	srvs[SPHERE_DATA_SLOT] = m_spheres.getSRV();
+	srvs[MESH_ENTITY_DATA_SLOT] = m_meshData.getSRV();
+	srvs[DIRECTIONAL_LIGHT_DATA_SLOT] = m_directionalLights.getSRV();
+	srvs[POINT_LIGHT_DATA_SLOT] = m_pointLights.getSRV();
+	srvs[SPOT_LIGHT_DATA_SLOT] = m_spotLights.getSRV();
+
+	pDevCon->VSSetShaderResources(0u, NUM_T_REGISTERS, srvs);
+	pDevCon->PSSetShaderResources(0u, NUM_T_REGISTERS, srvs);
+	pDevCon->CSSetShaderResources(0u, NUM_T_REGISTERS, srvs);
+	pDevCon->CSSetShaderResources(0u, NUM_T_REGISTERS, srvs);
 
 
 	// Bind standard resources
@@ -503,24 +491,6 @@ void RayTracer::updateBuffers()
 	Okay::updateBuffer(m_pRenderDataBuffer, &m_renderData, sizeof(RenderData));
 }
 
-void RayTracer::bindResources() const
-{
-	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
-
-	//pDevCon->ClearState();
-
-	ID3D11ShaderResourceView* srvs[5u]{};
-	srvs[TRIANGLE_POS_SLOT] = m_trianglePositions.getSRV();
-	srvs[TRIANGLE_INFO_SLOT] = m_triangleInfo.getSRV();
-	srvs[TEXTURES_SLOT] = m_pTextures;
-	srvs[BVH_TREE_SLOT] = m_bvhTree.getSRV();
-	srvs[ENVIRONMENT_MAP_SLOT] = m_pEnvironmentMapSRV;
-
-	pDevCon->VSSetShaderResources(TRIANGLE_POS_SLOT, sizeof(srvs) / sizeof(srvs[0]), srvs);
-	pDevCon->PSSetShaderResources(TRIANGLE_POS_SLOT, sizeof(srvs) / sizeof(srvs[0]), srvs);
-	pDevCon->CSSetShaderResources(TRIANGLE_POS_SLOT, sizeof(srvs) / sizeof(srvs[0]), srvs);
-}
-
 void RayTracer::onResize()
 {
 	glm::uvec2 newDims = m_pTargetTexture->getDimensions();
@@ -572,11 +542,22 @@ void RayTracer::createOctTree(const Scene& scene, uint32_t maxDepth, uint32_t ma
 		const Mesh& mesh = m_pResourceManager->getAsset<Mesh>(meshComponent.meshID);
 
 		Okay::AABB meshBB = mesh.getBoundingBox();
-		meshBB.min += transform.position;
-		meshBB.max += transform.position;
+		glm::vec3 center = (meshBB.min + meshBB.max) * 0.5f;
+		glm::vec3 extents = (meshBB.min - meshBB.max) * 0.5f;
 
-		root.boundingBox.growTo(meshBB.min);
-		root.boundingBox.growTo(meshBB.max);
+		DirectX::BoundingBox box;
+		box.Center = DirectX::XMFLOAT3(center.x, center.y, center.z);
+		box.Extents = DirectX::XMFLOAT3(extents.x, extents.y, extents.z);
+
+		glm::vec3 verticies[8u]{};
+		box.GetCorners((DirectX::XMFLOAT3*)verticies); // lmao
+
+		glm::mat4x4 matrix = transform.calculateMatrix();
+
+		for (const glm::vec3& vertex : verticies)
+		{
+			root.boundingBox.growTo(matrix * glm::vec4(vertex.x, vertex.y, vertex.z, 1.f));
+		}
 
 		root.entities.emplace_back(entity, meshBB);
 	}
@@ -693,8 +674,7 @@ void RayTracer::createOctTree(const Scene& scene, uint32_t maxDepth, uint32_t ma
 
 void RayTracer::loadOctTree(const std::vector<OctTreeNode>& nodes)
 {
-	std::vector<GPU_OctTreeNode> gpuNodes;
-	gpuNodes.resize(nodes.size());
+	m_octTreeNodes.resize(nodes.size());
 
 	const entt::registry& reg = m_pScene->getRegistry();
 
@@ -703,7 +683,7 @@ void RayTracer::loadOctTree(const std::vector<OctTreeNode>& nodes)
 	for (uint32_t i = 0; i < (uint32_t)nodes.size(); i++)
 	{
 		const OctTreeNode& node = nodes[i];
-		GPU_OctTreeNode& gpuNode = gpuNodes[i];
+		GPU_OctTreeNode& gpuNode = m_octTreeNodes[i];
 
 		gpuNode.boundingBox = node.boundingBox;
 
@@ -754,7 +734,7 @@ void RayTracer::loadOctTree(const std::vector<OctTreeNode>& nodes)
 	}
 
 	m_meshData.updateRaw((uint32_t)m_gpuMeshes.size(), m_gpuMeshes.data());
-	m_octTree.updateRaw((uint32_t)gpuNodes.size(), gpuNodes.data());
+	m_octTree.updateRaw((uint32_t)m_octTreeNodes.size(), m_octTreeNodes.data());
 
 	m_renderData.numMeshes = 0u;// (uint32_t)meshView.size_hint();
 	m_renderData.numSpheres = 0;// (uint32_t)sphereView.size_hint();

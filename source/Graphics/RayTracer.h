@@ -54,6 +54,25 @@ struct OctTreeNode
 	};
 };
 
+struct GPU_OctTreeNode
+{
+	GPU_OctTreeNode()
+		: meshesStartIdx(Okay::INVALID_UINT), meshesEndIdx(Okay::INVALID_UINT),
+		spheresStartIdx(Okay::INVALID_UINT), spheresEndIdx(Okay::INVALID_UINT)
+	{
+		memset(children, -1, sizeof(children));
+	}
+	Okay::AABB boundingBox;
+
+	uint32_t meshesStartIdx = Okay::INVALID_UINT;
+	uint32_t meshesEndIdx = Okay::INVALID_UINT;
+
+	uint32_t spheresStartIdx = Okay::INVALID_UINT;
+	uint32_t spheresEndIdx = Okay::INVALID_UINT;
+
+	uint32_t children[8u];
+};
+
 class RayTracer
 {
 public:
@@ -77,6 +96,7 @@ public:
 
 	inline const std::vector<MeshDesc>& getMeshDescriptors() const;
 	inline const std::vector<GPUNode>& getBvhTreeNodes() const;
+	inline const std::vector<GPU_OctTreeNode>& getOctTreeNodes() const;
 
 	inline const GPUStorage& getTrianglesPos() const;
 	inline const GPUStorage& getTrianglesInfo() const;
@@ -167,8 +187,7 @@ private: // DX11 Resources
 	std::vector<GPU_MeshComponent> m_gpuMeshes;
 
 	GPUStorage m_octTree;
-
-	void bindResources() const;
+	std::vector<GPU_OctTreeNode> m_octTreeNodes;
 
 private: // Scene Entities GPU Data
 	GPUStorage m_meshData;
@@ -204,6 +223,7 @@ inline uint32_t& RayTracer::getDebugMaxCount() { return m_renderData.debugMaxCou
 
 inline const std::vector<MeshDesc>& RayTracer::getMeshDescriptors() const { return m_meshDescs; }
 inline const std::vector<GPUNode>& RayTracer::getBvhTreeNodes() const { return m_bvhTreeNodes; }
+inline const std::vector<GPU_OctTreeNode>& RayTracer::getOctTreeNodes() const { return m_octTreeNodes; }
 
 inline const GPUStorage& RayTracer::getTrianglesPos() const { return m_trianglePositions; }
 inline const GPUStorage& RayTracer::getTrianglesInfo() const { return m_triangleInfo; }

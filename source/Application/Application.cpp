@@ -14,7 +14,7 @@
 
 
 Application::Application()
-	:m_accumulationTime(0.f), m_debugSelectedNodeIdx(Okay::INVALID_UINT)
+	:m_accumulationTime(0.f), m_debugSelectedBvhNodeIdx(Okay::INVALID_UINT), m_debugSelectedOctNodeIdx(Okay::INVALID_UINT)
 {
 	glfwInitHint(GLFW_CLIENT_API, GLFW_NO_API);
 
@@ -40,7 +40,10 @@ Application::Application()
 	//m_resourceManager.loadTexture("resources/textures/rev/rev_normalMap.png");
 
 	//loadMeshesAsEntities("resources/meshes/ikea_glass.obj", "", 10.f);
-	loadMeshesAsEntities("resources/Sponza/sponza.obj", "resources/Sponza/", 0.07f);
+	//loadMeshesAsEntities("resources/Sponza/sponza.obj", "resources/Sponza/", 0.07f);
+
+	loadMeshesAsEntities("resources/meshes/dragon_80K.obj", "", 20.f);
+
 
 	m_rayTracer.initiate(m_target, m_resourceManager, "resources/environmentMaps/Skybox2.jpg");
 	m_rayTracer.setScene(m_scene);
@@ -114,9 +117,11 @@ void Application::run()
 			m_rayTracer.render();
 
 		if (m_drawNodeGeometry)
-			m_debugRenderer.renderNodeGeometry(m_debugSelectedEntity, m_debugSelectedNodeIdx);
-		if (m_drawNodeBBs)
-			m_debugRenderer.renderNodeBBs(m_debugSelectedEntity, m_debugSelectedNodeIdx);
+			m_debugRenderer.renderBvhNodeGeometry(m_debugSelectedEntity, m_debugSelectedBvhNodeIdx);
+		if (m_drawBvhNodeBBs)
+			m_debugRenderer.renderBvhNodeBBs(m_debugSelectedEntity, m_debugSelectedBvhNodeIdx);
+		if (m_drawOctNodeBBs)
+			m_debugRenderer.renderOctTreeNodeBBs(m_debugSelectedOctNodeIdx);
 
 		Okay::endFrameImGui();
 		m_window.present();
@@ -443,34 +448,54 @@ void Application::updateImGui()
 			ImGui::Checkbox("Draw Objects", &m_rasterizerDrawObjects);
 			ImGui::EndDisabled();
 
-			static int mode = DebugRenderer::BvhNodeDrawMode::DrawWithDecendants;
+			static int mode = DebugRenderer::TreeNodeDrawMode::DrawWithDecendants;
 			static int enttID = -1;
 
 			if (ImGui::DragInt("Entity", &enttID, 0.1f, -1, (int)m_scene.getRegistry().alive()))
 			{
 				m_debugSelectedEntity = enttID != -1 ? Entity(entt::entity(enttID), &m_scene.getRegistry()) : Entity();
-				m_debugSelectedNodeIdx = 0u;
+				m_debugSelectedBvhNodeIdx = 0u;
 			}
 
 			const MeshComponent* pMeshComp = m_debugSelectedEntity ? m_debugSelectedEntity.tryGetComponent<MeshComponent>() : nullptr;
 			uint32_t nodeCap = pMeshComp ? m_rayTracer.getMeshDescriptors()[pMeshComp->meshID].numBvhNodes : 1u;
 			
 			ImGui::BeginDisabled(!pMeshComp);
-			ImGui::DragInt("Node Idx", (int*)&m_debugSelectedNodeIdx, 0.1f, 0, nodeCap - 1);
-			m_debugSelectedNodeIdx = nodeCap == 1 && m_debugSelectedNodeIdx > 0 ? 0u : m_debugSelectedNodeIdx;
+			ImGui::DragInt("Node Idx", (int*)&m_debugSelectedBvhNodeIdx, 0.1f, 0, nodeCap - 1);
+			m_debugSelectedBvhNodeIdx = nodeCap == 1 && m_debugSelectedBvhNodeIdx > 0 ? 0u : m_debugSelectedBvhNodeIdx;
 			ImGui::EndDisabled();
 
-			ImGui::Checkbox("Draw Node BBs", &m_drawNodeBBs);
+			ImGui::Checkbox("Draw Node BBs", &m_drawBvhNodeBBs);
 			ImGui::Checkbox("Draw Node Gemoetry", &m_drawNodeGeometry);
 
 			ImGui::Text("Node Draw Mode");
-			ImGui::RadioButton("Draw None", &mode, DebugRenderer::BvhNodeDrawMode::None);
-			ImGui::RadioButton("Draw Single", &mode, DebugRenderer::BvhNodeDrawMode::DrawSingle);
-			ImGui::RadioButton("Draw With Children", &mode, DebugRenderer::BvhNodeDrawMode::DrawWithChildren);
-			ImGui::RadioButton("Draw With Decendants", &mode, DebugRenderer::BvhNodeDrawMode::DrawWithDecendants);
-			m_debugRenderer.setBvhNodeDrawMode(DebugRenderer::BvhNodeDrawMode(mode));
+			ImGui::RadioButton("Draw None", &mode, DebugRenderer::TreeNodeDrawMode::None);
+			ImGui::RadioButton("Draw Single", &mode, DebugRenderer::TreeNodeDrawMode::DrawSingle);
+			ImGui::RadioButton("Draw With Children", &mode, DebugRenderer::TreeNodeDrawMode::DrawWithChildren);
+			ImGui::RadioButton("Draw With Decendants", &mode, DebugRenderer::TreeNodeDrawMode::DrawWithDecendants);
+			m_debugRenderer.setBvhNodeDrawMode(DebugRenderer::TreeNodeDrawMode(mode));
 
 			ImGui::Separator();
+		}
+
+		{
+			static int mode = DebugRenderer::TreeNodeDrawMode::None;
+
+			ImGui::Checkbox("Draw Oct Node BBs", &m_drawOctNodeBBs);
+
+			const std::vector<GPU_OctTreeNode>& octTreeNodes = m_rayTracer.getOctTreeNodes();
+
+			ImGui::DragInt("Node Idx", (int*)&m_debugSelectedOctNodeIdx, 0.1f, 0, (int)octTreeNodes.size() - 1);
+			m_debugSelectedOctNodeIdx = octTreeNodes.size() == 1 && m_debugSelectedOctNodeIdx > 0 ? 0u : m_debugSelectedOctNodeIdx;
+
+			ImGui::Text("Oct Node Draw Mode");
+			ImGui::PushID("octNodes");
+			ImGui::RadioButton("Draw None", &mode, DebugRenderer::TreeNodeDrawMode::None);
+			ImGui::RadioButton("Draw Single", &mode, DebugRenderer::TreeNodeDrawMode::DrawSingle);
+			ImGui::RadioButton("Draw With Children", &mode, DebugRenderer::TreeNodeDrawMode::DrawWithChildren);
+			ImGui::RadioButton("Draw With Decendants", &mode, DebugRenderer::TreeNodeDrawMode::DrawWithDecendants);
+			m_debugRenderer.setOctTreeNodeDrawMode(DebugRenderer::TreeNodeDrawMode(mode));
+			ImGui::PopID();
 		}
 
 		{ // Raytracer

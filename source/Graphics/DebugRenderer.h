@@ -16,7 +16,7 @@ class ResourceManager;
 class DebugRenderer
 {
 public:
-	enum BvhNodeDrawMode : unsigned char
+	enum TreeNodeDrawMode : unsigned char
 	{
 		None = 0,
 		DrawSingle,
@@ -36,10 +36,14 @@ public:
 	void reloadShaders();
 
 	void render(bool includeObjects);
-	void renderNodeBBs(Entity entity, uint32_t localNodeIdx);
-	void renderNodeGeometry(Entity entity, uint32_t localNodeIdx);
 
-	void setBvhNodeDrawMode(BvhNodeDrawMode mode);
+	void renderBvhNodeBBs(Entity entity, uint32_t localNodeIdx);
+	void renderBvhNodeGeometry(Entity entity, uint32_t localNodeIdx);
+	void setBvhNodeDrawMode(TreeNodeDrawMode mode);
+
+	void renderOctTreeNodeBBs(uint32_t nodeIDx);
+	void setOctTreeNodeDrawMode(TreeNodeDrawMode mode);
+
 
 	void onResize();
 
@@ -48,7 +52,8 @@ private: // Scene & Resources
 	const RayTracer* m_pRayTracer;
 	const ResourceManager* m_pResourceManager;
 
-	BvhNodeDrawMode m_bvhDrawMode;
+	TreeNodeDrawMode m_bvhDrawMode;
+	TreeNodeDrawMode m_octTreeDrawMode;
 
 private: // Pipeline
 	struct RenderData // Aligned 16
@@ -56,13 +61,13 @@ private: // Pipeline
 		glm::mat4 cameraViewProjectMatrix = glm::mat4(1.f);
 		glm::mat4 objectWorldMatrix = glm::mat4(1.f);
 		uint32_t vertStartIdx = 0u;
-		uint32_t bvhNodeIdx = 0u;
+		uint32_t nodeIdx = 0u;
 		glm::vec2 pad0 = glm::vec2(0.f);
 		MaterialColour3 albedo;
 		glm::vec3 cameraDir = glm::vec3(0.f);
 		float pad1 = 0.f;
 		glm::vec3 cameraPos = glm::vec3(0.f);
-		float pad2 = 0.f;
+		uint32_t mode = 0;
 	};
 
 	void updateCameraData();
@@ -75,8 +80,10 @@ private: // Pipeline
 	void drawNodeBoundingBox(uint32_t nodeIdx, uint32_t baseNodeIdx, const MeshDesc& meshDesc);
 	void drawNodeGeometry(uint32_t nodeIdx, const MeshComponent& meshComp);
 
-	template<typename NodeFunction, typename... Args>
-	void executeDrawMode(uint32_t nodeIdx, NodeFunction pFunc, Args... args);
+	void drawOctTreeNodeBoundingBox(uint32_t nodeIdx);
+
+	template<typename NodeFunction, typename GPUNodeType, typename... Args>
+	void executeDrawMode(uint32_t nodeIdx, const std::vector<GPUNodeType>& list, NodeFunction pFunc, TreeNodeDrawMode drawMode, Args... args);
 
 	// Mesh pipelime
 	ID3D11VertexShader* m_pVS;
@@ -103,4 +110,5 @@ private: // Pipeline
 };
 
 inline void DebugRenderer::setScene(const Scene& pScene)			{ m_pScene = &pScene; }
-inline void DebugRenderer::setBvhNodeDrawMode(BvhNodeDrawMode mode) { m_bvhDrawMode = mode; }
+inline void DebugRenderer::setBvhNodeDrawMode(TreeNodeDrawMode mode) { m_bvhDrawMode = mode; }
+inline void DebugRenderer::setOctTreeNodeDrawMode(TreeNodeDrawMode mode) { m_octTreeDrawMode = mode; }
