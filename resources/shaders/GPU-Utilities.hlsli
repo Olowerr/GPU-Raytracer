@@ -1,129 +1,19 @@
+#include "GPU-Structs.hlsli"
 
-#define UINT_MAX (~0u)
-#define FLT_MAX (3.402823466e+38F)
-#define PI (3.14159265f)
-#define AIR_REFRACTION_INDEX (1.f) // Approx
-
-struct MaterialColour3
+float3 barycentricInterpolation(float3 uvw, float3 value0, float3 value1, float3 value2)
 {
-    float3 colour;
-    uint textureIdx;
-};
+    return value0 * uvw.x + value1 * uvw.y + value2 * uvw.z;
+}
 
-struct MaterialColour1
+float2 barycentricInterpolation(float3 uvw, float2 value0, float2 value1, float2 value2)
 {
-    float colour;
-    uint textureIdx;
-};
+    return value0 * uvw.x + value1 * uvw.y + value2 * uvw.z;
+}
 
-struct Material
+bool isValidIdx(uint idx)
 {
-    MaterialColour3 albedo;
-    MaterialColour1 roughness;
-    MaterialColour1 metallic;
-    MaterialColour1 specular;
-    
-    uint normalMapIdx;
-    
-    float3 emissionColour;
-    float emissionPower;
-    
-    float transparency;
-    float indexOfRefraction;
-};
-
-struct AABB
-{
-    float3 min;
-    float3 max;
-};
-
-struct Ray
-{
-    float3 origin;
-    float3 direction;
-};
-
-struct Sphere
-{
-    float3 position;
-
-    Material material;
-
-    float radius;
-};
-
-struct Triangle
-{
-    float3 position[3];
-};
-
-struct VertexInfo
-{
-    float3 normal;
-    float2 uv;
-    float3 tangent;
-    float3 bitangent;
-};
-
-struct TriangleInfo
-{
-    VertexInfo vertexInfo[3];
-};
-
-struct Mesh
-{
-    float4x4 transformMatrix;
-    float4x4 inverseTransformMatrix;
-    
-    uint triangleStartIdx;
-    uint triangleEndIdx;
-    AABB boundingBox;
- 
-    Material material;
-    
-    uint bvhNodeStartIdx;
-};
-
-struct DirectionalLight
-{
-    float3 colour;
-    float intensity;
-    
-    float effectiveAngle;
-    
-    float3 direction;
-};
-
-struct PointLight
-{
-    float3 colour;
-    float intensity;
-    
-    float radius;
-    
-    float3 position;
-};
-
-struct SpotLight
-{
-    float3 colour;
-    float intensity;
-    
-    float radius;
-    float maxAngle;
-    
-    float3 position;
-    float3 direction;
-};
-
-struct PS_Input
-{
-    float4 svPos : SV_Position;
-    float3 position : POSITION;
-    float3 normal : NORMAL;
-    float2 uv : TEXTURE_COORDS;
-};
+    return idx != UINT_MAX;
+}
 
 uint pcg_hash(inout uint seed)
 {

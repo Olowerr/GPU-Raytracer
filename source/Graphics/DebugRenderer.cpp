@@ -266,7 +266,7 @@ void DebugRenderer::render(bool includeObjects)
 
 void DebugRenderer::renderBvhNodeBBs(Entity entity, uint32_t localNodeIdx)
 {
-	if (m_bvhDrawMode == TreeNodeDrawMode::None)
+	if (m_bvhDrawMode == DrawMode::None)
 		return;
 
 	if (!entity)
@@ -307,7 +307,7 @@ void DebugRenderer::renderBvhNodeBBs(Entity entity, uint32_t localNodeIdx)
 
 void DebugRenderer::renderBvhNodeGeometry(Entity entity, uint32_t localNodeIdx)
 {
-	if (m_bvhDrawMode == TreeNodeDrawMode::None)
+	if (m_bvhDrawMode == DrawMode::None)
 		return;
 
 	if (!entity)
@@ -420,7 +420,7 @@ void DebugRenderer::drawOctTreeNodeBoundingBox(uint32_t nodeIdx)
 
 void DebugRenderer::renderOctTreeNodeBBs(uint32_t nodeIdx)
 {
-	if (m_octTreeDrawMode == TreeNodeDrawMode::None)
+	if (m_octTreeDrawMode == DrawMode::None)
 		return;
 
 	updateCameraData();
@@ -448,16 +448,16 @@ void DebugRenderer::renderOctTreeNodeBBs(uint32_t nodeIdx)
 }
 
 template<typename NodeFunction,typename GPUNodeType, typename... Args>
-void DebugRenderer::executeDrawMode(uint32_t nodeIdx, const std::vector<GPUNodeType>& nodeList, NodeFunction pFunc, TreeNodeDrawMode drawMode, Args... args)
+void DebugRenderer::executeDrawMode(uint32_t nodeIdx, const std::vector<GPUNodeType>& nodeList, NodeFunction pFunc, DrawMode drawMode, Args... args)
 {
 	switch (drawMode)
 	{
-	case TreeNodeDrawMode::DrawSingle:
+	case DrawMode::DrawSingle:
 	{
 		(this->*pFunc)(nodeIdx, std::forward<Args>(args)...);
 		break;
 	}
-	case TreeNodeDrawMode::DrawWithChildren:
+	case DrawMode::DrawWithChildren:
 	{
 		//const GPUNodeType& selectedNode = nodeList[nodeIdx];
 		//
@@ -469,7 +469,7 @@ void DebugRenderer::executeDrawMode(uint32_t nodeIdx, const std::vector<GPUNodeT
 		//}
 		break;
 	}
-	case TreeNodeDrawMode::DrawWithDecendants:
+	case DrawMode::DrawWithDecendants:
 	{
 		//std::stack<uint32_t> nodes;
 		//nodes.push(nodeIdx);

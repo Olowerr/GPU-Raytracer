@@ -6,21 +6,22 @@ StructuredBuffer<TriangleInfo> triangleIinfoData : register(TRIANGLE_INFO_GPU_RE
 
 cbuffer RenderDataBuffer : register(DBG_RENDER_DATA_GPU_REG)
 {
-    float4x4 camViewProjMatrix;
-    float4x4 objectWorldMatrix;
-    uint vertStartIdx;
-    uint bvhNodeIdx;
-    float2 pad0;
-    MaterialColour3 albedo;
-    float3 cameraDir;
-    float pad1;
+    DBGRenderData renderData;
 }
+
+struct PS_Input
+{
+    float4 svPos : SV_Position;
+    float3 position : POSITION;
+    float3 normal : NORMAL;
+    float2 uv : TEXTURE_COORDS;
+};
 
 PS_Input main(uint localVertIdx : SV_VertexID)
 {
     PS_Input outData;
 	
-    uint vertexIdx = vertStartIdx + localVertIdx;
+    uint vertexIdx = renderData.vertStartIdx + localVertIdx;
     uint localVertexIdx = vertexIdx % 3;
     
     Triangle triPos = trianglePosData[vertexIdx / 3u];
@@ -28,10 +29,10 @@ PS_Input main(uint localVertIdx : SV_VertexID)
 
     VertexInfo vertInfo = triInfo.vertexInfo[vertexIdx % 3u];
 	
-    outData.position = mul(float4(triPos.position[localVertexIdx], 1.f), objectWorldMatrix).xyz;
-    outData.svPos = mul(float4(outData.position, 1.f), camViewProjMatrix);
+    outData.position = mul(float4(triPos.position[localVertexIdx], 1.f), renderData.objectWorldMatrix).xyz;
+    outData.svPos = mul(float4(outData.position, 1.f), renderData.camViewProjMatrix);
     
-    outData.normal = mul(float4(vertInfo.normal, 0.f), objectWorldMatrix).xyz;
+    outData.normal = mul(float4(vertInfo.normal, 0.f), renderData.objectWorldMatrix).xyz;
     outData.uv = vertInfo.uv;
     
 	return outData;

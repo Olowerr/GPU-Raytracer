@@ -326,6 +326,7 @@ SET ERRORLEVEL=0</Command>
     <None Include="resources\shaders\RaytracerCS.hlsl">
       <FileType>Document</FileType>
     </None>
+    <None Include="resources\shaders\GPU-Structs.hlsli" />
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\shaders\ShaderResourceRegisters.h" />

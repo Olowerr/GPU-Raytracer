@@ -120,7 +120,7 @@ void Application::run()
 			m_debugRenderer.renderBvhNodeGeometry(m_debugSelectedEntity, m_debugSelectedBvhNodeIdx);
 		if (m_drawBvhNodeBBs)
 			m_debugRenderer.renderBvhNodeBBs(m_debugSelectedEntity, m_debugSelectedBvhNodeIdx);
-		if (m_drawOctNodeBBs)
+		if (m_octTreeDrawMode != DebugRenderer::DrawMode::None)
 			m_debugRenderer.renderOctTreeNodeBBs(m_debugSelectedOctNodeIdx);
 
 		Okay::endFrameImGui();
@@ -448,7 +448,7 @@ void Application::updateImGui()
 			ImGui::Checkbox("Draw Objects", &m_rasterizerDrawObjects);
 			ImGui::EndDisabled();
 
-			static int mode = DebugRenderer::TreeNodeDrawMode::DrawWithDecendants;
+			static int mode = DebugRenderer::DrawMode::DrawWithDecendants;
 			static int enttID = -1;
 
 			if (ImGui::DragInt("Entity", &enttID, 0.1f, -1, (int)m_scene.getRegistry().alive()))
@@ -469,19 +469,19 @@ void Application::updateImGui()
 			ImGui::Checkbox("Draw Node Gemoetry", &m_drawNodeGeometry);
 
 			ImGui::Text("Node Draw Mode");
-			ImGui::RadioButton("Draw None", &mode, DebugRenderer::TreeNodeDrawMode::None);
-			ImGui::RadioButton("Draw Single", &mode, DebugRenderer::TreeNodeDrawMode::DrawSingle);
-			ImGui::RadioButton("Draw With Children", &mode, DebugRenderer::TreeNodeDrawMode::DrawWithChildren);
-			ImGui::RadioButton("Draw With Decendants", &mode, DebugRenderer::TreeNodeDrawMode::DrawWithDecendants);
-			m_debugRenderer.setBvhNodeDrawMode(DebugRenderer::TreeNodeDrawMode(mode));
+			ImGui::RadioButton("Draw None", &mode, DebugRenderer::DrawMode::None);
+			ImGui::RadioButton("Draw Single", &mode, DebugRenderer::DrawMode::DrawSingle);
+			ImGui::RadioButton("Draw With Children", &mode, DebugRenderer::DrawMode::DrawWithChildren);
+			ImGui::RadioButton("Draw With Decendants", &mode, DebugRenderer::DrawMode::DrawWithDecendants);
+			m_debugRenderer.setBvhNodeDrawMode(DebugRenderer::DrawMode(mode));
 
 			ImGui::Separator();
 		}
 
 		{
-			static int mode = DebugRenderer::TreeNodeDrawMode::None;
+			static int mode = m_octTreeDrawMode;
 
-			ImGui::Checkbox("Draw Oct Node BBs", &m_drawOctNodeBBs);
+			ImGui::PushID("octNodes");
 
 			const std::vector<GPU_OctTreeNode>& octTreeNodes = m_rayTracer.getOctTreeNodes();
 
@@ -489,12 +489,14 @@ void Application::updateImGui()
 			m_debugSelectedOctNodeIdx = octTreeNodes.size() == 1 && m_debugSelectedOctNodeIdx > 0 ? 0u : m_debugSelectedOctNodeIdx;
 
 			ImGui::Text("Oct Node Draw Mode");
-			ImGui::PushID("octNodes");
-			ImGui::RadioButton("Draw None", &mode, DebugRenderer::TreeNodeDrawMode::None);
-			ImGui::RadioButton("Draw Single", &mode, DebugRenderer::TreeNodeDrawMode::DrawSingle);
-			ImGui::RadioButton("Draw With Children", &mode, DebugRenderer::TreeNodeDrawMode::DrawWithChildren);
-			ImGui::RadioButton("Draw With Decendants", &mode, DebugRenderer::TreeNodeDrawMode::DrawWithDecendants);
-			m_debugRenderer.setOctTreeNodeDrawMode(DebugRenderer::TreeNodeDrawMode(mode));
+			ImGui::RadioButton("Draw None", &mode, DebugRenderer::DrawMode::None);
+			ImGui::RadioButton("Draw Single", &mode, DebugRenderer::DrawMode::DrawSingle);
+			ImGui::RadioButton("Draw With Children", &mode, DebugRenderer::DrawMode::DrawWithChildren);
+			ImGui::RadioButton("Draw With Decendants", &mode, DebugRenderer::DrawMode::DrawWithDecendants);
+
+			m_octTreeDrawMode = DebugRenderer::DrawMode(mode);
+			m_debugRenderer.setOctTreeNodeDrawMode(m_octTreeDrawMode);
+
 			ImGui::PopID();
 		}
 

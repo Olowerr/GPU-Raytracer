@@ -6,7 +6,7 @@
 #define NUM_BOUNCES (3)
 
 
-// ---- Structs
+// ---- Structs, specific to RayTracer
 struct Payload
 {
     bool hit;
@@ -46,32 +46,12 @@ struct RenderData
     float3 pad0;
 };
 
-struct Node
-{
-    AABB boundingBox;
-    uint triStart;
-    uint triEnd;
-    uint firstChildIdx;
-};
-
-struct OctTreeNode
-{
-    AABB boundingBox;
-
-    uint meshesStartIdx;
-    uint meshesEndIdx;
-
-    uint spheresStartIdx;
-    uint spheresEndIdx;
-
-    uint children[8u];
-};
 
 // ---- Resources
 
 StructuredBuffer<Triangle> trianglePosData : register(TRIANGLE_POS_GPU_REG);
 StructuredBuffer<TriangleInfo> triangleInfoData : register(TRIANGLE_INFO_GPU_REG);
-StructuredBuffer<Node> bvhNodes : register(BVH_TREE_GPU_REG);
+StructuredBuffer<BvhNode> bvhNodes : register(BVH_TREE_GPU_REG);
 Texture2DArray<unorm float4> textures : register(TEXTURES_GPU_REG);
 TextureCube environmentMap : register(ENVIRONMENT_MAP_GPU_REG);
 
@@ -93,6 +73,7 @@ cbuffer RenderDataBuffer : register(RENDER_DATA_GPU_REG)
 }
 
 // ---- Functions
+
 float2 normalToUV(float3 normal)
 {
     float2 uv;
@@ -149,21 +130,6 @@ float3 findTransparencyBounce(float3 direction, float3 normal, float refractionI
     return refract(direction, normal, refractionRatio);
 }
 
-float3 barycentricInterpolation(float3 uvw, float3 value0, float3 value1, float3 value2)
-{
-    return value0 * uvw.x + value1 * uvw.y + value2 * uvw.z;
-}
-
-float2 barycentricInterpolation(float3 uvw, float2 value0, float2 value1, float2 value2)
-{
-    return value0 * uvw.x + value1 * uvw.y + value2 * uvw.z;
-}
-
-bool isValidIdx(uint idx)
-{
-    return idx != UINT_MAX;
-}
-
 float3 sampleTexture(uint textureIdx, float2 meshUVs)
 {
     return textures.SampleLevel(simp, float3(meshUVs, (float)textureIdx), 0.f).rgb;
@@ -190,7 +156,7 @@ void findMaterialTextureColours(inout Material material, float2 meshUVs)
         material.metallic.colour = metallic;
     }
     
-     if (isValidIdx(material.specular.textureIdx))
+    if (isValidIdx(material.specular.textureIdx))
     {
         float specular = sampleTexture(material.specular.textureIdx, meshUVs).r;
         specular = clamp(specular, material.specular.colour, 1.f);
@@ -208,11 +174,57 @@ float3 sampleNormalMap(uint textureIdx, float2 meshUVs, float3 normal, float3 ta
     return normalize(mul(sampledNormal, tbn));
 }
 
+Ray createRay(uint2 pixelId, inout uint seed)
+{
+    float3 pos = float3((float) pixelId.x, float(renderData.textureDims.y - pixelId.y), renderData.cameraNearZ);
+    
+    // Simple AA
+    pos.x += randomFloat(seed) - 0.5f;
+    pos.y += randomFloat(seed) - 0.5f;
+    
+    pos.xy /= (float2) renderData.textureDims;
+    pos.xy *= 2.f;
+    pos.xy -= 1.f;
+    
+#if 0 // My way
+    pos.xy *= renderData.viewPlaneDims;
+    pos = mul(float4(pos, 1.f), renderData.cameraInverseViewMatrix);
+    
+    Ray ray;
+    ray.origin = renderData.cameraPosition;
+    ray.direction = normalize(pos - ray.origin);
+   
+#else // Cherno way
+    float4 target = mul(float4(pos, 1.f), renderData.cameraInverseProjectionMatrix);
+    
+    Ray ray;
+    ray.origin = renderData.cameraPosition;
+    ray.direction = mul(float4(normalize(target.xyz / target.z), 0.f), renderData.cameraInverseViewMatrix).xyz;
+#endif
+    
+    return ray;
+}
+
+void applyDOF(inout Ray ray, inout uint seed)
+{
+    float2 rayJitter = randomPointInCircle(seed) * renderData.dofStrength;
+    float3 rayOffset = renderData.cameraRightDir * rayJitter.x + renderData.cameraUpDir * rayJitter.y;
+    float3 focusPoint = ray.origin + ray.direction * (renderData.dofDistance + renderData.cameraNearZ); // + nearZ enables dofDistance = 0
+
+    ray.origin += rayOffset;
+    ray.direction = normalize(focusPoint - ray.origin);
+}
+
 Payload findClosestHit(Ray ray, inout uint bbCheckCount, inout uint triCheckCount)
 {
     Payload payload;
+
+    payload.hit = false;
+    payload.distance = FLT_MAX;
+    payload.material = Material::create();
+    payload.worldPosition = float3(0.f, 0.f, 0.f);
+    payload.worldNormal = float3(0.f, 0.f, 0.f);
     
-    float closestHitDistance = FLT_MAX;
     uint hitIdx = UINT_MAX;
     uint hitType = 0;
     
@@ -221,9 +233,9 @@ Payload findClosestHit(Ray ray, inout uint bbCheckCount, inout uint triCheckCoun
     {
         float distanceToHit = Collision::RayAndSphere(ray, sphereData[i]);
         
-        if (distanceToHit > 0.f && distanceToHit < closestHitDistance)
+        if (distanceToHit > 0.f && distanceToHit < payload.distance)
         {
-            closestHitDistance = distanceToHit;
+            payload.distance = distanceToHit;
             hitIdx = i;
             hitType = 0;
         }
@@ -246,7 +258,7 @@ Payload findClosestHit(Ray ray, inout uint bbCheckCount, inout uint triCheckCoun
         uint octCurrentNodeIdx = octStack[--octStackSize];
         OctTreeNode octNode = octTreeNodes[octCurrentNodeIdx];
         
-        if (Collision::RayAndAABBDist(ray, octNode.boundingBox) >= closestHitDistance)
+        if (Collision::RayAndAABBDist(ray, octNode.boundingBox) >= payload.distance)
             continue;
         
         for (i = octNode.meshesStartIdx; i < octNode.meshesEndIdx; i++)
@@ -266,20 +278,20 @@ Payload findClosestHit(Ray ray, inout uint bbCheckCount, inout uint triCheckCoun
             {
                 currentNodeIdx = bvhStack[--bvhStackSize];
             
-                Node node = bvhNodes[currentNodeIdx];
+                BvhNode bvhNode = bvhNodes[currentNodeIdx];
             
                 bbCheckCount += 1;
-                if (Collision::RayAndAABBDist(localRay, node.boundingBox) >= closestHitDistance)
+                if (Collision::RayAndAABBDist(localRay, bvhNode.boundingBox) >= payload.distance)
                     continue; // Missed AABB
             
-                if (node.firstChildIdx != UINT_MAX) // Is not leaf?
+                if (isValidIdx(bvhNode.firstChildIdx)) // Is not leaf?
                 {
-                    bvhStack[bvhStackSize++] = node.firstChildIdx;
-                    bvhStack[bvhStackSize++] = node.firstChildIdx + 1;
+                    bvhStack[bvhStackSize++] = bvhNode.firstChildIdx;
+                    bvhStack[bvhStackSize++] = bvhNode.firstChildIdx + 1;
                     continue;
                 }
                     
-                for (uint j = node.triStart; j < node.triEnd; j++)
+                for (uint j = bvhNode.triStart; j < bvhNode.triEnd; j++)
                 {
                     Triangle tri = trianglePosData[j];
         
@@ -300,9 +312,9 @@ Payload findClosestHit(Ray ray, inout uint bbCheckCount, inout uint triCheckCoun
                     float4 localRayToHit = float4(localRay.direction * distanceToHit, 0.f);
                     distanceToHit = length(mul(localRayToHit, traMatrix).xyz);
                 
-                    if (distanceToHit < closestHitDistance)
+                    if (distanceToHit < payload.distance)
                     {
-                        closestHitDistance = distanceToHit;
+                        payload.distance = distanceToHit;
                         hitIdx = i;
                         hitType = 1;
                         triHitIdx = j;
@@ -314,19 +326,14 @@ Payload findClosestHit(Ray ray, inout uint bbCheckCount, inout uint triCheckCoun
             }
         }
         
-        for (uint k = 0; k < 8; k++)
+        for (i = 0; i < octNode.numChildren; i++)
         {
-            uint childIdx = octNode.children[k];
-            if (isValidIdx(childIdx))
-            {
-                octStack[octStackSize++] = childIdx;
-            }
+            octStack[octStackSize++] = octNode.firstChildIdx + i;
         }
     }
     
     payload.hit = hitIdx != UINT_MAX;
-    payload.worldPosition = ray.origin + ray.direction * closestHitDistance;
-    payload.distance = closestHitDistance;
+    payload.worldPosition = ray.origin + ray.direction * payload.distance;
     
     // TODO: Make better system
     switch (hitType)
@@ -349,7 +356,6 @@ Payload findClosestHit(Ray ray, inout uint bbCheckCount, inout uint triCheckCoun
             {
                 payload.worldNormal = hitNormal;
             }
-            
             
             findMaterialTextureColours(payload.material, sphereUVs);
             break;
@@ -422,39 +428,8 @@ void main(uint3 DTid : SV_DispatchThreadID)
      
     uint seed = DTid.x + (DTid.y + 74813) * renderData.textureDims.x * (renderData.numAccumulationFrames + 1);
     
-    float3 pos = float3((float) DTid.x, float(renderData.textureDims.y - DTid.y), renderData.cameraNearZ);
-    
-    // Simple AA
-    pos.x += randomFloat(seed) - 0.5f;
-    pos.y += randomFloat(seed) - 0.5f;
-    
-    pos.xy /= (float2) renderData.textureDims;
-    pos.xy *= 2.f;
-    pos.xy -= 1.f;
-    
-#if 0 // My way
-    pos.xy *= renderData.viewPlaneDims;
-    pos = mul(float4(pos, 1.f), renderData.cameraInverseViewMatrix);
-    
-    Ray ray;
-    ray.origin = renderData.cameraPosition;
-    ray.direction = normalize(pos - ray.origin);
-   
-#else // Cherno way
-    float4 target = mul(float4(pos, 1.f), renderData.cameraInverseProjectionMatrix);
-    
-    Ray ray;
-    ray.origin = renderData.cameraPosition;
-    ray.direction = mul(float4(normalize(target.xyz / target.z), 0.f), renderData.cameraInverseViewMatrix).xyz;
-#endif
-    
-    // DOF
-    float2 rayJitter = randomPointInCircle(seed) * renderData.dofStrength;
-    float3 rayOffset = renderData.cameraRightDir * rayJitter.x + renderData.cameraUpDir * rayJitter.y;
-    float3 focusPoint = ray.origin + ray.direction * (renderData.dofDistance + renderData.cameraNearZ); // + nearZ enables dofDistance = 0
-
-    ray.origin += rayOffset;
-    ray.direction = normalize(focusPoint - ray.origin);
+    Ray ray = createRay(DTid.xy, seed);
+    applyDOF(ray, seed);
 
     float3 light = float3(0.f, 0.f, 0.f);
     float3 contribution = float3(1.f, 1.f, 1.f);

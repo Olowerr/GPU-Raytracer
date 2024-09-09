@@ -16,7 +16,7 @@ class ResourceManager;
 class DebugRenderer
 {
 public:
-	enum TreeNodeDrawMode : unsigned char
+	enum DrawMode : unsigned char
 	{
 		None = 0,
 		DrawSingle,
@@ -39,10 +39,10 @@ public:
 
 	void renderBvhNodeBBs(Entity entity, uint32_t localNodeIdx);
 	void renderBvhNodeGeometry(Entity entity, uint32_t localNodeIdx);
-	void setBvhNodeDrawMode(TreeNodeDrawMode mode);
+	void setBvhNodeDrawMode(DrawMode mode);
 
 	void renderOctTreeNodeBBs(uint32_t nodeIDx);
-	void setOctTreeNodeDrawMode(TreeNodeDrawMode mode);
+	void setOctTreeNodeDrawMode(DrawMode mode);
 
 
 	void onResize();
@@ -52,8 +52,8 @@ private: // Scene & Resources
 	const RayTracer* m_pRayTracer;
 	const ResourceManager* m_pResourceManager;
 
-	TreeNodeDrawMode m_bvhDrawMode;
-	TreeNodeDrawMode m_octTreeDrawMode;
+	DrawMode m_bvhDrawMode;
+	DrawMode m_octTreeDrawMode;
 
 private: // Pipeline
 	struct RenderData // Aligned 16
@@ -83,7 +83,7 @@ private: // Pipeline
 	void drawOctTreeNodeBoundingBox(uint32_t nodeIdx);
 
 	template<typename NodeFunction, typename GPUNodeType, typename... Args>
-	void executeDrawMode(uint32_t nodeIdx, const std::vector<GPUNodeType>& list, NodeFunction pFunc, TreeNodeDrawMode drawMode, Args... args);
+	void executeDrawMode(uint32_t nodeIdx, const std::vector<GPUNodeType>& list, NodeFunction pFunc, DrawMode drawMode, Args... args);
 
 	// Mesh pipelime
 	ID3D11VertexShader* m_pVS;
@@ -110,5 +110,5 @@ private: // Pipeline
 };
 
 inline void DebugRenderer::setScene(const Scene& pScene)			{ m_pScene = &pScene; }
-inline void DebugRenderer::setBvhNodeDrawMode(TreeNodeDrawMode mode) { m_bvhDrawMode = mode; }
-inline void DebugRenderer::setOctTreeNodeDrawMode(TreeNodeDrawMode mode) { m_octTreeDrawMode = mode; }
+inline void DebugRenderer::setBvhNodeDrawMode(DrawMode mode)		{ m_bvhDrawMode = mode; }
+inline void DebugRenderer::setOctTreeNodeDrawMode(DrawMode mode)	{ m_octTreeDrawMode = mode; }

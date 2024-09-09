@@ -35,7 +35,7 @@ private:
 	bool m_rasterizerDrawObjects = true;
 	bool m_drawBvhNodeBBs = true;
 	bool m_drawNodeGeometry = true;
-	bool m_drawOctNodeBBs = true;
+	DebugRenderer::DrawMode m_octTreeDrawMode = DebugRenderer::DrawMode::None;
 
 	Entity m_debugSelectedEntity;
 	uint32_t m_debugSelectedBvhNodeIdx;

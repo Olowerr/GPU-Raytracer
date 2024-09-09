@@ -687,7 +687,16 @@ void RayTracer::loadOctTree(const std::vector<OctTreeNode>& nodes)
 
 		gpuNode.boundingBox = node.boundingBox;
 
-		memcpy(gpuNode.children, node.children, sizeof(node.children));
+		for (uint32_t k = 0; k < 8u; k ++)
+		{
+			if (node.children[k] == Okay::INVALID_UINT)
+				continue;
+
+			if (gpuNode.firstChildIdx == Okay::INVALID_UINT)
+				gpuNode.firstChildIdx = node.children[k];
+			
+			gpuNode.numChildren += 1;
+		}
 
 		uint32_t numMeshes = 0u;
 		for (const EntityAABB& entityAABB : node.entities)

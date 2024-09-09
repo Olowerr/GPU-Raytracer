@@ -6,16 +6,7 @@ StructuredBuffer<Triangle> triangleData : register(TRIANGLE_POS_GPU_REG);
 
 cbuffer RenderDataBuffer : register(DBG_RENDER_DATA_GPU_REG)
 {
-    float4x4 camViewProjMatrix;
-    float4x4 objectWorldMatrix;
-    uint vertStartIdx;
-    uint bvhNodeIdx;
-    float2 pad0;
-    MaterialColour3 albedo;
-    float3 cameraDir;
-    float pad1;
-    float3 camPos;
-    float pad2;
+    DBGRenderData renderData;
 }
 
 struct Output
@@ -31,7 +22,7 @@ Output main(uint vertIdx : SV_VertexID)
     
     Output output;
     output.localPos = pos;
-    output.pos = mul(float4(camPos + pos, 1.f), camViewProjMatrix).xyww;
+    output.pos = mul(float4(renderData.cameraPos + pos, 1.f), renderData.camViewProjMatrix).xyww;
 
     return output;
 }

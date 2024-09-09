@@ -56,12 +56,6 @@ struct OctTreeNode
 
 struct GPU_OctTreeNode
 {
-	GPU_OctTreeNode()
-		: meshesStartIdx(Okay::INVALID_UINT), meshesEndIdx(Okay::INVALID_UINT),
-		spheresStartIdx(Okay::INVALID_UINT), spheresEndIdx(Okay::INVALID_UINT)
-	{
-		memset(children, -1, sizeof(children));
-	}
 	Okay::AABB boundingBox;
 
 	uint32_t meshesStartIdx = Okay::INVALID_UINT;
@@ -70,7 +64,8 @@ struct GPU_OctTreeNode
 	uint32_t spheresStartIdx = Okay::INVALID_UINT;
 	uint32_t spheresEndIdx = Okay::INVALID_UINT;
 
-	uint32_t children[8u];
+	uint32_t firstChildIdx = Okay::INVALID_UINT;
+	uint32_t numChildren = 0u;
 };
 
 class RayTracer
