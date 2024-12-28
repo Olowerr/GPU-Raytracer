@@ -48,12 +48,12 @@ public:
 	void onResize();
 
 private: // Scene & Resources
-	const Scene* m_pScene;
-	const RayTracer* m_pRayTracer;
-	const ResourceManager* m_pResourceManager;
+	const Scene* m_pScene = nullptr;
+	const RayTracer* m_pRayTracer = nullptr;
+	const ResourceManager* m_pResourceManager = nullptr;
 
-	DrawMode m_bvhDrawMode;
-	DrawMode m_octTreeDrawMode;
+	DrawMode m_bvhDrawMode = DrawMode::None;
+	DrawMode m_octTreeDrawMode = DrawMode::None;
 
 private: // Pipeline
 	struct RenderData // Aligned 16
@@ -74,39 +74,39 @@ private: // Pipeline
 	void bindGeometryPipeline(bool clearTarget = true);
 
 	// General
-	const RenderTexture* m_pTargetTexture;
+	const RenderTexture* m_pTargetTexture = nullptr;
 	RenderData m_renderData;
-	ID3D11Buffer* m_pRenderDataBuffer;
-	void drawNodeBoundingBox(uint32_t nodeIdx, uint32_t baseNodeIdx, const MeshDesc& meshDesc);
-	void drawNodeGeometry(uint32_t nodeIdx, const MeshComponent& meshComp);
+	ID3D11Buffer* m_pRenderDataBuffer = nullptr;
+	void drawNodeBoundingBox(uint32_t nodeIdx, float colourStrength);
+	void drawNodeGeometry(uint32_t nodeIdx, float colourStrength);
 
-	void drawOctTreeNodeBoundingBox(uint32_t nodeIdx);
+	void drawOctTreeNodeBoundingBox(uint32_t nodeIdx, float colourStrength);
 
 	template<typename NodeFunction, typename GPUNodeType, typename... Args>
-	void executeDrawMode(uint32_t nodeIdx, const std::vector<GPUNodeType>& list, NodeFunction pFunc, DrawMode drawMode, Args... args);
+	void executeDrawMode(DrawMode drawMode, const std::vector<GPUNodeType>& nodeList, uint32_t nodeIdx, uint32_t numChildren, NodeFunction pDrawFunc, Args... args);
 
 	// Mesh pipelime
-	ID3D11VertexShader* m_pVS;
-	D3D11_VIEWPORT m_viewport;
-	ID3D11PixelShader* m_pPS;
+	ID3D11VertexShader* m_pVS = nullptr;
+	D3D11_VIEWPORT m_viewport = D3D11_VIEWPORT{};
+	ID3D11PixelShader* m_pPS = nullptr;
 
 	GPUStorage m_sphereTriData;
 
 	// Bvh pipeline
-	bool m_renderBvhTree;
-	ID3D11ShaderResourceView* m_pBvhNodeBuffer;
-	uint32_t m_bvhNodeNumVerticies;
-	ID3D11RasterizerState* m_pDoubleSideRS;
+	bool m_renderBvhTree = false;
+	ID3D11ShaderResourceView* m_pBvhNodeBuffer = nullptr;
+	uint32_t m_bvhNodeNumVerticies = 0u;
+	ID3D11RasterizerState* m_pDoubleSideRS = nullptr;
 
-	ID3D11VertexShader* m_pBoundingBoxVS;
-	ID3D11PixelShader* m_pBoundingBoxPS;
+	ID3D11VertexShader* m_pBoundingBoxVS = nullptr;
+	ID3D11PixelShader* m_pBoundingBoxPS = nullptr;
 	
 	// Skybox
-	ID3D11VertexShader* m_pSkyboxVS;
-	ID3D11PixelShader* m_pSkyboxPS;
+	ID3D11VertexShader* m_pSkyboxVS = nullptr;
+	ID3D11PixelShader* m_pSkyboxPS = nullptr;
 	GPUStorage m_cubeTriData;
-	ID3D11RasterizerState* m_noCullRS;
-	ID3D11DepthStencilState* m_pLessEqualDSS;
+	ID3D11RasterizerState* m_noCullRS = nullptr;
+	ID3D11DepthStencilState* m_pLessEqualDSS = nullptr;
 };
 
 inline void DebugRenderer::setScene(const Scene& pScene)			{ m_pScene = &pScene; }

@@ -603,6 +603,7 @@ void RayTracer::createOctTree(const Scene& scene, uint32_t maxDepth, uint32_t ma
 
 	std::stack<OctTreeNodeStack> stack;
 	std::vector<EntityAABB> childEntities;
+	std::vector<EntityAABB> childEntitiesPool;
 	OctTreeNodeStack nodeStackData;
 
 	stack.push(OctTreeNodeStack(Okay::INVALID_UINT, 0u, 0u));
@@ -630,8 +631,18 @@ void RayTracer::createOctTree(const Scene& scene, uint32_t maxDepth, uint32_t ma
 		defaultChildBB.max += bbCenter;
 		defaultChildBB.min += bbCenter;
 
-		glm::vec3 defaultChildBBExtents = (defaultChildBB.max - defaultChildBB.min) * 0.5f;
+		childEntitiesPool.clear();
+		float nodeBBArea = pNode->boundingBox.getArea();
+		uint32_t totalChildren = pNode->entities.size();
+		for (int k = pNode->entities.size() - 1; k >= 0; k--)
+		{
+			if (pNode->entities[k].aabb.getArea() / nodeBBArea < 0.75f)
+			{
+				childEntitiesPool.emplace_back(pNode->entities[k]);
+			}
+		}
 
+		glm::vec3 defaultChildBBExtents = (defaultChildBB.max - defaultChildBB.min) * 0.5f;
 		for (uint32_t i = 0u; i < 8u; i++)
 		{
 			Okay::AABB childBB = defaultChildBB;
@@ -641,21 +652,40 @@ void RayTracer::createOctTree(const Scene& scene, uint32_t maxDepth, uint32_t ma
 				childBB.min[k] += CHILD_BBS_OFFSETS[i][k] * defaultChildBBExtents[k];
 			}
 
-			childEntities.clear(); // Fixes warning C26800 "Use of a moved from object: 'object'."
+			childEntities.clear();
 
-			for (int k = (int)pNode->entities.size() - 1; k >= 0; k--)
+			for (int k = (int)childEntitiesPool.size() - 1; k >= 0; k--)
 			{
-				const EntityAABB& entityAABB = pNode->entities[k];
+				const EntityAABB& entityAABB = childEntitiesPool[k];
 
 				if (!Okay::AABB::intersects(childBB, entityAABB.aabb))
 					continue;
 
-				childEntities.emplace_back(entityAABB.entity, entityAABB.aabb);
-				pNode->entities.erase(pNode->entities.begin() + k);
+				//glm::vec3 boxCenter = (entityAABB.aabb.max + entityAABB.aabb.min) * 0.5f;
+				//if (!Okay::AABB::intersects(childBB, boxCenter))
+				//	continue;
+
+				childEntities.emplace_back(entityAABB);
+				childEntitiesPool.erase(childEntitiesPool.begin() + k);
 			}
 
-			if (childEntities.empty())
+			if (!childEntities.size())
 				continue;
+
+			if (childEntities.size() == totalChildren)
+				continue;
+
+			for (uint32_t k = 0; k < childEntities.size(); k++)
+			{
+				for (uint32_t j = 0; j < pNode->entities.size(); j++)
+				{
+					if (childEntities[k].entity != pNode->entities[j].entity)
+						continue;
+
+					pNode->entities.erase(pNode->entities.begin() + j);
+					break;
+				}
+			}
 
 			OctTreeNode& childNode = nodes.emplace_back();
 			pNode = &nodes[nodeStackData.nodeIndex]; // Re-get the node incase the 'nodes' vector had to reallocate
@@ -663,6 +693,7 @@ void RayTracer::createOctTree(const Scene& scene, uint32_t maxDepth, uint32_t ma
 			pNode->children[i] = uint32_t(nodes.size() - 1);
 
 			childNode.entities = std::move(childEntities);
+			//childNode.boundingBox = childBBs[i];
 			refitOctTreeNode(childNode);
 
 			stack.push(OctTreeNodeStack(nodeStackData.nodeIndex, pNode->children[i], nodeStackData.depth + 1u));
@@ -674,10 +705,9 @@ void RayTracer::createOctTree(const Scene& scene, uint32_t maxDepth, uint32_t ma
 
 void RayTracer::loadOctTree(const std::vector<OctTreeNode>& nodes)
 {
-	m_octTreeNodes.resize(nodes.size());
-
 	const entt::registry& reg = m_pScene->getRegistry();
 
+	m_octTreeNodes.assign(nodes.size(), GPU_OctTreeNode{});
 	m_gpuMeshes.clear();
 
 	for (uint32_t i = 0; i < (uint32_t)nodes.size(); i++)
@@ -740,6 +770,8 @@ void RayTracer::loadOctTree(const std::vector<OctTreeNode>& nodes)
 
 		//gpuNode.spheresStartIdx = (uint32_t)m_gpuMeshes.size();
 		//gpuNode.spheresEndIdx = gpuNode.spheresStartIdx + (uint32_t)node.entities.size();
+
+		printf("nodeIdx: %u, numChildren: %u, numEntities: %u\n", i, gpuNode.numChildren, numMeshes);
 	}
 
 	m_meshData.updateRaw((uint32_t)m_gpuMeshes.size(), m_gpuMeshes.data());

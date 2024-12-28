@@ -88,6 +88,16 @@ namespace Okay
 
 			return (aToBCenter.x < extentsSum.x) && (aToBCenter.y < extentsSum.y) && (aToBCenter.z < extentsSum.z);
 		}
+		
+		static bool intersects(const AABB& box, const glm::vec3& point)
+		{
+			glm::vec3 boxCenter = (box.max + box.min) * 0.5f;
+			glm::vec3 pointToBox = boxCenter - point;
+
+			glm::vec3 boxExtents = (box.max - box.min) * 0.5f;
+
+			return glm::dot(pointToBox, pointToBox) <= glm::dot(boxExtents, boxExtents);
+		}
 	};
 
 	struct Triangle // Rename?

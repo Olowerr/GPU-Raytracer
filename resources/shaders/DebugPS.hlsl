@@ -34,7 +34,7 @@ float4 main(PS_Input inputData) : SV_TARGET
     
     inputData.normal = normalize(inputData.normal);
     
-    finalColour *= max(dot(-renderData.cameraDir, inputData.normal), 0.2);
+    finalColour *= max(dot(normalize(renderData.cameraPos - inputData.position), inputData.normal), 0.f);
     finalColour.a = 1.f;
     
     return finalColour;

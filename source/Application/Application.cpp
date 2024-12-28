@@ -40,9 +40,9 @@ Application::Application()
 	//m_resourceManager.loadTexture("resources/textures/rev/rev_normalMap.png");
 
 	//loadMeshesAsEntities("resources/meshes/ikea_glass.obj", "", 10.f);
-	//loadMeshesAsEntities("resources/Sponza/sponza.obj", "resources/Sponza/", 0.07f);
 
-	loadMeshesAsEntities("resources/meshes/dragon_80K.obj", "", 20.f);
+	loadMeshesAsEntities("resources/Sponza/sponza.obj", "resources/Sponza/", 0.07f);
+	//loadMeshesAsEntities("resources/meshes/dragon_80K.obj", "", 20.f);
 
 
 	m_rayTracer.initiate(m_target, m_resourceManager, "resources/environmentMaps/Skybox2.jpg");
@@ -120,7 +120,7 @@ void Application::run()
 			m_debugRenderer.renderBvhNodeGeometry(m_debugSelectedEntity, m_debugSelectedBvhNodeIdx);
 		if (m_drawBvhNodeBBs)
 			m_debugRenderer.renderBvhNodeBBs(m_debugSelectedEntity, m_debugSelectedBvhNodeIdx);
-		if (m_octTreeDrawMode != DebugRenderer::DrawMode::None)
+		if (m_octTreeDrawMode != DebugRenderer::DrawMode::None && m_debugSelectedOctNodeIdx != Okay::INVALID_UINT)
 			m_debugRenderer.renderOctTreeNodeBBs(m_debugSelectedOctNodeIdx);
 
 		Okay::endFrameImGui();

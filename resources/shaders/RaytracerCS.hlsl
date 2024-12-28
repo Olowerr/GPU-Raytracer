@@ -3,7 +3,7 @@
 #include "ShaderResourceRegisters.h"
 
 // ---- Defines and constants
-#define NUM_BOUNCES (3)
+#define NUM_BOUNCES (1)
 
 
 // ---- Structs, specific to RayTracer
@@ -258,6 +258,7 @@ Payload findClosestHit(Ray ray, inout uint bbCheckCount, inout uint triCheckCoun
         uint octCurrentNodeIdx = octStack[--octStackSize];
         OctTreeNode octNode = octTreeNodes[octCurrentNodeIdx];
         
+        bbCheckCount += 1;
         if (Collision::RayAndAABBDist(ray, octNode.boundingBox) >= payload.distance)
             continue;
         
@@ -492,7 +493,9 @@ void main(uint3 DTid : SV_DispatchThreadID)
         }
         
         material = hitData.material;
-
+        //light = material.albedo.colour;
+        //break;
+        
         float metallicFactor = (material.metallic.colour * (1.f - material.roughness.colour)) >= randomFloat(seed);
         float specularFactor = (material.specular.colour * (1.f - material.roughness.colour)) >= randomFloat(seed);
         float transparencyFactor = material.transparency >= randomFloat(seed);

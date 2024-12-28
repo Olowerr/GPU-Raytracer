@@ -8,13 +8,10 @@
 #include <DirectXCollision.h>
 
 constexpr glm::vec3 BVH_NODE_COLOUR = glm::vec3(0.9f, 0.7f, 0.5f);
+constexpr glm::vec3 BVH_NODE_GEOMETRY_COLOUR = glm::vec3(0.4f, 0.6f, 0.8f);
 constexpr glm::vec3 OCT_NODE_COLOUR = glm::vec3(0.4f, 0.7f, 0.4f);
 
 DebugRenderer::DebugRenderer()
-	:m_pScene(nullptr), m_pRayTracer(nullptr), m_pResourceManager(nullptr),
-	m_pVS(nullptr), m_pPS(nullptr), m_viewport(), m_pRenderDataBuffer(nullptr), 
-	m_pBvhNodeBuffer(nullptr), m_bvhNodeNumVerticies(0u), m_renderBvhTree(false),
-	m_pBoundingBoxVS(nullptr), m_pBoundingBoxPS(nullptr), m_pDoubleSideRS(nullptr)
 {
 }
 
@@ -299,7 +296,7 @@ void DebugRenderer::renderBvhNodeBBs(Entity entity, uint32_t localNodeIdx)
 
 	const MeshDesc& meshDesc = m_pRayTracer->getMeshDescriptors()[pMeshComp->meshID];
 	uint32_t globalNodeIdx = m_pRayTracer->getGlobalNodeIdx(*pMeshComp, localNodeIdx);
-	executeDrawMode(globalNodeIdx, m_pRayTracer->getBvhTreeNodes(), &DebugRenderer::drawNodeBoundingBox, m_bvhDrawMode, globalNodeIdx, meshDesc);
+	executeDrawMode(m_bvhDrawMode, m_pRayTracer->getBvhTreeNodes(), globalNodeIdx, 2, &DebugRenderer::drawNodeBoundingBox);
 
 	ID3D11ShaderResourceView* pOrigTriangleSRV = m_pRayTracer->getTrianglesPos().getSRV();
 	pDevCon->VSSetShaderResources(TRIANGLE_POS_SLOT, 1u, &pOrigTriangleSRV);
@@ -330,9 +327,40 @@ void DebugRenderer::renderBvhNodeGeometry(Entity entity, uint32_t localNodeIdx)
 	pDevCon->RSSetState(m_pDoubleSideRS);
 
 	uint32_t globalNodeIdx = m_pRayTracer->getGlobalNodeIdx(*pMeshComp, localNodeIdx);
-	executeDrawMode(globalNodeIdx, m_pRayTracer->getBvhTreeNodes(), &DebugRenderer::drawNodeGeometry, m_bvhDrawMode, *pMeshComp);
+	executeDrawMode(m_bvhDrawMode, m_pRayTracer->getBvhTreeNodes(), globalNodeIdx, 2, &DebugRenderer::drawNodeGeometry);
 
 	pDevCon->RSSetState(nullptr);
+}
+
+void DebugRenderer::renderOctTreeNodeBBs(uint32_t nodeIdx)
+{
+	if (m_octTreeDrawMode == DrawMode::None)
+		return;
+
+	updateCameraData();
+
+	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
+
+	pDevCon->IASetInputLayout(nullptr);
+	pDevCon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+
+	pDevCon->VSSetShader(m_pBoundingBoxVS, nullptr, 0u);
+	pDevCon->VSSetConstantBuffers(DBG_RENDER_DATA_SLOT, 1u, &m_pRenderDataBuffer);
+	pDevCon->VSSetShaderResources(TRIANGLE_POS_SLOT, 1u, &m_pBvhNodeBuffer);
+
+	pDevCon->RSSetViewports(1u, &m_viewport);
+
+	pDevCon->PSSetShader(m_pBoundingBoxPS, nullptr, 0u);
+	pDevCon->PSSetConstantBuffers(DBG_RENDER_DATA_SLOT, 1u, &m_pRenderDataBuffer);
+
+	pDevCon->OMSetRenderTargets(1u, m_pTargetTexture->getRTV(), nullptr);
+
+	const std::vector<GPU_OctTreeNode>& octTreeNodes = m_pRayTracer->getOctTreeNodes();
+	uint32_t numChildren = octTreeNodes[nodeIdx].numChildren;
+	executeDrawMode(m_octTreeDrawMode, octTreeNodes, nodeIdx, numChildren, &DebugRenderer::drawOctTreeNodeBoundingBox);
+
+	ID3D11ShaderResourceView* pOrigTriangleSRV = m_pRayTracer->getTrianglesPos().getSRV();
+	pDevCon->VSSetShaderResources(TRIANGLE_POS_SLOT, 1u, &pOrigTriangleSRV);
 }
 
 void DebugRenderer::updateCameraData()
@@ -376,12 +404,10 @@ void DebugRenderer::bindGeometryPipeline(bool clearTarget)
 	pDevCon->PSSetConstantBuffers(DBG_RENDER_DATA_SLOT, 1u, &m_pRenderDataBuffer);
 }
 
-void DebugRenderer::drawNodeBoundingBox(uint32_t nodeIdx, uint32_t baseNodeIdx, const MeshDesc& meshDesc)
+void DebugRenderer::drawNodeBoundingBox(uint32_t nodeIdx, float colourStrength)
 {
 	OKAY_ASSERT(nodeIdx < (uint32_t)m_pRayTracer->getBvhTreeNodes().size());
 
-	float colourStrength = 1.f - nodeIdx / (float)meshDesc.numBvhNodes;
-	
 	m_renderData.albedo.textureId = Okay::INVALID_UINT;
 	m_renderData.albedo.colour = BVH_NODE_COLOUR * colourStrength;
 	m_renderData.nodeIdx = nodeIdx;
@@ -391,26 +417,26 @@ void DebugRenderer::drawNodeBoundingBox(uint32_t nodeIdx, uint32_t baseNodeIdx, 
 	Okay::getDeviceContext()->Draw(m_bvhNodeNumVerticies, 0u);
 }
 
-void DebugRenderer::drawNodeGeometry(uint32_t nodeIdx, const MeshComponent& meshComp)
+void DebugRenderer::drawNodeGeometry(uint32_t nodeIdx, float colourStrength)
 {
 	OKAY_ASSERT(nodeIdx < (uint32_t)m_pRayTracer->getBvhTreeNodes().size());
 
 	const GPUNode& node = m_pRayTracer->getBvhTreeNodes()[nodeIdx];
 
 	m_renderData.vertStartIdx = node.triStart * 3u;
-	m_renderData.albedo.colour = glm::vec3(0.f, 1.f, 0.f);
+	m_renderData.albedo.colour = BVH_NODE_GEOMETRY_COLOUR;
 	m_renderData.albedo.textureId = Okay::INVALID_UINT;
 
 	Okay::updateBuffer(m_pRenderDataBuffer, &m_renderData, sizeof(RenderData));
 	Okay::getDeviceContext()->Draw((node.triEnd - node.triStart) * 3u, 0u);
 }
 
-void DebugRenderer::drawOctTreeNodeBoundingBox(uint32_t nodeIdx)
+void DebugRenderer::drawOctTreeNodeBoundingBox(uint32_t nodeIdx, float colourStrength)
 {
 	OKAY_ASSERT(nodeIdx < (uint32_t)m_pRayTracer->getOctTreeNodes().size());
 
 	m_renderData.albedo.textureId = Okay::INVALID_UINT;
-	m_renderData.albedo.colour = OCT_NODE_COLOUR;
+	m_renderData.albedo.colour = OCT_NODE_COLOUR /** colourStrength*/;
 	m_renderData.nodeIdx = nodeIdx;
 	m_renderData.mode = 1;
 
@@ -418,76 +444,61 @@ void DebugRenderer::drawOctTreeNodeBoundingBox(uint32_t nodeIdx)
 	Okay::getDeviceContext()->Draw(m_bvhNodeNumVerticies, 0u);
 }
 
-void DebugRenderer::renderOctTreeNodeBBs(uint32_t nodeIdx)
-{
-	if (m_octTreeDrawMode == DrawMode::None)
-		return;
-
-	updateCameraData();
-
-	ID3D11DeviceContext* pDevCon = Okay::getDeviceContext();
-
-	pDevCon->IASetInputLayout(nullptr);
-	pDevCon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
-
-	pDevCon->VSSetShader(m_pBoundingBoxVS, nullptr, 0u);
-	pDevCon->VSSetConstantBuffers(DBG_RENDER_DATA_SLOT, 1u, &m_pRenderDataBuffer);
-	pDevCon->VSSetShaderResources(TRIANGLE_POS_SLOT, 1u, &m_pBvhNodeBuffer);
-
-	pDevCon->RSSetViewports(1u, &m_viewport);
-
-	pDevCon->PSSetShader(m_pBoundingBoxPS, nullptr, 0u);
-	pDevCon->PSSetConstantBuffers(DBG_RENDER_DATA_SLOT, 1u, &m_pRenderDataBuffer);
-
-	pDevCon->OMSetRenderTargets(1u, m_pTargetTexture->getRTV(), nullptr);
-
-	executeDrawMode(nodeIdx, m_pRayTracer->getOctTreeNodes(), &DebugRenderer::drawOctTreeNodeBoundingBox, m_octTreeDrawMode);
-
-	ID3D11ShaderResourceView* pOrigTriangleSRV = m_pRayTracer->getTrianglesPos().getSRV();
-	pDevCon->VSSetShaderResources(TRIANGLE_POS_SLOT, 1u, &pOrigTriangleSRV);
-}
-
-template<typename NodeFunction,typename GPUNodeType, typename... Args>
-void DebugRenderer::executeDrawMode(uint32_t nodeIdx, const std::vector<GPUNodeType>& nodeList, NodeFunction pFunc, DrawMode drawMode, Args... args)
+template<typename NodeFunction, typename GPUNodeType, typename... Args>
+void DebugRenderer::executeDrawMode(DrawMode drawMode, const std::vector<GPUNodeType>& nodeList, uint32_t nodeIdx, uint32_t numChildren, NodeFunction pDrawFunc, Args... args)
 {
 	switch (drawMode)
 	{
 	case DrawMode::DrawSingle:
 	{
-		(this->*pFunc)(nodeIdx, std::forward<Args>(args)...);
+		(this->*pDrawFunc)(nodeIdx, 1.f - nodeIdx / (float)nodeList.size(), std::forward<Args>(args)...);
 		break;
 	}
 	case DrawMode::DrawWithChildren:
 	{
-		//const GPUNodeType& selectedNode = nodeList[nodeIdx];
-		//
-		//(this->*pFunc)(nodeIdx, std::forward<Args>(args)...);
-		//if (selectedNode.firstChildIdx != Okay::INVALID_UINT)
-		//{
-		//	(this->*pFunc)(selectedNode.firstChildIdx, std::forward<Args>(args)...);
-		//	(this->*pFunc)(selectedNode.firstChildIdx + 1, std::forward<Args>(args)...);
-		//}
+		const GPUNodeType& selectedNode = nodeList[nodeIdx];
+		
+		(this->*pDrawFunc)(nodeIdx, 1.f - nodeIdx / (float)nodeList.size(), std::forward<Args>(args)...);
+		if (selectedNode.firstChildIdx != Okay::INVALID_UINT)
+		{
+			for (uint32_t i = 0; i < numChildren; i++)
+			{
+				(this->*pDrawFunc)(selectedNode.firstChildIdx + i, 1.f - (selectedNode.firstChildIdx + i) / (float)nodeList.size(), std::forward<Args>(args)...);
+			}
+		}
 		break;
 	}
 	case DrawMode::DrawWithDecendants:
 	{
-		//std::stack<uint32_t> nodes;
-		//nodes.push(nodeIdx);
-		//
-		//while (!nodes.empty())
-		//{
-		//	uint32_t currentIdx = nodes.top();
-		//	const GPUNodeType& currentNode = nodeList[currentIdx];
-		//	nodes.pop();
-		//
-		//	if (currentNode.firstChildIdx != Okay::INVALID_UINT)
-		//	{
-		//		nodes.push(currentNode.firstChildIdx);
-		//		nodes.push(currentNode.firstChildIdx + 1);
-		//	}
-		//
-		//	(this->*pFunc)(currentIdx, std::forward<Args>(args)...);
-		//}
+		std::stack<uint32_t> nodes;
+		nodes.push(nodeIdx);
+		
+		while (!nodes.empty())
+		{
+			uint32_t currentIdx = nodes.top();
+			const GPUNodeType& currentNode = nodeList[currentIdx];
+			nodes.pop();
+		
+			if (currentNode.firstChildIdx != Okay::INVALID_UINT)
+			{
+				// Need to solve this numChildren thing, should maybe just make a
+				// if constexpr (std::is_same<GPUNodeType, ...>())
+				// if that even works..?
+
+				uint32_t numChildren = 0u;
+				if constexpr (std::is_same<GPUNodeType, GPU_OctTreeNode>())
+					numChildren = currentNode.numChildren;
+				else if constexpr (std::is_same<GPUNodeType, GPUNode>())
+					numChildren = 2u;
+
+				for (uint32_t i = 0; i < numChildren; i++)
+				{
+					nodes.push(currentNode.firstChildIdx + i);
+				}
+			}
+		
+			(this->*pDrawFunc)(currentIdx, 1.f - currentIdx / (float)nodeList.size(), std::forward<Args>(args)...);
+		}
 		break;
 	}
 
